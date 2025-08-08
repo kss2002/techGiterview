@@ -22,7 +22,7 @@ analysis_cache = {}
 
 class RepositoryAnalysisRequest(BaseModel):
     """저장소 분석 요청"""
-    repository_url: str
+    repo_url: str
     analysis_depth: str = "standard"  # basic, standard, deep
     use_advanced: bool = True
     max_files: int = 15
@@ -41,7 +41,7 @@ class AnalysisStatusResponse(BaseModel):
 
 class AdvancedAnalysisRequest(BaseModel):
     """고도화된 분석 요청"""
-    repository_url: str
+    repo_url: str
     max_files: int = 20
     include_dashboard: bool = True
 
@@ -62,7 +62,7 @@ async def analyze_repository(
             "progress": 0,
             "current_step": "초기화 중",
             "start_time": datetime.now(),
-            "repository_url": request.repository_url,
+            "repository_url": request.repo_url,
             "use_advanced": request.use_advanced
         }
         
@@ -70,7 +70,7 @@ async def analyze_repository(
         background_tasks.add_task(
             run_analysis_task,
             analysis_id,
-            request.repository_url,
+            request.repo_url,
             request.analysis_depth,
             request.use_advanced
         )
@@ -141,7 +141,7 @@ async def analyze_repository_advanced(request: AdvancedAnalysisRequest):
         analyzer = AdvancedFileAnalyzer()
         
         # 고도화된 분석 실행
-        result = await analyzer.analyze_repository_advanced(request.repository_url)
+        result = await analyzer.analyze_repository_advanced(request.repo_url)
         
         if not result["success"]:
             raise HTTPException(status_code=500, detail=result.get("error", "분석 실패"))
@@ -149,7 +149,7 @@ async def analyze_repository_advanced(request: AdvancedAnalysisRequest):
         # 응답 데이터 구성
         response_data = {
             "success": True,
-            "repository_url": request.repository_url,
+            "repository_url": request.repo_url,
             "analysis_result": result,
             "important_files": result.get("important_files", []),
             "file_metrics_summary": {

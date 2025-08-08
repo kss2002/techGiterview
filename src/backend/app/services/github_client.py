@@ -21,11 +21,22 @@ class GitHubClient:
     
     def __init__(self):
         self.base_url = "https://api.github.com"
-        self.headers = {
-            "Authorization": f"token {settings.github_token}",
-            "Accept": "application/vnd.github.v3+json",
-            "User-Agent": "TechGiterview/1.0"
-        }
+        
+        # GitHub 토큰이 있으면 사용, 없으면 공개 API로 접근
+        if settings.github_token and settings.github_token != "your_github_token_here":
+            self.headers = {
+                "Authorization": f"token {settings.github_token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "TechGiterview/1.0"
+            }
+        else:
+            # 인증 없이 공개 API 사용 (Rate Limit이 낮음)
+            self.headers = {
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "TechGiterview/1.0"
+            }
+            print("[GITHUB_CLIENT] Warning: GitHub 토큰이 없어 공개 API를 사용합니다. Rate Limit이 제한됩니다.")
+        
         self.session = None
         self.api_call_count = 0
         self.total_response_time = 0.0
