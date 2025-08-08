@@ -302,8 +302,8 @@ if [ "$FRONTEND_MODE" = "local" ] && [ -n "$FRONTEND_PORT" ]; then
     fi
     
     echo "   React 개발 서버 시작 중 (포트: $FRONTEND_PORT)..."
-    # 백엔드 URL을 환경변수로 설정하여 프론트엔드에 전달
-    VITE_API_URL=http://localhost:8001 VITE_WS_URL=ws://localhost:8001 PORT=$FRONTEND_PORT npm run dev &
+    # 백엔드 URL을 환경변수로 설정하여 프론트엔드에 전달 (IPv4 강제)
+    VITE_API_URL=http://127.0.0.1:8001 VITE_WS_URL=ws://127.0.0.1:8001 PORT=$FRONTEND_PORT npm run dev &
     FRONTEND_PID=$!
     cd ../..
     

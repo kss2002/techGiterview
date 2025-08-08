@@ -12,15 +12,15 @@ export default defineConfig({
     port: parseInt(process.env.PORT || '3000'),
     open: false, // Docker 환경에서 false로 설정
     proxy: {
-      // API 프록시 설정
+      // API 프록시 설정 (IPv4 강제)
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:8001',
+        target: process.env.VITE_API_URL || 'http://127.0.0.1:8001',
         changeOrigin: true,
         secure: false,
       },
-      // WebSocket 프록시 설정
+      // WebSocket 프록시 설정 (IPv4 강제)
       '/ws': {
-        target: process.env.VITE_WS_URL || 'ws://localhost:8001',
+        target: process.env.VITE_WS_URL || 'ws://127.0.0.1:8001',
         changeOrigin: true,
         ws: true,
       }
