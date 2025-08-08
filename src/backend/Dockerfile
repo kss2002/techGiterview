@@ -22,9 +22,13 @@ RUN uv sync --frozen
 # 소스 코드 복사
 COPY . .
 
-# 환경 변수 설정
+# uv 가상환경 활성화 및 PATH 설정
+ENV UV_VENV="/app/.venv"
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
+
+# uv 설치 확인
+RUN ls -la /app/.venv/bin/
 
 # 포트 노출
 EXPOSE 8000
@@ -34,4 +38,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # 개발 환경 명령어 (docker-compose에서 오버라이드됨)
-CMD ["/usr/local/bin/python", "-c", "import sys; sys.path.insert(0, '/app/.venv/lib/python3.11/site-packages'); import uvicorn; uvicorn.run('main:app', host='0.0.0.0', port=8000, reload=True)"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

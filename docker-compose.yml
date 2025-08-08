@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: techgiterview_user
       POSTGRES_PASSWORD: dev_password
     ports:
-      - "9001:5432"
+      - "9101:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,7 +22,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "9002:6379"
+      - "9102:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -36,7 +36,7 @@ services:
   chroma:
     image: chromadb/chroma:latest
     ports:
-      - "9003:8000"
+      - "9103:8000"
     environment:
       - CHROMA_HOST=0.0.0.0
       - CHROMA_PORT=8000
@@ -54,7 +54,7 @@ services:
       context: ./src/backend
       dockerfile: Dockerfile
     ports:
-      - "9004:8000"
+      - "9104:8000"
     environment:
       - ENV=development
       - DATABASE_URL=postgresql://techgiterview_user:dev_password@postgres:5432/techgiterview_dev
@@ -67,7 +67,7 @@ services:
       - chroma
     volumes:
       - ./src/backend:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -80,9 +80,9 @@ services:
       context: ./src/frontend
       dockerfile: Dockerfile
     ports:
-      - "9005:3000"
+      - "9105:3000"
     environment:
-      - VITE_API_URL=http://localhost:9004
+      - VITE_API_URL=http://localhost:9104
     depends_on:
       - backend
     volumes:
