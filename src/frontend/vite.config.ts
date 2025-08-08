@@ -14,13 +14,13 @@ export default defineConfig({
     proxy: {
       // API 프록시 설정
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:9104',
+        target: process.env.VITE_API_URL || 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
       },
       // WebSocket 프록시 설정
       '/ws': {
-        target: process.env.VITE_WS_URL || 'ws://localhost:9104',
+        target: process.env.VITE_WS_URL || 'ws://localhost:8001',
         changeOrigin: true,
         ws: true,
       }

@@ -78,7 +78,22 @@ const InterviewInterface: React.FC = () => {
   const connectWebSocket = useCallback(() => {
     if (!interviewId) return;
 
-    const wsUrl = `ws://localhost:8001/ws/interview/${interviewId}`;
+    // 환경에 따른 WebSocket URL 동적 설정
+    const getWebSocketUrl = () => {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const isDevelopment = process.env.NODE_ENV === 'development'
+      
+      if (isDevelopment) {
+        // 개발 환경: 환경변수 또는 기본값 사용
+        const baseUrl = import.meta.env.VITE_WS_URL?.replace(/^https?:/, '') || '//localhost:8001'
+        return `${protocol}${baseUrl}/ws/interview/${interviewId}`
+      } else {
+        // 프로덕션 환경: 현재 호스트 사용
+        return `${protocol}//${window.location.host}/ws/interview/${interviewId}`
+      }
+    }
+    
+    const wsUrl = getWebSocketUrl();
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {

@@ -1,15 +1,19 @@
 # Node.js 18 베이스 이미지 (안정적 LTS 버전)
 FROM node:18-alpine
 
+# 빌드 인수로 호스트 사용자 UID/GID 받기
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
 # 시스템 의존성 설치 (Alpine 기반)
 RUN apk add --no-cache curl
 
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 권한 설정을 위한 사용자 생성
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
+# 동적 사용자/그룹 생성 (호스트와 동일한 UID/GID 사용)
+RUN addgroup -g $GROUP_ID -S nodejs && \
+    adduser -S nextjs -u $USER_ID -G nodejs
 
 # package.json 및 package-lock.json 복사 (캐시 최적화)
 COPY package*.json ./
