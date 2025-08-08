@@ -5,34 +5,47 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     curl \
     git \
+    gcc \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
-
-# uv 설치 (최신 Python 패키지 매니저)
-RUN pip install uv
 
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# uv 프로젝트 파일들 복사
-COPY pyproject.toml ./
-
-# 가상환경 생성 및 의존성 설치
-RUN uv venv
-RUN uv pip install fastapi uvicorn[standard] aiohttp aioredis asyncpg psycopg2-binary sqlalchemy pydantic-settings python-multipart redis langchain langchain-google-genai langgraph langsmith google-generativeai chromadb
+# 필수 패키지를 pip로 직접 설치 (uv 대신)
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn[standard] \
+    aiohttp \
+    aioredis \
+    asyncpg \
+    psycopg2-binary \
+    sqlalchemy \
+    pydantic-settings \
+    python-multipart \
+    redis \
+    langchain \
+    langchain-google-genai \
+    langgraph \
+    langsmith \
+    google-generativeai \
+    chromadb \
+    aiosqlite \
+    chardet \
+    lizard \
+    networkx \
+    scipy \
+    tiktoken
 
 # 소스 코드 복사
 COPY . .
 
-# uv 가상환경 활성화 및 PATH 설정
-ENV UV_VENV="/app/.venv"
-ENV PATH="/app/.venv/bin:$PATH"
+# 환경 변수 설정
 ENV PYTHONPATH="/app"
 
-# uv 설치 확인 및 디버깅
-RUN ls -la /app/.venv/bin/ || echo "No .venv/bin directory found"
-RUN which python || echo "Python not found"
-RUN python -c "import uvicorn; print('uvicorn found')" || echo "uvicorn not found, installing manually"
-RUN /app/.venv/bin/python -c "import uvicorn; print('uvicorn found in venv')" || uv add uvicorn
+# uvicorn 설치 확인
+RUN python -c "import uvicorn; print('uvicorn successfully installed')"
+RUN which uvicorn
 
 # 포트 노출
 EXPOSE 8000
@@ -42,4 +55,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # 개발 환경 명령어 (docker-compose에서 오버라이드됨)
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
