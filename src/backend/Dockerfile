@@ -14,10 +14,11 @@ RUN pip install uv
 WORKDIR /app
 
 # uv 프로젝트 파일들 복사
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
 
 # 가상환경 생성 및 의존성 설치
-RUN uv sync --frozen
+RUN uv venv
+RUN uv pip install fastapi uvicorn[standard] aiohttp aioredis asyncpg psycopg2-binary sqlalchemy pydantic-settings python-multipart redis langchain langchain-google-genai langgraph langsmith google-generativeai chromadb
 
 # 소스 코드 복사
 COPY . .
@@ -27,8 +28,11 @@ ENV UV_VENV="/app/.venv"
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
 
-# uv 설치 확인
-RUN ls -la /app/.venv/bin/
+# uv 설치 확인 및 디버깅
+RUN ls -la /app/.venv/bin/ || echo "No .venv/bin directory found"
+RUN which python || echo "Python not found"
+RUN python -c "import uvicorn; print('uvicorn found')" || echo "uvicorn not found, installing manually"
+RUN /app/.venv/bin/python -c "import uvicorn; print('uvicorn found in venv')" || uv add uvicorn
 
 # 포트 노출
 EXPOSE 8000
