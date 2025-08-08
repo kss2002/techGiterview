@@ -301,10 +301,10 @@ test-visualizations.html
 venv/
 .venv/
 
-# Local development files
+# Local development files (root level only)
 main.py
-pyproject.toml
-uv.lock
+/pyproject.toml
+/uv.lock
 
 # External projects
 ../predictEvaluationAgent/
