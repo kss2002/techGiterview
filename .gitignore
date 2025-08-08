@@ -302,7 +302,7 @@ venv/
 .venv/
 
 # Local development files (root level only)
-main.py
+# main.py
 /pyproject.toml
 /uv.lock
 
