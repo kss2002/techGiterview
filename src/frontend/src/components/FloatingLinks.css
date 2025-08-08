@@ -1,0 +1,129 @@
+.floating-links {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.floating-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.floating-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.floating-link.github {
+  background: linear-gradient(135deg, #333 0%, #24292e 100%);
+  color: white;
+}
+
+.floating-link.github:hover {
+  background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
+}
+
+.floating-link.coffee {
+  background: linear-gradient(135deg, #ff813f 0%, #ff6b35 100%);
+  color: white;
+}
+
+.floating-link.coffee:hover {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff5722 100%);
+}
+
+.floating-link svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
+}
+
+.floating-link:hover svg {
+  transform: scale(1.1);
+}
+
+/* 툴팁 */
+.floating-link::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.floating-link:hover::before {
+  opacity: 1;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .floating-links {
+    bottom: 16px;
+    right: 16px;
+    gap: 10px;
+  }
+  
+  .floating-link {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .floating-link svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .floating-link::before {
+    display: none; /* 모바일에서는 툴팁 숨김 */
+  }
+}
+
+/* 애니메이션 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.floating-link {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.floating-link:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.floating-link:nth-child(2) {
+  animation-delay: 0.2s;
+}

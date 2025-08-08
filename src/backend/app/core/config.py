@@ -1,0 +1,96 @@
+"""
+Configuration Settings
+
+환경변수 기반 애플리케이션 설정
+"""
+
+import os
+from typing import List, Optional
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+
+
+class Settings(BaseSettings):
+    """애플리케이션 설정"""
+    
+    # Environment
+    env: str = "development"
+    debug: bool = True
+    
+    # Database
+    database_url: str = "sqlite+aiosqlite:///:memory:"
+    redis_url: str = "redis://localhost:6379"
+    
+    # External APIs
+    github_token: Optional[str] = None
+    openai_api_key: Optional[str] = None  # Deprecated - Use Gemini instead
+    anthropic_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None  # Required for Gemini
+    
+    # LangSmith
+    langsmith_api_key: Optional[str] = None
+    langsmith_project: str = "techgiterview"
+    
+    # Vector Database
+    chroma_host: str = "localhost"
+    chroma_port: int = 8001
+    
+    # Security
+    secret_key: str = "default_secret_key_for_development"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    
+    # CORS
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    
+    def get_allowed_origins(self) -> List[str]:
+        """CORS allowed origins 리스트 반환"""
+        if isinstance(self.allowed_origins, str):
+            return [origin.strip() for origin in self.allowed_origins.split(",")]
+        return self.allowed_origins
+    
+    # GitHub API
+    github_api_base_url: str = "https://api.github.com"
+    github_rate_limit_per_hour: int = 5000
+    
+    # Performance
+    max_concurrent_requests: int = 10
+    request_timeout_seconds: int = 30
+    cache_ttl_seconds: int = 3600
+    
+    class Config:
+        env_file = ".env.dev"
+        case_sensitive = False
+
+
+def check_env_file_exists() -> bool:
+    """환경 파일이 존재하는지 확인"""
+    env = os.getenv("ENV", "development")
+    env_file_name = f".env.{env}" if env != "development" else ".env.dev"
+    return os.path.exists(env_file_name)
+
+
+def update_api_keys(github_token: str, google_api_key: str) -> None:
+    """런타임에 API 키 업데이트"""
+    global settings
+    settings.github_token = github_token
+    settings.google_api_key = google_api_key
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """설정 싱글톤 인스턴스 반환"""
+    env = os.getenv("ENV", "development")
+    env_file_name = f".env.{env}" if env != "development" else ".env.dev"
+    
+    class _Settings(Settings):
+        class Config:
+            env_file = env_file_name if os.path.exists(env_file_name) else None
+            case_sensitive = False
+    
+    return _Settings()
+
+
+# 전역 설정 인스턴스
+settings = get_settings()

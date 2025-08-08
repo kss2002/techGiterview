@@ -1,0 +1,459 @@
+/* 중요도 분포 차트 스타일 */
+
+.importance-distribution-chart {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.chart-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.chart-header h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.chart-description {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* 차트 플레이스홀더 */
+.chart-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  background: #f9fafb;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  margin: 24px 0;
+}
+
+.placeholder-message {
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+/* 통계 요약 */
+.statistics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--primary-50);
+  border-radius: 8px;
+  border: 1px solid #bae6fd;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+}
+
+.stat-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #0369a1;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #0c4a6e;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 히스토그램 */
+.histogram-container {
+  margin-bottom: 32px;
+}
+
+.histogram-container h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 16px 0;
+}
+
+.histogram {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  height: 200px;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  gap: 4px;
+}
+
+.histogram-bar-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.histogram-bar {
+  width: 100%;
+  background: var(--primary-600);
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+  min-height: 20px;
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.histogram-bar:hover {
+  background: var(--primary-700);
+  transform: scaleY(1.05);
+}
+
+.bar-count {
+  font-size: 0.7rem;
+  color: white;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.bar-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 8px;
+  transform: rotate(-45deg);
+  transform-origin: center;
+  white-space: nowrap;
+}
+
+/* 카테고리별 분포 (가상 도넛 차트) */
+.category-distribution {
+  margin-bottom: 32px;
+}
+
+.category-distribution h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 16px 0;
+}
+
+.donut-chart {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 24px;
+  align-items: center;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.donut-center {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--primary-500);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+  margin: 0 auto;
+}
+
+.total-files {
+  font-size: 1.8rem;
+  font-weight: 700;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.total-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.donut-segments {
+  display: grid;
+  gap: 12px;
+}
+
+.donut-segment {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  position: relative;
+  overflow: hidden;
+}
+
+.donut-segment::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--segment-color);
+}
+
+.segment-info {
+  flex: 1;
+}
+
+.segment-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  text-transform: capitalize;
+  margin-bottom: 2px;
+}
+
+.segment-value {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* 상위 파일 목록 */
+.top-files {
+  margin-bottom: 32px;
+}
+
+.top-files h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 16px 0;
+}
+
+.top-files-list {
+  display: grid;
+  gap: 8px;
+}
+
+.top-file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.top-file-item:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateX(4px);
+}
+
+.file-rank {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary-600);
+  min-width: 28px;
+  text-align: center;
+}
+
+.file-info {
+  flex: 1;
+}
+
+.file-name {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  color: #1f2937;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.file-score {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.file-category {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.file-category.critical {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.file-category.important {
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.file-category.moderate {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.file-category.low {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+/* 분포 인사이트 */
+.distribution-insights {
+  background: var(--gray-100);
+  border: 1px solid #facc15;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.distribution-insights h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #a16207;
+  margin: 0 0 16px 0;
+}
+
+.insights-list {
+  display: grid;
+  gap: 12px;
+}
+
+.insight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+}
+
+.insight-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.insight-text {
+  font-size: 0.9rem;
+  color: #a16207;
+  line-height: 1.5;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .importance-distribution-chart {
+    padding: 16px;
+  }
+
+  .statistics-summary {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px;
+    padding: 16px;
+  }
+
+  .stat-value {
+    font-size: 1.1rem;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+  }
+
+  .histogram {
+    height: 150px;
+    padding: 16px;
+  }
+
+  .bar-label {
+    font-size: 0.6rem;
+  }
+
+  .donut-chart {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .donut-center {
+    width: 100px;
+    height: 100px;
+  }
+
+  .total-files {
+    font-size: 1.5rem;
+  }
+
+  .top-file-item {
+    padding: 10px 12px;
+  }
+
+  .file-name {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .statistics-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .histogram {
+    height: 120px;
+    gap: 2px;
+  }
+
+  .bar-label {
+    display: none;
+  }
+
+  .donut-center {
+    width: 80px;
+    height: 80px;
+  }
+
+  .total-files {
+    font-size: 1.3rem;
+  }
+
+  .total-label {
+    font-size: 0.7rem;
+  }
+
+  .file-rank {
+    min-width: 24px;
+    font-size: 0.9rem;
+  }
+}

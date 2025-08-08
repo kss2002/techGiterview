@@ -1,0 +1,89 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  
+  // 개발 서버 설정
+  server: {
+    host: '0.0.0.0',
+    port: parseInt(process.env.PORT || '3000'),
+    open: true,
+    proxy: {
+      // API 프록시 설정
+      '/api': {
+        target: 'http://192.168.50.225:9004',
+        changeOrigin: true,
+        secure: false,
+      },
+      // WebSocket 프록시 설정
+      '/ws': {
+        target: 'ws://192.168.50.225:9004',
+        changeOrigin: true,
+        ws: true,
+      }
+    }
+  },
+  
+  // 빌드 설정
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // 벤더 청크 분리
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+        }
+      }
+    }
+  },
+  
+  // 경로 별칭 설정
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      '@components': resolve(__dirname, 'src/components'),
+      '@pages': resolve(__dirname, 'src/pages'),
+      '@services': resolve(__dirname, 'src/services'),
+      '@types': resolve(__dirname, 'src/types'),
+      '@utils': resolve(__dirname, 'src/utils'),
+      '@assets': resolve(__dirname, 'src/assets'),
+    }
+  },
+  
+  // 테스트 설정
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    css: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'src/test/',
+        '**/*.d.ts',
+        '**/*.config.*',
+      ]
+    }
+  },
+  
+  // 환경 변수 설정
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+  },
+  
+  // CSS 설정
+  css: {
+    devSourcemap: true,
+    preprocessorOptions: {
+      scss: {
+        additionalData: `@import "@/styles/variables.scss";`
+      }
+    }
+  }
+})

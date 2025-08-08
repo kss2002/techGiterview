@@ -1,0 +1,460 @@
+/**
+ * CriticalFilesPreview 컴포넌트 스타일
+ * 
+ * questions-grid 상단에 표시되는 중요 파일 미리보기 스타일
+ * 반응형 디자인 및 접근성 고려
+ */
+
+.critical-files-preview-section {
+  margin-bottom: var(--spacing-6);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-5);
+  background: var(--gray-50);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-fast);
+}
+
+.critical-files-preview-section:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* 헤더 스타일 */
+.preview-header {
+  margin-bottom: var(--spacing-4);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 2px solid var(--gray-200);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.title-icon {
+  font-size: 1.5rem;
+}
+
+.file-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+  background: #e5e7eb;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.section-description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* 파일 그리드 */
+.critical-files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+/* 개별 파일 카드 */
+.critical-file-item {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.critical-file-item:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.critical-file-item:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-color: #3b82f6;
+}
+
+.critical-file-item:active {
+  transform: translateY(0);
+}
+
+/* 파일 헤더 */
+.file-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.file-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-icon {
+  font-size: 1.25rem;
+  min-width: 24px;
+  text-align: center;
+}
+
+.file-rank {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* 카테고리 배지 */
+.category-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-critical {
+  background: var(--importance-critical-bg);
+  color: var(--importance-critical);
+  border: 1px solid var(--primary-200);
+}
+
+.badge-important {
+  background: var(--importance-high-bg);
+  color: var(--importance-high);
+  border: 1px solid var(--primary-300);
+}
+
+.badge-moderate {
+  background: var(--importance-medium-bg);
+  color: var(--importance-medium);
+  border: 1px solid var(--primary-400);
+}
+
+.badge-low {
+  background: var(--importance-low-bg);
+  color: var(--importance-low);
+  border: 1px solid var(--primary-500);
+}
+
+/* 중요도 점수 */
+.importance-score {
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* 파일 경로 */
+.file-path-container {
+  margin-bottom: 12px;
+}
+
+.file-path {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+  color: #374151;
+  background: #f9fafb;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* 선정 이유 */
+.file-reasons {
+  margin-bottom: 16px;
+}
+
+.reasons-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reasons-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.reason-item {
+  font-size: 0.8125rem;
+  color: #4b5563;
+  line-height: 1.4;
+  margin-bottom: 4px;
+  padding-left: 12px;
+  position: relative;
+}
+
+.reason-item::before {
+  content: '•';
+  color: #9ca3af;
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+}
+
+.reason-more {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-style: italic;
+  padding-left: 12px;
+  position: relative;
+}
+
+.reason-more::before {
+  content: '⋯';
+  color: #9ca3af;
+  position: absolute;
+  left: 0;
+}
+
+/* 메트릭 바 */
+.metrics-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.metric-bar {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.metric-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.metric-fill.structural {
+  background: var(--primary-600);
+}
+
+.metric-fill.dependency {
+  background: var(--primary-500);
+}
+
+.metric-fill.churn {
+  background: var(--primary-400);
+}
+
+.metric-fill.complexity {
+  background: var(--primary-700);
+}
+
+/* 더 보기 정보 */
+.more-files-info {
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.more-files-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 1024px) {
+  .critical-files-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  
+  .critical-file-item {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .critical-files-preview-section {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  
+  .critical-files-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .section-title {
+    font-size: 1.125rem;
+  }
+  
+  .metrics-bar {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  
+  .metric-item {
+    gap: 1px;
+  }
+  
+  .metric-bar {
+    height: 3px;
+  }
+}
+
+@media (max-width: 480px) {
+  .critical-files-preview-section {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .critical-file-item {
+    padding: 12px;
+  }
+  
+  .file-header {
+    margin-bottom: 10px;
+  }
+  
+  .file-meta {
+    gap: 6px;
+  }
+  
+  .file-icon {
+    font-size: 1.125rem;
+  }
+  
+  .section-title {
+    font-size: 1rem;
+  }
+  
+  .file-path {
+    font-size: 0.8125rem;
+    padding: 4px 6px;
+  }
+  
+  .metrics-bar {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  
+  .metric-item {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .metric-label {
+    min-width: 40px;
+    text-align: left;
+    font-size: 0.6875rem;
+  }
+  
+  .metric-bar {
+    flex: 1;
+    height: 3px;
+  }
+}
+
+/* 접근성 향상 */
+@media (prefers-reduced-motion: reduce) {
+  .critical-file-item,
+  .metric-fill {
+    transition: none;
+  }
+  
+  .critical-file-item:hover {
+    transform: none;
+  }
+}
+
+/* 다크 모드 지원 (선택적) */
+@media (prefers-color-scheme: dark) {
+  .critical-files-preview-section {
+    background: var(--gray-800);
+    border-color: #374151;
+  }
+  
+  .critical-file-item {
+    background: #1f2937;
+    border-color: #374151;
+    color: #f9fafb;
+  }
+  
+  .critical-file-item:hover {
+    border-color: #60a5fa;
+    box-shadow: 0 4px 12px rgba(96, 165, 250, 0.25);
+  }
+  
+  .section-title,
+  .file-path {
+    color: #f9fafb;
+  }
+  
+  .file-path {
+    background: #111827;
+    border-color: #374151;
+  }
+  
+  .section-description,
+  .file-count,
+  .reasons-title,
+  .metric-label {
+    color: #9ca3af;
+  }
+  
+  .reason-item {
+    color: #d1d5db;
+  }
+}
