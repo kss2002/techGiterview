@@ -23,6 +23,7 @@ interface FileInfo {
   type: string
   size: number
   content?: string
+  importance?: 'high' | 'medium' | 'low'
 }
 
 // SmartFileAnalysis 인터페이스 정의 (CriticalFilesPreview와 동일)
@@ -199,12 +200,24 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate()
   const { analysisId } = useParams<{ analysisId: string }>()
 
-  // 디버깅용 로그
-  console.log('[Dashboard] Component mounted with analysisId:', analysisId)
-  console.log('[Dashboard] Current state:', { 
+  // 디버깅용 로그 - 컴포넌트 렌더링 추적
+  console.log('[Dashboard] 🎯 Component render started')
+  console.log('[Dashboard] 📍 Current location:', window.location.href)
+  console.log('[Dashboard] 🆔 Analysis ID:', analysisId)
+  console.log('[Dashboard] 📊 Current state:', { 
     isLoadingAnalysis, 
     hasAnalysisResult: !!analysisResult,
+    analysisResultId: analysisResult?.analysis_id,
+    questionsCount: questions.length,
     error 
+  })
+  
+  // 컴포넌트 라이프사이클 추적
+  React.useEffect(() => {
+    console.log('[Dashboard] ⚡ Component mounted or updated')
+    return () => {
+      console.log('[Dashboard] 🧹 Component cleanup')
+    }
   })
 
   useEffect(() => {
@@ -220,30 +233,49 @@ export const DashboardPage: React.FC = () => {
   }, [analysisId, navigate])
 
   const loadAnalysisResult = async (analysisId: string) => {
-    console.log('[Dashboard] Loading analysis result for ID:', analysisId)
+    console.log('[Dashboard] 🔍 Starting loadAnalysisResult for ID:', analysisId)
+    console.log('[Dashboard] 🌐 API URL will be:', `/api/v1/repository/analysis/${analysisId}`)
+    
     setIsLoadingAnalysis(true)
     setError(null)
     
     try {
+      console.log('[Dashboard] 📤 Making fetch request...')
       const response = await fetch(`/api/v1/repository/analysis/${analysisId}`)
-      console.log('[Dashboard] Analysis API response status:', response.status)
+      console.log('[Dashboard] 📥 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries())
+      })
       
       if (response.status === 202) {
         // 분석이 아직 진행 중
         const result = await response.json()
-        console.log('[Dashboard] Analysis still in progress:', result)
+        console.log('[Dashboard] ⏳ Analysis still in progress:', result)
         setError(`분석이 진행 중입니다. 상태: ${result.detail}`)
         return
       }
       
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('[Dashboard] API error response:', errorText)
+        console.error('[Dashboard] ❌ API error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        })
         throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
 
       const result = await response.json()
-      console.log('[Dashboard] Analysis result loaded successfully:', result)
+      console.log('[Dashboard] ✅ Analysis result loaded successfully:', {
+        analysis_id: result.analysis_id,
+        repo_name: result.repo_info?.name,
+        repo_owner: result.repo_info?.owner,
+        key_files_count: result.key_files?.length,
+        tech_stack: Object.keys(result.tech_stack || {}),
+        has_smart_analysis: !!result.smart_file_analysis
+      })
       setAnalysisResult(result)
       
       // 자동으로 전체 파일 목록 로드
@@ -261,12 +293,19 @@ export const DashboardPage: React.FC = () => {
       
       // 질문이 아직 생성되지 않았다면 자동 로드/생성
       if (!questionsGenerated) {
+        console.log('[Dashboard] 🎯 Auto-loading questions...')
         await loadOrGenerateQuestions(result)
       }
     } catch (error) {
-      console.error('[Dashboard] Error loading analysis:', error)
+      console.error('[Dashboard] 💥 Critical error loading analysis:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined,
+        analysisId
+      })
       setError(error instanceof Error ? error.message : 'Unknown error occurred')
     } finally {
+      console.log('[Dashboard] 🏁 Analysis loading finished, setting isLoadingAnalysis to false')
       setIsLoadingAnalysis(false)
     }
   }
@@ -542,7 +581,7 @@ export const DashboardPage: React.FC = () => {
     // 질문이 로드되지 않았으면 먼저 로드
     if (questions.length === 0) {
       console.log('질문이 없습니다. 질문을 먼저 생성합니다.')
-      await loadOrGenerateQuestions()
+      await loadOrGenerateQuestions(analysisResult)
       if (questions.length === 0) {
         throw new Error('질문 생성에 실패했습니다.')
       }
@@ -610,7 +649,7 @@ export const DashboardPage: React.FC = () => {
   // key_files를 smart_file_analysis 형태로 변환하는 헬퍼 함수
   const convertKeyFilesToSmartAnalysis = (keyFiles: FileInfo[]): SmartFileAnalysis[] => {
     return keyFiles.slice(0, 5).map((file, index) => ({
-      file_path: file.path,
+      file_path: file.path || 'unknown-file',
       importance_score: file.importance === 'high' ? 0.9 - (index * 0.05) : 0.7 - (index * 0.05),
       reasons: [
         file.importance === 'high' ? '높은 중요도로 분류된 핵심 파일' : '중요 파일로 선정',
@@ -671,6 +710,7 @@ export const DashboardPage: React.FC = () => {
 
   // 로딩 상태
   if (isLoadingAnalysis) {
+    console.log('[Dashboard] 🔄 Rendering loading state')
     return (
       <div className="dashboard-loading">
         <div className="spinner-large"></div>
@@ -681,6 +721,11 @@ export const DashboardPage: React.FC = () => {
 
   // 분석 결과가 없거나 오류가 있는 경우
   if (!analysisResult || error) {
+    console.log('[Dashboard] ❌ Rendering error state:', { 
+      hasAnalysisResult: !!analysisResult, 
+      error,
+      analysisId
+    })
     return (
       <div className="dashboard-error">
         <div className="error-content">
@@ -709,6 +754,8 @@ export const DashboardPage: React.FC = () => {
       </div>
     )
   }
+
+  console.log('[Dashboard] 🎉 Rendering main dashboard content')
 
   return (
     <div className="dashboard-page">
@@ -914,13 +961,22 @@ export const DashboardPage: React.FC = () => {
                   hasKeyFiles: !!analysisResult?.key_files,
                   keyFilesCount: analysisResult?.key_files?.length || 0,
                   criticalFilesCount: criticalFiles.length,
-                  criticalFiles: criticalFiles.slice(0, 2) // 처음 2개만 로그
+                  criticalFiles: criticalFiles.map((file, idx) => ({
+                    index: idx,
+                    file_path: file.file_path,
+                    file_path_type: typeof file.file_path,
+                    file_path_length: file.file_path?.length,
+                    importance_score: file.importance_score
+                  }))
                 })
                 
                 return criticalFiles.length > 0 ? (
                   <CriticalFilesPreview 
                     criticalFiles={criticalFiles}
-                    onFileClick={handleFileClick}
+                    onFileClick={(filePath: string) => {
+                      setSelectedFilePath(filePath)
+                      setIsFileModalOpen(true)
+                    }}
                   />
                 ) : null
               })()}

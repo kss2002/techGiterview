@@ -32,6 +32,11 @@ interface CriticalFilesPreviewProps {
 
 // 파일 확장자에 따른 아이콘 반환
 const getFileIcon = (filePath: string): React.ReactNode => {
+  // filePath가 없는 경우 기본 아이콘 반환
+  if (!filePath) {
+    return <i className="fas fa-file"></i>
+  }
+  
   const extension = filePath.split('.').pop()?.toLowerCase()
   const fileName = filePath.split('/').pop()?.toLowerCase() || ''
   
@@ -113,8 +118,14 @@ export const CriticalFilesPreview: React.FC<CriticalFilesPreviewProps> = ({
   onFileClick,
   maxDisplayFiles = 12
 }) => {
+  // criticalFiles가 없거나 빈 배열인 경우 처리
+  if (!criticalFiles || criticalFiles.length === 0) {
+    return null
+  }
+  
   // 중요도 순으로 정렬 후 최대 표시 개수만큼 제한
   const displayFiles = criticalFiles
+    .filter(file => file && file.file_path) // file_path가 있는 파일만 필터링
     .sort((a, b) => b.importance_score - a.importance_score)
     .slice(0, maxDisplayFiles)
 
@@ -124,8 +135,8 @@ export const CriticalFilesPreview: React.FC<CriticalFilesPreviewProps> = ({
     }
   }
 
-  // 파일이 없는 경우 렌더링하지 않음
-  if (!criticalFiles || criticalFiles.length === 0) {
+  // 필터링 후 표시할 파일이 없는 경우
+  if (displayFiles.length === 0) {
     return null
   }
 
@@ -153,20 +164,20 @@ export const CriticalFilesPreview: React.FC<CriticalFilesPreviewProps> = ({
           
           return (
             <div 
-              key={file.file_path}
+              key={file.file_path || `file-${index}`}
               className="critical-file-item"
-              onClick={() => handleFileClick(file.file_path)}
+              onClick={() => handleFileClick(file.file_path || '')}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
-                  handleFileClick(file.file_path)
+                  handleFileClick(file.file_path || '')
                 }
               }}
             >
               <div className="file-header">
                 <div className="file-meta">
-                  <span className="file-icon">{getFileIcon(file.file_path)}</span>
+                  <span className="file-icon">{getFileIcon(file.file_path || '')}</span>
                   <span className="file-rank">#{index + 1}</span>
                   <span className={`category-badge ${badge.className}`}>
                     {badge.text}
@@ -181,8 +192,8 @@ export const CriticalFilesPreview: React.FC<CriticalFilesPreviewProps> = ({
               </div>
               
               <div className="file-path-container">
-                <div className="file-path" title={file.file_path}>
-                  {file.file_path}
+                <div className="file-path" title={file.file_path || 'Unknown file'}>
+                  {file.file_path || 'Unknown file'}
                 </div>
               </div>
               
