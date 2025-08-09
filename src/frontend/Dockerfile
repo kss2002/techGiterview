@@ -11,9 +11,12 @@ RUN apk add --no-cache curl
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 동적 사용자/그룹 생성 (호스트와 동일한 UID/GID 사용)
-RUN addgroup -g $GROUP_ID -S nodejs && \
-    adduser -S nextjs -u $USER_ID -G nodejs
+# 사용자/그룹 생성 (기존 그룹이 있으면 사용)
+RUN if ! getent group $GROUP_ID >/dev/null 2>&1; then \
+        addgroup -g $GROUP_ID -S nodejs; \
+    fi && \
+    GROUP_NAME=$(getent group $GROUP_ID | cut -d: -f1) && \
+    adduser -S nextjs -u $USER_ID -G $GROUP_NAME
 
 # package.json 및 package-lock.json 복사 (캐시 최적화)
 COPY package*.json ./
@@ -23,7 +26,7 @@ RUN npm ci --silent && \
     npm cache clean --force
 
 # 소스 코드 복사 및 권한 설정
-COPY --chown=nextjs:nodejs . .
+COPY --chown=$USER_ID:$GROUP_ID . .
 
 # nextjs 사용자로 전환
 USER nextjs
