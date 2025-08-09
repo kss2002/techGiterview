@@ -34,8 +34,12 @@ RUN npm ci --silent && \
 # 소스 코드 복사 및 권한 설정
 COPY --chown=$USER_ID:$GROUP_ID . .
 
-# 해당 UID의 사용자로 전환
-USER $USER_ID
+# 작업 디렉토리 권한 설정
+RUN chown -R $USER_ID:$GROUP_ID /app && \
+    chmod -R 775 /app
+
+# 개발 환경에서는 root로 실행 (권한 문제 방지)
+# 프로덕션에서는 보안을 위해 non-root 사용자 권장
 
 # 포트 노출
 EXPOSE 3000
@@ -43,6 +47,7 @@ EXPOSE 3000
 # 환경 변수 설정
 ENV NODE_ENV=development
 ENV PORT=3000
+ENV VITE_CJS_IGNORE_WARNING=true
 
 # 헬스체크
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
