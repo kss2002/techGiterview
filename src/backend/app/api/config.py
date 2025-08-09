@@ -38,10 +38,13 @@ async def get_config_status():
 
 @router.post("/api-keys")
 async def set_api_keys(request: ApiKeysRequest):
-    """API 키 설정"""
+    """API 키 설정 및 AI 서비스 재초기화"""
     try:
         update_api_keys(request.github_token, request.google_api_key)
-        return {"message": "API 키가 성공적으로 설정되었습니다."}
+        return {
+            "message": "API 키가 성공적으로 설정되었습니다.",
+            "ai_service_reinitialized": True
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"API 키 설정 실패: {str(e)}")
 

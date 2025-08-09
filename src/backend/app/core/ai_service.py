@@ -49,6 +49,9 @@ class AIService:
     def _initialize_providers(self):
         """사용 가능한 AI 제공업체 초기화"""
         
+        # 기존 providers 초기화 (재초기화 시 중요)
+        self.available_providers.clear()
+        
         logger.info("Initializing AI providers...")
         
         # Google Gemini Flash 초기화 (최우선)
@@ -95,6 +98,12 @@ class AIService:
             logger.info("Anthropic Claude configured")
         
         logger.info(f"Total providers initialized: {len(self.available_providers)}")
+    
+    def reinitialize(self):
+        """AI 서비스를 완전히 재초기화 (API 키 업데이트 시 사용)"""
+        logger.info("Reinitializing AI service...")
+        self._initialize_providers()
+        logger.info(f"AI service reinitialized. Available providers: {len(self.available_providers)}")
     
     def get_preferred_provider(self) -> Optional[AIProvider]:
         """우선순위에 따라 사용 가능한 최적의 AI 제공업체 반환"""

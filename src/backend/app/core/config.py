@@ -72,10 +72,27 @@ def check_env_file_exists() -> bool:
 
 
 def update_api_keys(github_token: str, google_api_key: str) -> None:
-    """런타임에 API 키 업데이트"""
+    """런타임에 API 키 업데이트 및 AI 서비스 재초기화"""
+    import logging
+    
+    logger = logging.getLogger(__name__)
     global settings
     settings.github_token = github_token
     settings.google_api_key = google_api_key
+    
+    # AI 서비스 재초기화
+    try:
+        from app.core.ai_service import ai_service
+        logger.info("Reinitializing AI service with new API keys...")
+        ai_service.reinitialize()
+        
+        # 사용 가능한 모든 프로바이더 로그
+        for provider, config in ai_service.available_providers.items():
+            logger.info(f"- {provider.value}: {config['model']} ({config['status']})")
+            
+    except Exception as e:
+        logger.error(f"Failed to reinitialize AI service: {e}")
+        raise
 
 
 @lru_cache()
