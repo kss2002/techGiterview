@@ -6,22 +6,27 @@ import { InterviewPage } from '@pages/InterviewPage'
 import { ReportsPage } from '@pages/ReportsPage'
 import { Layout } from '@components/Layout/Layout'
 import { FloatingLinks } from '@components/FloatingLinks'
+import { ErrorBoundary } from '@components/ErrorBoundary'
 import './App.css'
 
 function App() {
   return (
-    <Router>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/dashboard/:analysisId" element={<DashboardPage />} />
-          <Route path="/interview/:interviewId" element={<InterviewPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-        </Routes>
-      </Layout>
-      <FloatingLinks />
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <Layout>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/dashboard" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
+              <Route path="/dashboard/:analysisId" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
+              <Route path="/interview/:interviewId" element={<ErrorBoundary><InterviewPage /></ErrorBoundary>} />
+              <Route path="/reports" element={<ErrorBoundary><ReportsPage /></ErrorBoundary>} />
+            </Routes>
+          </ErrorBoundary>
+        </Layout>
+        <FloatingLinks />
+      </Router>
+    </ErrorBoundary>
   )
 }
 
