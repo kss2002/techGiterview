@@ -23,6 +23,90 @@
   margin-bottom: 16px;
 }
 
+.dashboard-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  background: #f8fafc;
+}
+
+.error-content {
+  text-align: center;
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+  max-width: 500px;
+}
+
+.error-content h2 {
+  color: #e53e3e;
+  margin-bottom: 16px;
+  font-size: 1.5rem;
+}
+
+.error-content p {
+  color: #4a5568;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.error-content code {
+  background: #f7fafc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.error-message {
+  background: #fed7d7;
+  border: 1px solid #feb2b2;
+  color: #c53030;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  text-align: left;
+  margin: 16px 0;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.home-btn, .retry-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.home-btn {
+  background: #007bff;
+  color: white;
+}
+
+.home-btn:hover {
+  background: #0056b3;
+}
+
+.retry-btn {
+  background: #f7fafc;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+}
+
+.retry-btn:hover {
+  background: #edf2f7;
+}
+
 .dashboard-header {
   background: var(--primary-600);
   color: white;

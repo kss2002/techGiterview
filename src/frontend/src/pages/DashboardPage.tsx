@@ -195,8 +195,17 @@ export const DashboardPage: React.FC = () => {
   const [filteredFiles, setFilteredFiles] = useState<FileTreeNode[]>([])
   const [isFileModalOpen, setIsFileModalOpen] = useState(false)
   const [selectedFilePath, setSelectedFilePath] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { analysisId } = useParams<{ analysisId: string }>()
+
+  // 디버깅용 로그
+  console.log('[Dashboard] Component mounted with analysisId:', analysisId)
+  console.log('[Dashboard] Current state:', { 
+    isLoadingAnalysis, 
+    hasAnalysisResult: !!analysisResult,
+    error 
+  })
 
   useEffect(() => {
     console.log('DashboardPage analysisId:', analysisId) // 디버깅용
@@ -211,23 +220,30 @@ export const DashboardPage: React.FC = () => {
   }, [analysisId, navigate])
 
   const loadAnalysisResult = async (analysisId: string) => {
+    console.log('[Dashboard] Loading analysis result for ID:', analysisId)
     setIsLoadingAnalysis(true)
+    setError(null)
+    
     try {
       const response = await fetch(`/api/v1/repository/analysis/${analysisId}`)
+      console.log('[Dashboard] Analysis API response status:', response.status)
       
       if (response.status === 202) {
         // 분석이 아직 진행 중
         const result = await response.json()
-        alert(`분석이 진행 중입니다. 상태: ${result.detail}`)
-        navigate('/')
+        console.log('[Dashboard] Analysis still in progress:', result)
+        setError(`분석이 진행 중입니다. 상태: ${result.detail}`)
         return
       }
       
       if (!response.ok) {
-        throw new Error('분석 결과를 불러올 수 없습니다.')
+        const errorText = await response.text()
+        console.error('[Dashboard] API error response:', errorText)
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
 
       const result = await response.json()
+      console.log('[Dashboard] Analysis result loaded successfully:', result)
       setAnalysisResult(result)
       
       // 자동으로 전체 파일 목록 로드
@@ -248,9 +264,8 @@ export const DashboardPage: React.FC = () => {
         await loadOrGenerateQuestions(result)
       }
     } catch (error) {
-      console.error('Error loading analysis:', error)
-      alert('분석 결과를 불러오는데 실패했습니다.')
-      navigate('/')
+      console.error('[Dashboard] Error loading analysis:', error)
+      setError(error instanceof Error ? error.message : 'Unknown error occurred')
     } finally {
       setIsLoadingAnalysis(false)
     }
@@ -654,11 +669,43 @@ export const DashboardPage: React.FC = () => {
     return { groups, standalone }
   }
 
-  if (isLoadingAnalysis || !analysisResult) {
+  // 로딩 상태
+  if (isLoadingAnalysis) {
     return (
       <div className="dashboard-loading">
         <div className="spinner-large"></div>
         <p>분석 결과를 불러오는 중...</p>
+      </div>
+    )
+  }
+
+  // 분석 결과가 없거나 오류가 있는 경우
+  if (!analysisResult || error) {
+    return (
+      <div className="dashboard-error">
+        <div className="error-content">
+          <h2>❌ {error ? '오류 발생' : '분석 결과를 찾을 수 없습니다'}</h2>
+          <p>분석 ID: <code>{analysisId}</code></p>
+          {error ? (
+            <p className="error-message">오류: {error}</p>
+          ) : (
+            <p>분석이 완료되지 않았거나 잘못된 ID일 수 있습니다.</p>
+          )}
+          <div className="error-actions">
+            <button onClick={() => navigate('/')} className="home-btn">
+              🏠 홈으로 돌아가기
+            </button>
+            <button 
+              onClick={() => {
+                setError(null)
+                if (analysisId) loadAnalysisResult(analysisId)
+              }} 
+              className="retry-btn"
+            >
+              🔄 다시 시도
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
