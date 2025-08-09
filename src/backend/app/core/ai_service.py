@@ -177,7 +177,8 @@ class AIService:
     async def generate_analysis(self, 
                               prompt: str,
                               provider: Optional[AIProvider] = None,
-                              max_retries: int = 3) -> Dict[str, Any]:
+                              max_retries: int = 3,
+                              api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """AI를 사용하여 분석 생성 (Rate limiting 및 재시도 포함)"""
         
         # 제공업체가 지정되지 않은 경우 우선순위에 따라 선택
@@ -198,11 +199,11 @@ class AIService:
         for attempt in range(max_retries):
             try:
                 if provider == AIProvider.GEMINI_FLASH:
-                    return await self._generate_with_gemini(prompt)
+                    return await self._generate_with_gemini(prompt, api_keys)
                 elif provider == AIProvider.OPENAI_GPT:
-                    return await self._generate_with_openai(prompt)
+                    return await self._generate_with_openai(prompt, api_keys)
                 elif provider == AIProvider.ANTHROPIC_CLAUDE:
-                    return await self._generate_with_anthropic(prompt)
+                    return await self._generate_with_anthropic(prompt, api_keys)
                 else:
                     raise ValueError(f"지원되지 않는 AI 제공업체: {provider}")
                     
@@ -230,9 +231,21 @@ class AIService:
         logger.error(f"AI 분석 생성 최종 실패 ({provider}): {last_exception}")
         raise last_exception
     
-    async def _generate_with_gemini(self, prompt: str) -> Dict[str, Any]:
+    async def _generate_with_gemini(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Google Gemini 2.0 Flash로 분석 생성"""
         try:
+            # 헤더에서 받은 API 키가 있으면 임시로 사용
+            if api_keys and "google_api_key" in api_keys:
+                google_api_key = api_keys["google_api_key"]
+                logger.info("Using API key from request headers for Gemini")
+                # 임시 클라이언트 생성
+                genai.configure(api_key=google_api_key)
+            elif settings.google_api_key:
+                # 기존 설정 사용
+                genai.configure(api_key=settings.google_api_key)
+            else:
+                raise ValueError("Google API key not available")
+            
             model = genai.GenerativeModel('gemini-2.0-flash')
             response = model.generate_content(prompt)
             
@@ -249,12 +262,12 @@ class AIService:
             logger.error(f"Gemini 분석 생성 실패: {e}")
             raise
     
-    async def _generate_with_openai(self, prompt: str) -> Dict[str, Any]:
+    async def _generate_with_openai(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """OpenAI GPT로 분석 생성 (향후 구현)"""
         # TODO: OpenAI 클라이언트 구현
         raise NotImplementedError("OpenAI 통합은 향후 구현 예정입니다")
     
-    async def _generate_with_anthropic(self, prompt: str) -> Dict[str, Any]:
+    async def _generate_with_anthropic(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Anthropic Claude로 분석 생성 (향후 구현)"""
         # TODO: Anthropic 클라이언트 구현
         raise NotImplementedError("Anthropic 통합은 향후 구현 예정입니다")

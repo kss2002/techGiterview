@@ -56,21 +56,50 @@ interface ApiKeySetupProps {
   onApiKeysSet: () => void
 }
 
+interface KeysRequiredResponse {
+  keys_required: boolean
+  use_local_storage: boolean
+  missing_keys: {
+    github_token: boolean
+    google_api_key: boolean
+  }
+}
+
 export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
   const [githubToken, setGithubToken] = useState('')
   const [googleApiKey, setGoogleApiKey] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [saveToLocalStorage, setSaveToLocalStorage] = useState(true)
+  const [useLocalStorageMode, setUseLocalStorageMode] = useState(false)
 
-  // 컴포넌트 마운트 시 저장된 키 로드
+  // 컴포넌트 마운트 시 모드 확인 및 저장된 키 로드
   useEffect(() => {
-    const storedKeys = storageUtils.loadApiKeys()
-    if (storedKeys.githubToken && storedKeys.googleApiKey) {
-      setGithubToken(storedKeys.githubToken)
-      setGoogleApiKey(storedKeys.googleApiKey)
-      console.log('저장된 API 키를 로드했습니다.')
+    const checkMode = async () => {
+      try {
+        const response = await fetch('/api/v1/config/keys-required')
+        if (response.ok) {
+          const data: KeysRequiredResponse = await response.json()
+          setUseLocalStorageMode(data.use_local_storage)
+          
+          // 로컬스토리지 모드인 경우에만 저장된 키 로드
+          if (data.use_local_storage) {
+            const storedKeys = storageUtils.loadApiKeys()
+            if (storedKeys.githubToken && storedKeys.googleApiKey) {
+              setGithubToken(storedKeys.githubToken)
+              setGoogleApiKey(storedKeys.googleApiKey)
+              console.log('저장된 API 키를 로드했습니다.')
+            }
+          }
+        }
+      } catch (error) {
+        console.error('모드 확인 실패:', error)
+        // 기본적으로 로컬스토리지 모드로 설정
+        setUseLocalStorageMode(true)
+      }
     }
+    
+    checkMode()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,27 +108,60 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
     setError('')
 
     try {
-      const response = await fetch('/api/v1/config/api-keys', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          github_token: githubToken,
-          google_api_key: googleApiKey
+      if (useLocalStorageMode) {
+        // 로컬스토리지 모드: 서버에 키를 전송하지 않고 클라이언트에서만 처리
+        console.log('로컬스토리지 모드: 클라이언트 전용 처리')
+        
+        // 로컬스토리지에 저장 (선택사항)
+        if (saveToLocalStorage) {
+          storageUtils.saveApiKeys(githubToken, googleApiKey)
+          console.log('API 키가 로컬스토리지에 저장되었습니다.')
+        }
+        
+        // API 키 유효성을 테스트하기 위해 AI providers 호출
+        const testResponse = await fetch('/api/v1/ai/providers', {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-GitHub-Token': githubToken,
+            'X-Google-API-Key': googleApiKey
+          }
         })
-      })
+        
+        if (!testResponse.ok) {
+          throw new Error('API 키 검증에 실패했습니다.')
+        }
+        
+        const providers = await testResponse.json()
+        if (providers.length === 0) {
+          throw new Error('사용 가능한 AI 제공업체가 없습니다. API 키를 확인해주세요.')
+        }
+        
+        console.log('API 키 검증 완료. 사용 가능한 제공업체:', providers.length)
+      } else {
+        // 서버 모드: 기존 방식 유지
+        const response = await fetch('/api/v1/config/api-keys', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            github_token: githubToken,
+            google_api_key: googleApiKey
+          })
+        })
 
-      if (!response.ok) {
-        throw new Error('API 키 설정에 실패했습니다.')
-      }
+        if (!response.ok) {
+          throw new Error('API 키 설정에 실패했습니다.')
+        }
 
-      const result = await response.json()
-      console.log('API 키 설정 완료:', result.message)
-      
-      // 로컬스토리지에 저장
-      if (saveToLocalStorage) {
-        storageUtils.saveApiKeys(githubToken, googleApiKey)
+        const result = await response.json()
+        console.log('API 키 설정 완료:', result.message)
+        
+        // 서버 모드에서도 로컬스토리지 저장 옵션 제공
+        if (saveToLocalStorage) {
+          storageUtils.saveApiKeys(githubToken, googleApiKey)
+        }
       }
       
       onApiKeysSet()
@@ -122,7 +184,11 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
           <p className="setup-description">
             TechGiterview를 사용하려면 GitHub 토큰과 Google API 키가 필요합니다.
             <br />
-            키는 브라우저 로컬스토리지에 저장하여 다음에 자동으로 로드할 수 있습니다.
+            {useLocalStorageMode ? (
+              '개인 API 키 모드: 키는 브라우저에서만 사용되며 서버에 저장되지 않습니다.'
+            ) : (
+              '서버 모드: 키는 현재 세션에서 사용되며 로컬스토리지에도 저장할 수 있습니다.'
+            )}
           </p>
         </div>
 
@@ -185,23 +251,31 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={saveToLocalStorage}
-                onChange={(e) => setSaveToLocalStorage(e.target.checked)}
-                disabled={isLoading}
-              />
-              <span className="checkbox-text">
-                <i className="fas fa-save"></i>
-                브라우저에 API 키 저장 (다음에 자동 로드)
-              </span>
-            </label>
-            <div className="form-help">
-              <small>체크 시 API 키가 브라우저 로컬스토리지에 저장되어 다음 방문 시 자동으로 로드됩니다.</small>
+          {(useLocalStorageMode || !useLocalStorageMode) && (
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={saveToLocalStorage}
+                  onChange={(e) => setSaveToLocalStorage(e.target.checked)}
+                  disabled={isLoading}
+                />
+                <span className="checkbox-text">
+                  <i className="fas fa-save"></i>
+                  브라우저에 API 키 저장 (다음에 자동 로드)
+                </span>
+              </label>
+              <div className="form-help">
+                <small>
+                  {useLocalStorageMode ? (
+                    '체크 시 API 키가 브라우저 로컬스토리지에 저장되어 다음 방문 시 자동으로 로드됩니다.'
+                  ) : (
+                    '서버 모드에서도 편의를 위해 로컬스토리지에 저장할 수 있습니다.'
+                  )}
+                </small>
+              </div>
             </div>
-          </div>
+          )}
 
           {error && (
             <div className="error-message">
@@ -234,8 +308,11 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
         <div className="security-notice">
           <i className="fas fa-shield-alt"></i>
           <span>
-            입력하신 API 키는 안전하게 처리됩니다. 저장 옵션을 체크한 경우 브라우저 로컬스토리지에 저장되며, 
-            언제든지 브라우저 설정에서 삭제할 수 있습니다.
+            {useLocalStorageMode ? (
+              '개인 API 키 모드에서는 키가 서버에 전송되지 않고 브라우저에서만 사용됩니다. 저장 시 로컬스토리지에 보관되며 언제든지 삭제할 수 있습니다.'
+            ) : (
+              '서버 모드에서는 키가 서버에서 관리됩니다. 저장 옵션 체크 시 로컬스토리지에도 저장되어 편의성을 제공합니다.'
+            )}
           </span>
         </div>
       </div>

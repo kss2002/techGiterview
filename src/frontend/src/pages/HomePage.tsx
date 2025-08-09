@@ -3,6 +3,34 @@ import { useNavigate } from 'react-router-dom'
 import { ApiKeySetup } from '../components/ApiKeySetup'
 import './HomePage.css'
 
+// 로컬스토리지에서 API 키를 가져오는 헬퍼 함수
+const getApiKeysFromStorage = () => {
+  try {
+    return {
+      githubToken: localStorage.getItem('techgiterview_github_token') || '',
+      googleApiKey: localStorage.getItem('techgiterview_google_api_key') || ''
+    }
+  } catch (error) {
+    return { githubToken: '', googleApiKey: '' }
+  }
+}
+
+// API 요청용 헤더 생성 함수
+const createApiHeaders = (includeApiKeys: boolean = false) => {
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  }
+  
+  if (includeApiKeys) {
+    const { githubToken, googleApiKey } = getApiKeysFromStorage()
+    if (githubToken) headers['X-GitHub-Token'] = githubToken
+    if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
+  }
+  
+  return headers
+}
+
 interface AIProvider {
   id: string
   name: string
@@ -57,10 +85,7 @@ export const HomePage: React.FC = () => {
       try {
         const response = await fetch('/api/v1/ai/providers', {
           method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
+          headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
           // 5초 타임아웃 설정
           signal: AbortSignal.timeout(5000)
         })

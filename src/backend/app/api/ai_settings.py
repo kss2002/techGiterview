@@ -1,13 +1,51 @@
 """
 AI 설정 관련 API 엔드포인트
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
 from app.core.ai_service import ai_service, AIProvider
+from app.core.config import check_env_file_exists
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai-settings"])
+
+
+def extract_api_keys_from_headers(
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+) -> Dict[str, str]:
+    """요청 헤더에서 API 키 추출"""
+    api_keys = {}
+    if github_token:
+        api_keys["github_token"] = github_token
+    if google_api_key:
+        api_keys["google_api_key"] = google_api_key
+    return api_keys
+
+
+def get_effective_providers(api_keys: Dict[str, str]) -> List[Dict[str, Any]]:
+    """유효한 AI 제공업체 목록 반환 (헤더 키 고려)"""
+    env_exists = check_env_file_exists()
+    
+    if env_exists:
+        # 서버 모드: 기존 방식 사용
+        return ai_service.get_available_providers()
+    else:
+        # 로컬스토리지 모드: 헤더의 키를 기반으로 동적 생성
+        providers = []
+        
+        # Google API 키가 있으면 Gemini 추가
+        if "google_api_key" in api_keys and api_keys["google_api_key"]:
+            providers.append({
+                "id": AIProvider.GEMINI_FLASH.value,
+                "name": "Google Gemini 2.0 Flash (추천)",
+                "model": "gemini-2.0-flash",
+                "status": "ready",
+                "recommended": True
+            })
+        
+        return providers
 
 
 class AIProviderInfo(BaseModel):
@@ -23,10 +61,14 @@ class AIProviderSelectionRequest(BaseModel):
 
 
 @router.get("/providers", response_model=List[AIProviderInfo])
-async def get_available_providers():
+async def get_available_providers(
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+):
     """사용 가능한 AI 제공업체 목록 조회"""
     try:
-        providers = ai_service.get_available_providers()
+        api_keys = extract_api_keys_from_headers(github_token, google_api_key)
+        providers = get_effective_providers(api_keys)
         return [AIProviderInfo(**provider) for provider in providers]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 제공업체 목록 조회 실패: {str(e)}")
@@ -52,7 +94,11 @@ async def get_preferred_provider():
 
 
 @router.post("/test")
-async def test_ai_provider(request: AIProviderSelectionRequest):
+async def test_ai_provider(
+    request: AIProviderSelectionRequest,
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+):
     """선택된 AI 제공업체 테스트"""
     try:
         # AIProvider enum으로 변환
@@ -65,12 +111,21 @@ async def test_ai_provider(request: AIProviderSelectionRequest):
         if provider is None:
             raise HTTPException(status_code=400, detail="잘못된 AI 제공업체 ID입니다")
         
-        if provider not in ai_service.available_providers:
+        # API 키 추출
+        api_keys = extract_api_keys_from_headers(github_token, google_api_key)
+        
+        # 서버 모드인지 로컬스토리지 모드인지 확인
+        env_exists = check_env_file_exists()
+        if not env_exists and provider not in ai_service.available_providers:
+            # 로컬스토리지 모드에서는 헤더의 키를 사용
+            if provider == AIProvider.GEMINI_FLASH and not api_keys.get("google_api_key"):
+                raise HTTPException(status_code=400, detail="Google API 키가 필요합니다")
+        elif env_exists and provider not in ai_service.available_providers:
             raise HTTPException(status_code=400, detail="요청된 AI 제공업체를 사용할 수 없습니다")
         
         # 간단한 테스트 프롬프트로 AI 응답 테스트
         test_prompt = "Hello, please respond with a simple greeting in Korean."
-        result = await ai_service.generate_analysis(test_prompt, provider)
+        result = await ai_service.generate_analysis(test_prompt, provider, api_keys=api_keys)
         
         return {
             "status": "success",
