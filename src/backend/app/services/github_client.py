@@ -103,6 +103,7 @@ class GitHubClient:
         
         print(f"[GITHUB_CLIENT] 저장소 정보 요청: {owner}/{repo}")
         print(f"[GITHUB_CLIENT] API URL: {url}")
+        print(f"[GITHUB_CLIENT] 요청 헤더: {dict(self.headers)}")
         
         if not self.session:
             raise RuntimeError("GitHubClient must be used as async context manager")
@@ -118,8 +119,14 @@ class GitHubClient:
                 print(f"[GITHUB_CLIENT] 오류: 저장소를 찾을 수 없음 - {repo_url}")
                 raise ValueError(f"저장소를 찾을 수 없습니다: {repo_url}")
             elif response.status != 200:
+                error_text = await response.text()
                 print(f"[GITHUB_CLIENT] 오류: GitHub API 오류 {response.status}")
-                raise RuntimeError(f"GitHub API 오류: {response.status}")
+                print(f"[GITHUB_CLIENT] 오류 상세: {error_text}")
+                
+                if response.status == 401:
+                    print(f"[GITHUB_CLIENT] 401 오류 분석: 토큰이 잘못되었거나 권한이 부족합니다.")
+                    
+                raise RuntimeError(f"GitHub API 오류: {response.status} - {error_text}")
             
             data = await response.json()
             print(f"[GITHUB_CLIENT] 저장소 정보 수집 성공: {data.get('name', 'unknown')} ({data.get('language', 'unknown')} 프로젝트)")
