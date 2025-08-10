@@ -8,7 +8,7 @@ import asyncio
 import aiohttp
 import uuid
 from typing import Dict, List, Any, Optional
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, HttpUrl
 from datetime import datetime
 
@@ -405,8 +405,19 @@ class RepositoryAnalyzer:
 
 
 @router.post("/analyze", response_model=AnalysisResult)
-async def analyze_repository(request: RepositoryAnalysisRequest):
+async def analyze_repository(
+    request: RepositoryAnalysisRequest,
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+):
     """실제 GitHub 저장소 분석 - 상세 RepositoryAnalyzer 사용"""
+    
+    # 헤더에서 API 키 추출
+    api_keys = {}
+    if github_token:
+        api_keys["github_token"] = github_token
+    if google_api_key:
+        api_keys["google_api_key"] = google_api_key
     
     # 상세 로깅이 포함된 RepositoryAnalyzer 사용
     from app.agents.repository_analyzer import RepositoryAnalyzer
@@ -419,9 +430,10 @@ async def analyze_repository(request: RepositoryAnalysisRequest):
         print(f"[GITHUB_API] ========== 저장소 분석 시작 ==========")
         print(f"[GITHUB_API] 요청 URL: {request.repo_url}")
         print(f"[GITHUB_API] 분석 ID: {analysis_id}")
+        print(f"[GITHUB_API] API 키 정보: GitHub Token={github_token is not None}, Google API Key={google_api_key is not None}")
         
-        # 실제 RepositoryAnalyzer.analyze_repository() 사용
-        analysis_result = await analyzer.analyze_repository(str(request.repo_url))
+        # API 키를 포함하여 실제 RepositoryAnalyzer.analyze_repository() 사용
+        analysis_result = await analyzer.analyze_repository(str(request.repo_url), api_keys=api_keys)
         
         if not analysis_result.get("success"):
             raise HTTPException(

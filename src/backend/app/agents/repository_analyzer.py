@@ -89,11 +89,17 @@ class RepositoryAnalyzer:
             "pytest": [r"pytest", r"test_.*\.py"],
         }
     
-    async def analyze_repository(self, repo_url: str) -> Dict[str, Any]:
+    async def analyze_repository(self, repo_url: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """저장소 전체 분석 수행"""
         
         print(f"[REPO_ANALYZER] ========== 저장소 분석 시작 ==========")
         print(f"[REPO_ANALYZER] 대상 저장소: {repo_url}")
+        print(f"[REPO_ANALYZER] API 키 제공: {api_keys is not None}")
+        
+        # API 키를 GitHubClient에 전달
+        if api_keys and "github_token" in api_keys:
+            self.github_client.set_token(api_keys["github_token"])
+            print(f"[REPO_ANALYZER] GitHub 토큰 설정됨")
         
         # 분석 상태 초기화
         state = AnalysisState(repo_url=repo_url)

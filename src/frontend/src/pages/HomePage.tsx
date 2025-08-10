@@ -152,9 +152,7 @@ export const HomePage: React.FC = () => {
       // 저장소 분석 요청
       const response = await fetch('/api/v1/repository/analyze', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
         body: JSON.stringify({
           repo_url: repoUrl,
           store_results: true,

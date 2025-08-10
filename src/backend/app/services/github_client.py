@@ -44,6 +44,23 @@ class GitHubClient:
         print(f"[GITHUB_CLIENT] GitHubClient 초기화 완료")
         print(f"[GITHUB_CLIENT] GitHub Token: {'설정됨' if settings.github_token else '설정되지 않음'}")
     
+    def set_token(self, token: str):
+        """런타임에 GitHub 토큰 설정"""
+        if token:
+            self.headers = {
+                "Authorization": f"token {token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "TechGiterview/1.0"
+            }
+            print("[GITHUB_CLIENT] GitHub 토큰이 동적으로 설정되었습니다.")
+        else:
+            # 토큰이 없으면 공개 API 사용
+            self.headers = {
+                "Accept": "application/vnd.github.v3+json", 
+                "User-Agent": "TechGiterview/1.0"
+            }
+            print("[GITHUB_CLIENT] 공개 API 모드로 설정되었습니다.")
+    
     async def __aenter__(self):
         """비동기 컨텍스트 매니저 시작"""
         print(f"[GITHUB_CLIENT] aiohttp 세션 시작 (timeout: 30초)")
