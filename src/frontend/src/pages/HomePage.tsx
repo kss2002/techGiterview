@@ -241,6 +241,24 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="repo-input-section">
+          {/* API 키 설정 버튼 */}
+          <div className="api-key-section">
+            <div className="api-key-header">
+              <h3 className="api-key-title">
+                <i className="fas fa-key"></i>
+                API 키 설정
+              </h3>
+              <button 
+                className="api-key-setup-button"
+                onClick={() => setShowApiKeySetup(true)}
+                type="button"
+              >
+                <i className="fas fa-cog"></i>
+                API 키 설정
+              </button>
+            </div>
+          </div>
+
           {/* AI 모델 선택 섹션 */}
           <div className="ai-selection-section">
             <h3 className="ai-selection-title">

@@ -268,6 +268,83 @@
   100% { transform: rotate(360deg); }
 }
 
+/* API 키 설정 섹션 */
+.api-key-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: rgba(37, 99, 235, 0.05);
+  border: 1px solid rgba(37, 99, 235, 0.1);
+}
+
+.api-key-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.api-key-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e40af;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.api-key-title i {
+  color: #2563eb;
+  font-size: 1.1em;
+}
+
+.api-key-setup-button {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  border: 2px solid transparent;
+}
+
+.api-key-setup-button:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.api-key-setup-button:active {
+  transform: translateY(0);
+  transition: transform 0.1s;
+}
+
+.api-key-setup-button i {
+  font-size: 0.9em;
+}
+
+@media (max-width: 768px) {
+  .api-key-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .api-key-setup-button {
+    align-self: stretch;
+    justify-content: center;
+  }
+}
+
 .sample-repos {
   text-align: center;
 }
