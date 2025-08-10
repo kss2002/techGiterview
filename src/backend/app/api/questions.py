@@ -7,7 +7,7 @@ Question Generation API Router
 from typing import Dict, List, Any, Optional
 import re
 import uuid
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 
 from app.agents.question_generator import QuestionGenerator
@@ -16,6 +16,19 @@ router = APIRouter()
 
 # 질문 캐시 (분석 ID별로 질문 저장)
 question_cache = {}
+
+
+def extract_api_keys_from_headers(
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+) -> Dict[str, str]:
+    """요청 헤더에서 API 키 추출"""
+    api_keys = {}
+    if github_token:
+        api_keys["github_token"] = github_token
+    if google_api_key:
+        api_keys["google_api_key"] = google_api_key
+    return api_keys
 
 
 
@@ -233,7 +246,11 @@ class QuestionGenerationResult(BaseModel):
 
 
 @router.post("/generate", response_model=QuestionGenerationResult)
-async def generate_questions(request: QuestionGenerationRequest):
+async def generate_questions(
+    request: QuestionGenerationRequest,
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+):
     """GitHub 저장소 분석 결과를 바탕으로 기술면접 질문 생성"""
     
     try:
@@ -251,6 +268,9 @@ async def generate_questions(request: QuestionGenerationRequest):
                 analysis_id=analysis_id
             )
         
+        # 헤더에서 API 키 추출
+        api_keys = extract_api_keys_from_headers(github_token, google_api_key)
+        
         # 질문 생성기 초기화
         generator = QuestionGenerator()
         
@@ -260,7 +280,8 @@ async def generate_questions(request: QuestionGenerationRequest):
             difficulty_level=request.difficulty,
             question_count=request.question_count,
             question_types=None,  # 기본값 ["tech_stack", "architecture", "code_analysis"] 사용
-            analysis_data=request.analysis_result
+            analysis_data=request.analysis_result,
+            api_keys=api_keys  # API 키 전달
         )
         
         if not result["success"]:

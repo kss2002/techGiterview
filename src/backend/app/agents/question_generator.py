@@ -64,9 +64,13 @@ class QuestionGenerator:
         difficulty_level: str = "medium",
         question_count: int = 9,
         question_types: Optional[List[str]] = None,
-        analysis_data: Optional[Dict[str, Any]] = None
+        analysis_data: Optional[Dict[str, Any]] = None,
+        api_keys: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """기술면접 질문 생성"""
+        
+        # API 키를 인스턴스 변수로 저장
+        self.api_keys = api_keys or {}
         
         # 상태 초기화
         state = QuestionState(
@@ -1242,7 +1246,8 @@ class QuestionGenerator:
         try:
             ai_response = await ai_service.generate_analysis(
                 prompt=prompt,
-                provider=AIProvider.GEMINI_FLASH
+                provider=AIProvider.GEMINI_FLASH,
+                api_keys=self.api_keys
             )
             ai_question = ai_response["content"].strip()
             print(f"[QUESTION_GEN] Gemini 질문 생성 성공: {ai_question[:100]}...")
@@ -1296,7 +1301,7 @@ class QuestionGenerator:
         
         print(f"[QUESTION_GEN] ========== 기술 스택 질문 생성: {tech} ==========\n파일 컨텍스트 길이: {len(file_context)} 문자")
         
-        ai_response = await ai_service.generate_analysis(prompt)
+        ai_response = await ai_service.generate_analysis(prompt, api_keys=self.api_keys)
         ai_question = ai_response["content"].strip()
         
         return {
@@ -1373,7 +1378,7 @@ class QuestionGenerator:
         
         print(f"[QUESTION_GEN] ========== 아키텍처 질문 생성 ==========\n컨텍스트: {architecture_context}")
         
-        ai_response = await ai_service.generate_analysis(prompt)
+        ai_response = await ai_service.generate_analysis(prompt, api_keys=self.api_keys)
         ai_question = ai_response["content"].strip()
         
         return {
@@ -2185,9 +2190,9 @@ class QuestionGenerator:
                 
                 # provider가 지정되어 있으면 해당 provider로 호출
                 if provider:
-                    result = await ai_function(prompt=prompt, provider=provider)
+                    result = await ai_function(prompt=prompt, provider=provider, api_keys=self.api_keys)
                 else:
-                    result = await ai_function(prompt)
+                    result = await ai_function(prompt, api_keys=self.api_keys)
                 
                 # 응답 검증
                 if result and "content" in result and result["content"].strip():

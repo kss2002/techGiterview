@@ -112,6 +112,34 @@ interface FileTreeNode {
   children?: FileTreeNode[]
 }
 
+// 로컬스토리지에서 API 키를 가져오는 헬퍼 함수
+const getApiKeysFromStorage = () => {
+  try {
+    return {
+      githubToken: localStorage.getItem('techgiterview_github_token') || '',
+      googleApiKey: localStorage.getItem('techgiterview_google_api_key') || ''
+    }
+  } catch (error) {
+    return { githubToken: '', googleApiKey: '' }
+  }
+}
+
+// API 요청용 헤더 생성 함수
+const createApiHeaders = (includeApiKeys: boolean = false) => {
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  }
+  
+  if (includeApiKeys) {
+    const { githubToken, googleApiKey } = getApiKeysFromStorage()
+    if (githubToken) headers['X-GitHub-Token'] = githubToken
+    if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
+  }
+  
+  return headers
+}
+
 // 파일 확장자에 따른 아이콘 반환
 const getFileIcon = (filePath: string): string => {
   const extension = filePath.split('.').pop()?.toLowerCase()
@@ -329,9 +357,7 @@ export const DashboardPage: React.FC = () => {
       // 질문이 없으면 새로 생성
       const generateResponse = await fetch('/api/v1/questions/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
         body: JSON.stringify({
           repo_url: `https://github.com/${analysisToUse.repo_info.owner}/${analysisToUse.repo_info.name}`,
           analysis_result: analysisToUse,
@@ -365,9 +391,7 @@ export const DashboardPage: React.FC = () => {
       // 강제 재생성 옵션을 사용하여 질문 생성
       const response = await fetch('/api/v1/questions/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
         body: JSON.stringify({
           repo_url: `https://github.com/${analysisResult.repo_info.owner}/${analysisResult.repo_info.name}`,
           analysis_result: analysisResult,
