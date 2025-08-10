@@ -105,13 +105,25 @@ class AIService:
         self._initialize_providers()
         logger.info(f"AI service reinitialized. Available providers: {len(self.available_providers)}")
     
-    def get_preferred_provider(self) -> Optional[AIProvider]:
+    def get_preferred_provider(self, api_keys: Optional[Dict[str, str]] = None) -> Optional[AIProvider]:
         """우선순위에 따라 사용 가능한 최적의 AI 제공업체 반환"""
         # 사용자가 선택한 프로바이더가 있고 사용 가능하면 우선 사용
         if self.selected_provider and self.selected_provider in self.available_providers:
             return self.selected_provider
             
-        # 그렇지 않으면 우선순위에 따라 선택
+        # 배포 환경(.env.dev 없음)에서 API 키 기반 동적 선택
+        from app.core.config import check_env_file_exists
+        env_exists = check_env_file_exists()
+        
+        if not env_exists and api_keys:
+            # 배포 환경에서는 제공된 API 키 기반으로 우선순위 결정
+            for provider in self.provider_priority:
+                if provider == AIProvider.GEMINI_FLASH and "google_api_key" in api_keys:
+                    logger.info(f"배포 환경: API 키 기반으로 {provider} 선택")
+                    return provider
+            return None
+            
+        # 로컬 환경(.env.dev 있음)에서는 기존 방식 유지
         for provider in self.provider_priority:
             if provider in self.available_providers:
                 return provider
@@ -183,12 +195,24 @@ class AIService:
         
         # 제공업체가 지정되지 않은 경우 우선순위에 따라 선택
         if provider is None:
-            provider = self.get_preferred_provider()
+            provider = self.get_preferred_provider(api_keys)
         
-        if provider is None:
+        # 배포 환경(.env.dev 없음)에서 헤더 API 키 기반 동적 프로바이더 지원
+        from app.core.config import check_env_file_exists
+        env_exists = check_env_file_exists()
+        
+        # 배포 환경에서 API 키가 있으면 해당 프로바이더를 임시로 사용 가능하게 처리
+        if not env_exists and api_keys and provider:
+            if provider == AIProvider.GEMINI_FLASH and "google_api_key" in api_keys:
+                logger.info(f"배포 환경: {provider} 프로바이더를 헤더 API 키로 임시 활성화")
+                # 임시로 이 요청에서만 사용 가능하다고 처리
+                pass  # 아래의 가용성 체크를 우회
+            else:
+                raise ValueError(f"배포 환경에서 {provider} 프로바이더에 필요한 API 키가 없습니다")
+        elif provider is None:
             raise ValueError("사용 가능한 AI 제공업체가 없습니다")
-        
-        if provider not in self.available_providers:
+        elif env_exists and provider not in self.available_providers:
+            # 로컬 환경(.env.dev 있음)에서는 기존 방식 유지
             raise ValueError(f"요청된 AI 제공업체를 사용할 수 없습니다: {provider}")
         
         # Rate limiting 적용

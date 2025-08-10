@@ -29,10 +29,10 @@ def get_effective_providers(api_keys: Dict[str, str]) -> List[Dict[str, Any]]:
     env_exists = check_env_file_exists()
     
     if env_exists:
-        # 서버 모드: 기존 방식 사용
+        # 로컬 환경(.env.dev 있음): 기존 방식 사용
         return ai_service.get_available_providers()
     else:
-        # 로컬스토리지 모드: 헤더의 키를 기반으로 동적 생성
+        # 배포 환경(.env.dev 없음): 헤더의 키를 기반으로 동적 생성
         providers = []
         
         # Google API 키가 있으면 Gemini 추가
@@ -45,6 +45,7 @@ def get_effective_providers(api_keys: Dict[str, str]) -> List[Dict[str, Any]]:
                 "recommended": True
             })
         
+        # 배포 환경에서 API 키가 없으면 빈 목록 반환
         return providers
 
 
@@ -114,13 +115,14 @@ async def test_ai_provider(
         # API 키 추출
         api_keys = extract_api_keys_from_headers(github_token, google_api_key)
         
-        # 서버 모드인지 로컬스토리지 모드인지 확인
+        # 로컬 환경과 배포 환경 구분 처리
         env_exists = check_env_file_exists()
-        if not env_exists and provider not in ai_service.available_providers:
-            # 로컬스토리지 모드에서는 헤더의 키를 사용
+        if not env_exists:
+            # 배포 환경(.env.dev 없음): 헤더의 키를 사용
             if provider == AIProvider.GEMINI_FLASH and not api_keys.get("google_api_key"):
                 raise HTTPException(status_code=400, detail="Google API 키가 필요합니다")
         elif env_exists and provider not in ai_service.available_providers:
+            # 로컬 환경(.env.dev 있음): 기존 방식 유지
             raise HTTPException(status_code=400, detail="요청된 AI 제공업체를 사용할 수 없습니다")
         
         # 간단한 테스트 프롬프트로 AI 응답 테스트
