@@ -139,6 +139,97 @@ docker-compose up -d
 - **Redis 7** - 인메모리 캐시
 - **Nginx** - 리버스 프록시 (프로덕션)
 
+## 📊 SmartFileImportanceAnalyzer - 4차원 파일 중요도 분석
+
+TechGiterview는 **4가지 핵심 지표**로 저장소 파일의 중요도를 정량적으로 측정합니다:
+
+### 🧮 1. 복잡도 점수 (Complexity Score) - 가중치 10%
+**McCabe 순환복잡도** 기반 코드 품질 측정
+
+```python
+# 계산 공식 (file_importance_analyzer.py:685-711)
+complexity_importance = (
+    (cyclomatic_complexity / 20.0) * 0.4 +        # 순환복잡도 (최대 20)
+    (1.0 - maintainability_index/100.0) * 0.3 +   # 유지보수성 역산
+    (executable_lines / 200.0) * 0.3              # 실행 라인 수 (최대 200)
+)
+```
+
+- **순환복잡도**: `if`, `for`, `while`, `try/except` 등 분기문 개수 측정
+- **유지보수성**: Microsoft MI 공식 기반 (0~100, 높을수록 좋음)
+- **실행 라인**: 주석/공백 제외한 실제 코드 라인 수
+
+### 🌐 2. 의존성 중심성 (Dependency Centrality) - 가중치 30%
+**NetworkX 그래프 분석** 기반 파일 간 연결 중요도
+
+```python
+# 계산 공식 (dependency_analyzer.py:623-638)  
+integrated_score = (
+    pagerank * 0.30 +           # PageRank: 전체적 영향력
+    betweenness * 0.25 +        # Betweenness: 연결 중개자 역할
+    in_degree_norm * 0.25 +     # In-degree: 피의존성 (얼마나 많이 참조되는가)
+    out_degree_norm * 0.20      # Out-degree: 의존성 (얼마나 많이 참조하는가)
+)
+```
+
+- **PageRank**: 웹 검색 알고리즘과 동일한 방식으로 파일의 전체적 영향력 측정
+- **Betweenness**: 다른 파일들 간의 연결을 중개하는 역할 정도
+- **Degree**: import/require 구문 분석으로 직접적 의존 관계 파악
+
+### 📈 3. 변경 빈도 점수 (Git Churn Score) - 가중치 20%  
+**Git 이력 분석** 기반 파일 활동도 및 안정성
+
+```python
+# 계산 공식 (file_importance_analyzer.py:655-683)
+churn_importance = (
+    (commit_frequency / 20.0) * 0.3 +    # 커밋 빈도 (최대 20회)
+    recent_activity * 0.3 +              # 최근 활동도 (0-1)  
+    stability_score * 0.4                # 안정성 점수 (0-1)
+)
+```
+
+- **커밋 빈도**: 해당 파일이 포함된 총 커밋 수
+- **최근 활동도**: 최근 3개월 내 활동 비율 
+- **안정성**: 버그 수정 비율의 역산 (낮을수록 안정적)
+
+### 📁 4. 메타데이터 중요도 (Metadata Score) - 가중치 40%
+**구조적 특성** 기반 파일 역할 및 중요도
+
+```python  
+# 계산 공식 (file_importance_analyzer.py:1292-1297)
+complexity_score = (
+    code_density * 0.3 +                    # 코드 밀도 (비어있지 않은 라인 비율)
+    min(1.0, keyword_density * 10) * 0.4 +  # 키워드 밀도 (함수, 클래스, 제어문)
+    min(1.0, special_pattern_density * 20) * 0.2 +  # 특별 패턴 (export, API 등)
+    min(1.0, documentation_ratio * 5) * 0.1  # 문서화 비율
+)
+```
+
+**구조적 중요도 패턴 매칭**:
+- **메인 파일**: `main.py`, `app.js`, `index.tsx` → 가중치 0.9
+- **설정 파일**: `package.json`, `webpack.config.js` → 가중치 0.8  
+- **핵심 컴포넌트**: `components/`, `core/`, `src/` → 경로 보너스 1.2배
+- **테스트/문서**: `test/`, `docs/` → 가중치 0.3
+
+### 🎯 최종 통합 점수 계산
+```python
+# 가중 평균 (file_importance_analyzer.py:576-581)
+final_importance = (
+    metadata_score * 0.4 +      # 40%: 구조적 중요도 (파일 역할)
+    centrality_score * 0.3 +    # 30%: 의존성 중심성 (연결 중요도)  
+    churn_score * 0.2 +         # 20%: 변경 빈도 (활동도)
+    complexity_score * 0.1      # 10%: 복잡도 (품질 지표)
+)
+```
+
+### 💡 면접 질문 생성 활용
+- **상위 20% 파일**: 핵심 아키텍처 설계 질문
+- **고복잡도 파일**: 코드 리뷰 및 리팩토링 전략
+- **높은 중심성**: 의존성 관리 및 모듈 설계 
+- **활발한 변경**: 유지보수 및 협업 프로세스
+
+---
+
 ## 🎯 사용 가이드
 
 ### 1️⃣ 저장소 분석
