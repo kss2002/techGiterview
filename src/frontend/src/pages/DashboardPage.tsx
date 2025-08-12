@@ -2,6 +2,45 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { 
+  LayoutDashboard, 
+  Github, 
+  Lightbulb, 
+  Tag, 
+  FileText, 
+  Star, 
+  GitFork, 
+  Code, 
+  Clock, 
+  CheckCircle,
+  ArrowRight,
+  Folder,
+  File,
+  ChevronRight,
+  Search,
+  Minus,
+  Play,
+  BarChart3,
+  FileCode,
+  Database,
+  Image,
+  Archive,
+  Globe,
+  Settings,
+  BookOpen,
+  Cpu,
+  Monitor,
+  Smartphone,
+  Palette,
+  Zap,
+  Shield,
+  Users,
+  MessageSquare,
+  TrendingUp,
+  AlertTriangle,
+  Info,
+  Terminal
+} from 'lucide-react'
 import { FileContentModal } from '../components/FileContentModal'
 import { CriticalFilesPreview } from '../components/CriticalFilesPreview'
 import './DashboardPage.css'
@@ -140,74 +179,88 @@ const createApiHeaders = (includeApiKeys: boolean = false) => {
   return headers
 }
 
-// 파일 확장자에 따른 아이콘 반환
-const getFileIcon = (filePath: string): string => {
+// 파일 확장자에 따른 React 아이콘 컴포넌트 반환
+const getFileIcon = (filePath: string): React.ReactNode => {
   const extension = filePath.split('.').pop()?.toLowerCase()
+  const fileName = filePath.split('/').pop()?.toLowerCase() || ''
   
-  const iconMap: { [key: string]: string } = {
-    // JavaScript/TypeScript
-    'js': '[JS]',
-    'jsx': '[JSX]',
-    'ts': '[TS]',
-    'tsx': '[TSX]',
-    'vue': '[VUE]',
-    
-    // Python
-    'py': '[PY]',
-    'pyw': '[PYW]',
-    'pyx': '[PYX]',
-    
-    // Java/Kotlin
-    'java': '[JAVA]',
-    'kt': '[KT]',
-    'scala': '[SCALA]',
-    
-    // Web
-    'html': '[HTML]',
-    'htm': '[HTM]',
-    'css': '[CSS]',
-    'scss': '[SCSS]',
-    'sass': '[SASS]',
-    'less': '[LESS]',
-    
-    // Config files
-    'json': '[JSON]',
-    'yaml': '[YAML]',
-    'yml': '[YML]',
-    'toml': '[TOML]',
-    'ini': '[INI]',
-    'conf': '[CONF]',
-    'config': '[CONFIG]',
-    
-    // Documents
-    'md': '[MD]',
-    'txt': '[TXT]',
-    'doc': '[DOC]',
-    'docx': '[DOCX]',
-    'pdf': '[PDF]',
-    
-    // Data
-    'sql': '[SQL]',
-    'db': '[DB]',
-    'sqlite': '[SQLITE]',
-    
-    // Others
-    'dockerfile': '[DOCKER]',
-    'gitignore': '[GIT]',
-    'license': '[LICENSE]',
-    'readme': '📖'
+  // 특수 파일명 먼저 처리
+  if (fileName === 'dockerfile' || fileName.startsWith('dockerfile')) {
+    return <Monitor className="w-4 h-4 text-blue-600" />
+  }
+  if (fileName === '.gitignore') {
+    return <Github className="w-4 h-4 text-orange-600" />
+  }
+  if (fileName.startsWith('readme')) {
+    return <BookOpen className="w-4 h-4 text-blue-700" />
+  }
+  if (fileName === 'license' || fileName.startsWith('license')) {
+    return <Shield className="w-4 h-4 text-green-600" />
+  }
+  if (fileName === 'package.json') {
+    return <Settings className="w-4 h-4 text-red-600" />
+  }
+  if (fileName === 'package-lock.json' || fileName === 'yarn.lock') {
+    return <Archive className="w-4 h-4 text-gray-600" />
   }
   
-  // 특수 파일명 처리
-  const fileName = filePath.split('/').pop()?.toLowerCase() || ''
-  if (fileName === 'dockerfile' || fileName.startsWith('dockerfile')) return '🐳'
-  if (fileName === '.gitignore') return '[GIT]'
-  if (fileName.startsWith('readme')) return '📖'
-  if (fileName === 'license' || fileName.startsWith('license')) return '▣'
-  if (fileName === 'package.json') return '[PKG]'
-  if (fileName === 'package-lock.json' || fileName === 'yarn.lock') return '▤'
-  
-  return iconMap[extension || ''] || '◐'
+  // 확장자별 처리
+  switch (extension) {
+    case 'js':
+    case 'jsx':
+      return <FileCode className="w-4 h-4 text-yellow-500" />
+    case 'ts':
+    case 'tsx':
+      return <FileCode className="w-4 h-4 text-blue-600" />
+    case 'vue':
+      return <FileCode className="w-4 h-4 text-green-500" />
+    case 'py':
+    case 'pyw':
+    case 'pyx':
+      return <Cpu className="w-4 h-4 text-blue-500" />
+    case 'java':
+    case 'kt':
+    case 'scala':
+      return <Cpu className="w-4 h-4 text-orange-600" />
+    case 'html':
+    case 'htm':
+      return <Globe className="w-4 h-4 text-orange-500" />
+    case 'css':
+    case 'scss':
+    case 'sass':
+    case 'less':
+      return <Palette className="w-4 h-4 text-blue-500" />
+    case 'json':
+    case 'yaml':
+    case 'yml':
+    case 'toml':
+    case 'ini':
+    case 'conf':
+    case 'config':
+      return <Settings className="w-4 h-4 text-gray-600" />
+    case 'md':
+      return <FileText className="w-4 h-4 text-blue-700" />
+    case 'txt':
+      return <FileText className="w-4 h-4 text-gray-600" />
+    case 'pdf':
+      return <File className="w-4 h-4 text-red-600" />
+    case 'sql':
+    case 'db':
+    case 'sqlite':
+      return <Database className="w-4 h-4 text-blue-600" />
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'svg':
+      return <Image className="w-4 h-4 text-green-500" />
+    case 'zip':
+    case 'tar':
+    case 'gz':
+      return <Archive className="w-4 h-4 text-gray-600" />
+    default:
+      return <File className="w-4 h-4 text-gray-500" />
+  }
 }
 
 export const DashboardPage: React.FC = () => {
@@ -512,40 +565,6 @@ export const DashboardPage: React.FC = () => {
     setSelectedFilePath('')
   }
 
-  const getFileTypeIcon = (fileName: string): string => {
-    const extension = fileName.split('.').pop()?.toLowerCase() || ''
-    const fileTypeIcons: Record<string, string> = {
-      'js': '◐',
-      'jsx': '◑', 
-      'ts': '◯',
-      'tsx': '◉',
-      'py': '◆',
-      'java': '◇',
-      'css': '◈',
-      'html': '▣',
-      'json': '▦',
-      'md': '▧',
-      'yml': '[CFG]',
-      'yaml': '[CFG]',
-      'xml': '▤',
-      'txt': '▦',
-      'pdf': '■',
-      'png': '▲',
-      'jpg': '▲',
-      'jpeg': '▲',
-      'gif': '▲',
-      'svg': '◈',
-      'zip': '▣',
-      'tar': '▣',
-      'gz': '▣'
-    }
-    return fileTypeIcons[extension] || '◐'
-  }
-
-  const getFileTypeClass = (fileName: string): string => {
-    const extension = fileName.split('.').pop()?.toLowerCase() || ''
-    return extension || 'default'
-  }
 
   const renderFileTree = (nodes: FileTreeNode[], depth: number = 0): JSX.Element[] => {
     const maxDepth = 8 // 최대 들여쓰기 제한
@@ -564,10 +583,8 @@ export const DashboardPage: React.FC = () => {
                 className="folder-toggle"
                 onClick={() => toggleFolder(node.path)}
               >
-                <span className={`folder-icon ${expandedFolders.has(node.path) ? 'expanded' : ''}`}>
-                  ▶
-                </span>
-                <span className="folder-icon-visual">◇</span>
+                <ChevronRight className={`w-3 h-3 text-gray-500 transition-transform duration-200 ${expandedFolders.has(node.path) ? 'rotate-90' : ''}`} />
+                <Folder className="w-4 h-4 text-blue-600" />
                 <span className="folder-name">{node.name}</span>
               </button>
               <div 
@@ -583,9 +600,7 @@ export const DashboardPage: React.FC = () => {
               className="file-item-tree"
               onClick={() => handleFileClick(node)}
             >
-              <span className={`file-icon-visual ${getFileTypeClass(node.name)}`}>
-                {getFileTypeIcon(node.name)}
-              </span>
+              {getFileIcon(node.name)}
               <span className={`file-name ${searchTerm && node.name.toLowerCase().includes(searchTerm.toLowerCase()) ? 'highlight' : ''}`}>
                 {node.name}
               </span>
@@ -654,19 +669,29 @@ export const DashboardPage: React.FC = () => {
     }
   }
 
-  const getCategoryIcon = (category: string) => {
-    if (!category) return '●'
+  const getCategoryIcon = (category: string): React.ReactNode => {
+    if (!category) return <Code className="w-4 h-4 text-gray-500" />
     switch (category.toLowerCase()) {
-      case 'technical': return '▲'
-      case 'architectural': return '■'
-      case 'scenario': return '▼'
-      case 'algorithm': return '◆'
-      case 'data-structure': return '◇'
-      case 'system-design': return '▣'
-      case 'code-review': return '○'
-      case 'best-practices': return '★'
-      case 'debugging': return '✕'
-      default: return '●'
+      case 'technical': 
+        return <Terminal className="w-4 h-4 text-blue-600" />
+      case 'architectural': 
+        return <Monitor className="w-4 h-4 text-purple-600" />
+      case 'scenario': 
+        return <MessageSquare className="w-4 h-4 text-green-600" />
+      case 'algorithm': 
+        return <Zap className="w-4 h-4 text-yellow-600" />
+      case 'data-structure': 
+        return <Database className="w-4 h-4 text-indigo-600" />
+      case 'system-design': 
+        return <TrendingUp className="w-4 h-4 text-red-600" />
+      case 'code-review': 
+        return <CheckCircle className="w-4 h-4 text-green-500" />
+      case 'best-practices': 
+        return <Star className="w-4 h-4 text-yellow-500" />
+      case 'debugging': 
+        return <AlertTriangle className="w-4 h-4 text-red-500" />
+      default: 
+        return <Code className="w-4 h-4 text-gray-500" />
     }
   }
 
@@ -785,7 +810,7 @@ export const DashboardPage: React.FC = () => {
     <div className="dashboard-page">
       <div className="dashboard-header">
         <div className="header-content">
-          <h1>■ 분석 결과 대시보드</h1>
+          <h1><LayoutDashboard className="inline-block w-8 h-8 mr-3" /> 분석 결과 대시보드</h1>
           <p className="repo-url">
             https://github.com/{analysisResult.repo_info.owner}/{analysisResult.repo_info.name}
           </p>
@@ -798,7 +823,7 @@ export const DashboardPage: React.FC = () => {
         <div className="info-section">
           <div className="repo-info-card">
             <div className="card-header">
-              <h2>◊ 저장소 정보</h2>
+              <h2><Github className="section-icon" /> 저장소 정보</h2>
             </div>
             <div className="card-content">
               <div className="repo-details">
@@ -806,17 +831,17 @@ export const DashboardPage: React.FC = () => {
                 <p className="repo-description">{analysisResult.repo_info.description}</p>
                 <div className="repo-stats">
                   <div className="stat">
-                    <span className="stat-icon">★</span>
+                    <Star className="w-6 h-6 text-yellow-500 mb-1" />
                     <span className="stat-value">{analysisResult.repo_info.stars.toLocaleString()}</span>
                     <span className="stat-label">Stars</span>
                   </div>
                   <div className="stat">
-                    <span className="stat-icon">♦</span>
+                    <GitFork className="w-6 h-6 text-blue-500 mb-1" />
                     <span className="stat-value">{analysisResult.repo_info.forks.toLocaleString()}</span>
                     <span className="stat-label">Forks</span>
                   </div>
                   <div className="stat">
-                    <span className="stat-icon">▣</span>
+                    <Code className="w-6 h-6 text-purple-500 mb-1" />
                     <span className="stat-value">{analysisResult.repo_info.language}</span>
                     <span className="stat-label">Language</span>
                   </div>
@@ -828,14 +853,14 @@ export const DashboardPage: React.FC = () => {
           {/* 개선 제안 */}
           <div className="recommendations-card">
             <div className="card-header">
-              <h2>◇ 개선 제안</h2>
+              <h2><Lightbulb className="section-icon" /> 개선 제안</h2>
             </div>
             <div className="card-content">
               <div className="recommendations-list">
                 {analysisResult.recommendations.length > 0 ? (
                   analysisResult.recommendations.map((recommendation, index) => (
                     <div key={index} className="recommendation-item">
-                      <span className="recommendation-icon">▶</span>
+                      <ArrowRight className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
                       <span className="recommendation-text">{recommendation}</span>
                     </div>
                   ))
@@ -850,7 +875,7 @@ export const DashboardPage: React.FC = () => {
         {/* 기술 스택 */}
         <div className="tech-stack-section">
           <div className="card-header">
-            <h2>◈ 기술 스택</h2>
+            <h2><Tag className="section-icon" /> 기술 스택</h2>
           </div>
           <div className="tech-stack-grid">
             {Object.entries(analysisResult.tech_stack || {})
@@ -867,7 +892,7 @@ export const DashboardPage: React.FC = () => {
         {/* 주요 파일 */}
         <div className="key-files-section">
           <div className="card-header">
-            <h2>◉ 주요 파일</h2>
+            <h2><FileText className="section-icon" /> 주요 파일</h2>
             <div className="file-actions">
               {!showAllFiles && (
                 <button 
@@ -907,17 +932,21 @@ export const DashboardPage: React.FC = () => {
                           </p>
                         </div>
                         <div className="file-tree-controls">
-                          <input
-                            type="text"
-                            placeholder="파일 검색..."
-                            value={searchTerm}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            className="file-search-input"
-                          />
+                          <div className="relative">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="파일 검색..."
+                              value={searchTerm}
+                              onChange={(e) => handleSearch(e.target.value)}
+                              className="file-search-input pl-10"
+                            />
+                          </div>
                           <button 
-                            className="collapse-all-btn"
+                            className="collapse-all-btn flex items-center gap-1"
                             onClick={() => setExpandedFolders(new Set())}
                           >
+                            <Minus className="w-3 h-3" />
                             모두 접기
                           </button>
                         </div>
@@ -938,7 +967,7 @@ export const DashboardPage: React.FC = () => {
         {/* 면접 질문 */}
         <div className="questions-section">
           <div className="card-header">
-            <h2>◎ 생성된 면접 질문</h2>
+            <h2><MessageSquare className="section-icon" /> 생성된 면접 질문</h2>
             {questionsGenerated && questions.length > 0 && (
               <p className="questions-info">
                 이미 생성된 질문을 불러왔습니다. 다른 질문을 원하시면 재생성하세요.
@@ -953,10 +982,11 @@ export const DashboardPage: React.FC = () => {
                 {isLoadingQuestions ? '생성 중...' : '질문 재생성'}
               </button>
               <button 
-                className="start-interview-btn"
+                className="start-interview-btn flex items-center gap-2 justify-center"
                 onClick={startInterview}
                 disabled={questions.length === 0 || isLoadingQuestions}
               >
+                <Play className="w-4 h-4" />
                 {isLoadingQuestions ? '준비 중...' : '모의면접 시작'}
               </button>
             </div>
@@ -1015,7 +1045,7 @@ export const DashboardPage: React.FC = () => {
                   <div className="question-header">
                     <div className="question-meta">
                       <span className="question-number">Q{index + 1}</span>
-                      <span className="category-icon">{getCategoryIcon(question.type)}</span>
+                      {getCategoryIcon(question.type)}
                       <span className="category-name">{question.type}</span>
                       {question.parent_question_id && (
                         <span className="sub-question-indicator">
@@ -1047,8 +1077,8 @@ export const DashboardPage: React.FC = () => {
                     {/* 질문 기반 파일 정보 표시 */}
                     {question.source_file && (
                       <div className="question-source-file">
-                        <span className="source-file-icon">{getFileIcon(question.source_file)}</span>
-                        <span className="source-file-text">🔗 기반 파일: {question.source_file}</span>
+                        {getFileIcon(question.source_file)}
+                        <span className="source-file-text"><FileText className="w-4 h-4 inline mr-2" />기반 파일: {question.source_file}</span>
                         {question.importance && (
                           <span className={`importance-badge ${question.importance}`}>
                             {question.importance === 'high' ? '[CORE] 핵심' : '[SUB] 보조'}
@@ -1058,16 +1088,16 @@ export const DashboardPage: React.FC = () => {
                     )}
                     
                     {question.context && (
-                      <p className="question-context">○ {question.context}</p>
+                      <p className="question-context"><Info className="w-4 h-4 inline mr-2" /> {question.context}</p>
                     )}
                     {question.technology && (
-                      <p className="question-tech">▢ 기술: {question.technology}</p>
+                      <p className="question-tech"><Tag className="w-4 h-4 inline mr-2" /> 기술: {question.technology}</p>
                     )}
                     {question.code_snippet && (
                       <div className="question-code">
                         <div className="code-header">
-                          <span className="code-file-icon">{getFileIcon(question.code_snippet.file_path)}</span>
-                          <span className="code-file-path">◐ {question.code_snippet.file_path}</span>
+                          {getFileIcon(question.code_snippet.file_path)}
+                          <span className="code-file-path"><File className="w-4 h-4 inline mr-1" /> {question.code_snippet.file_path}</span>
                           {question.code_snippet.has_real_content === false && (
                             <span className="content-status warning">
                               [WARN] 내용 없음 ({question.code_snippet.content_unavailable_reason})
@@ -1081,7 +1111,7 @@ export const DashboardPage: React.FC = () => {
                       </div>
                     )}
                     {question.time_estimate && (
-                      <p className="question-time">◔ 예상 시간: {question.time_estimate}</p>
+                      <p className="question-time"><Clock className="w-4 h-4 inline mr-2" /> 예상 시간: {question.time_estimate}</p>
                     )}
                   </div>
                 </div>
@@ -1094,7 +1124,7 @@ export const DashboardPage: React.FC = () => {
         {/* 요약 */}
         <div className="summary-section">
           <div className="card-header">
-            <h2>□ 분석 요약</h2>
+            <h2><BarChart3 className="section-icon" /> 분석 요약</h2>
           </div>
           <div className="summary-content">
             <p>{analysisResult.summary}</p>
