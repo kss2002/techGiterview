@@ -42,7 +42,7 @@ class GeminiClient:
             
             # LangChain Gemini 클라이언트 생성
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash-exp",
+                model="gemini-2.0-flash",
                 google_api_key=self.api_key,
                 temperature=0.1,
                 max_tokens=8192,
