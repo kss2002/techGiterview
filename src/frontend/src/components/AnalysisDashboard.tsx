@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react'
 import './AnalysisDashboard.css'
 import { SmartFileImportanceSection } from './SmartFileImportanceSection'
+import { useChartStyles, useDynamicStyles } from '../hooks/useStyles'
 
 // 인터페이스 정의
 interface RepositoryOverview {
@@ -231,6 +232,10 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'complexity' | 'dependency' | 'churn' | 'files' | 'advanced'>('overview')
   const [selectedMetric, setSelectedMetric] = useState<'importance' | 'complexity' | 'risk'>('importance')
+  
+  // 스타일링 Hook들 추가
+  const chartStyles = useChartStyles()
+  const dynamicStyles = useDynamicStyles()
 
   // 탭 네비게이션 로직 (고도화된 분석 탭 추가)
   const availableTabs = ['overview', 'complexity', 'dependency', 'churn', 'files', 'advanced'] as const
@@ -309,7 +314,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
       {/* 헤더 */}
       <div className="dashboard-header">
         <h2>
-          <i className="fas fa-chart-bar" style={{ marginRight: '8px' }}></i>
+          📊
           고도화된 분석 대시보드
         </h2>
         <div className="performance-indicators">
@@ -351,7 +356,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
               <div className="repo-stats">
                 <div className="stat-card">
                   <div className="stat-icon">
-                    <i className="fas fa-star"></i>
+                    ⭐
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{dashboardData.repository_overview.stars.toLocaleString()}</div>
@@ -360,7 +365,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">
-                    <i className="fas fa-code-branch"></i>
+                    🌳
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{dashboardData.repository_overview.forks.toLocaleString()}</div>
@@ -369,7 +374,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">
-                    <i className="fas fa-hdd"></i>
+                    💾
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{(dashboardData.repository_overview.size / 1024).toFixed(1)}MB</div>
@@ -386,8 +391,8 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 {pieChartData.map((entry, index) => (
                   <div key={entry.name} className="language-item">
                     <div 
-                      className="language-color" 
-                      style={{ backgroundColor: entry.fill }}
+                      className={`${chartStyles.languageColor} ${chartStyles.getLanguageColorClass(entry.name)}`}
+                      style={dynamicStyles.createBackgroundColorStyle(entry.fill)}
                     ></div>
                     <span className="language-name">{entry.name}</span>
                     <span className="language-count">{entry.value} files</span>
@@ -403,7 +408,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 {Object.entries(dashboardData.file_type_distribution).map(([type, count]) => (
                   <div key={type} className="file-type-card">
                     <div className="file-type-icon">
-                      <i className="fas fa-file-alt"></i>
+                      📄
                     </div>
                     <div className="file-type-name">{type}</div>
                     <div className="file-type-count">{count}</div>
@@ -424,13 +429,10 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                   <div key={entry.name} className="complexity-bar">
                     <div className="bar-label">{entry.name}</div>
                     <div 
-                      className="bar-fill"
-                      style={{ 
-                        width: `${(entry.value / Math.max(...barChartData.map(d => d.value))) * 100}%`,
-                        backgroundColor: getColorForItem(index)
-                      }}
+                      className={`bar-fill ${chartStyles.getChartColorClass(index)}`}
+                      style={dynamicStyles.createProgressBarStyle((entry.value / Math.max(...barChartData.map(d => d.value))) * 100)}
                     >
-                      <span className="bar-value">{entry.value}</span>
+                      <span className={chartStyles.metricValue}>{entry.value}</span>
                     </div>
                   </div>
                 ))}
@@ -653,13 +655,13 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
             {/* 고도화된 분석 개요 */}
             <div className="advanced-overview">
               <h3>
-                <i className="fas fa-cogs" style={{ marginRight: '8px' }}></i>
+                ⚙️
                 고도화된 분석 결과
               </h3>
               <div className="advanced-stats">
                 <div className="advanced-stat-card">
                   <div className="stat-icon">
-                    <i className="fas fa-file-alt"></i>
+                    📄
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{advancedAnalysis.analysis_summary.total_files}</div>
@@ -668,7 +670,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="advanced-stat-card">
                   <div className="stat-icon">
-                    <i className="fas fa-exclamation-triangle"></i>
+                    ⚠️
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{advancedAnalysis.analysis_summary.high_risk_files}</div>
@@ -677,7 +679,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="advanced-stat-card">
                   <div className="stat-icon">
-                    <i className="fas fa-bullseye"></i>
+                    🎯
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{advancedAnalysis.analysis_summary.hotspot_files}</div>
@@ -686,7 +688,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="advanced-stat-card">
                   <div className="stat-icon">
-                    <i className="fas fa-network-wired"></i>
+                    🌐
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{advancedAnalysis.dependency_graph.node_count}</div>
@@ -712,42 +714,42 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                       <div className="metric-bars">
                         <div className="metric-bar">
                           <span className="metric-name">중요도</span>
-                          <div className="bar-container">
+                          <div className={chartStyles.progressBar.container}>
                             <div 
-                              className="bar-fill importance" 
-                              style={{ width: `${metrics.importance_score}%` }}
+                              className={chartStyles.progressBar.importance}
+                              style={dynamicStyles.createProgressBarStyle(metrics.importance_score)}
                             ></div>
-                            <span className="metric-value">{metrics.importance_score.toFixed(1)}</span>
+                            <span className={chartStyles.metricValue}>{metrics.importance_score.toFixed(1)}</span>
                           </div>
                         </div>
                         <div className="metric-bar">
                           <span className="metric-name">복잡도</span>
-                          <div className="bar-container">
+                          <div className={chartStyles.progressBar.container}>
                             <div 
-                              className="bar-fill complexity" 
-                              style={{ width: `${Math.min(metrics.cyclomatic_complexity * 10, 100)}%` }}
+                              className={chartStyles.progressBar.complexity}
+                              style={dynamicStyles.createProgressBarStyle(Math.min(metrics.cyclomatic_complexity * 10, 100))}
                             ></div>
-                            <span className="metric-value">{metrics.cyclomatic_complexity.toFixed(1)}</span>
+                            <span className={chartStyles.metricValue}>{metrics.cyclomatic_complexity.toFixed(1)}</span>
                           </div>
                         </div>
                         <div className="metric-bar">
                           <span className="metric-name">핫스팟</span>
-                          <div className="bar-container">
+                          <div className={chartStyles.progressBar.container}>
                             <div 
-                              className="bar-fill hotspot" 
-                              style={{ width: `${Math.min(metrics.hotspot_score * 5, 100)}%` }}
+                              className={chartStyles.progressBar.hotspot}
+                              style={dynamicStyles.createProgressBarStyle(Math.min(metrics.hotspot_score * 5, 100))}
                             ></div>
-                            <span className="metric-value">{metrics.hotspot_score.toFixed(1)}</span>
+                            <span className={chartStyles.metricValue}>{metrics.hotspot_score.toFixed(1)}</span>
                           </div>
                         </div>
                         <div className="metric-bar">
                           <span className="metric-name">중심성</span>
-                          <div className="bar-container">
+                          <div className={chartStyles.progressBar.container}>
                             <div 
-                              className="bar-fill centrality" 
-                              style={{ width: `${metrics.centrality_score * 100}%` }}
+                              className={chartStyles.progressBar.centrality}
+                              style={dynamicStyles.createProgressBarStyle(metrics.centrality_score * 100)}
                             ></div>
-                            <span className="metric-value">{metrics.centrality_score.toFixed(3)}</span>
+                            <span className={chartStyles.metricValue}>{metrics.centrality_score.toFixed(3)}</span>
                           </div>
                         </div>
                       </div>
@@ -765,7 +767,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
             {/* 의존성 그래프 분석 */}
             <div className="dependency-graph-section">
               <h3>
-                <i className="fas fa-project-diagram" style={{ marginRight: '8px' }}></i>
+                🗺️
                 의존성 그래프 분석
               </h3>
               <div className="graph-overview">
@@ -838,7 +840,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
             {/* 변경 이력 핫스팟 분석 */}
             <div className="churn-hotspots-section">
               <h3>
-                <i className="fas fa-chart-line" style={{ marginRight: '8px' }}></i>
+                📈
                 변경 이력 핫스팟 분석
               </h3>
               <div className="hotspots-advanced-grid">
@@ -853,28 +855,28 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                     <div className="hotspot-metrics-advanced">
                       <div className="hotspot-metric">
                         <span className="metric-icon">
-                          <i className="fas fa-bullseye"></i>
+                          🎯
                         </span>
                         <span className="metric-label">핫스팟 점수</span>
                         <span className="metric-value">{hotspot.hotspot_score.toFixed(1)}</span>
                       </div>
                       <div className="hotspot-metric">
                         <span className="metric-icon">
-                          <i className="fas fa-code-branch"></i>
+                          🌳
                         </span>
                         <span className="metric-label">총 커밋</span>
                         <span className="metric-value">{hotspot.commit_count}</span>
                       </div>
                       <div className="hotspot-metric">
                         <span className="metric-icon">
-                          <i className="fas fa-clock"></i>
+                          🕰️
                         </span>
                         <span className="metric-label">최근 커밋</span>
                         <span className="metric-value">{hotspot.recent_commits}</span>
                       </div>
                       <div className="hotspot-metric">
                         <span className="metric-icon">
-                          <i className="fas fa-users"></i>
+                          👥
                         </span>
                         <span className="metric-label">개발자 수</span>
                         <span className="metric-value">{hotspot.authors_count}</span>

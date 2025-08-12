@@ -34,18 +34,18 @@ interface CriticalFilesPreviewProps {
 const getFileIcon = (filePath: string): React.ReactNode => {
   // filePath가 없는 경우 기본 아이콘 반환
   if (!filePath) {
-    return <i className="fas fa-file"></i>
+    return <>📄</>
   }
   
   const extension = filePath.split('.').pop()?.toLowerCase()
   const fileName = filePath.split('/').pop()?.toLowerCase() || ''
   
   // 특수 파일명 처리
-  if (fileName === 'dockerfile' || fileName.startsWith('dockerfile')) return <i className="fas fa-cogs"></i>
-  if (fileName === '.gitignore') return <i className="fab fa-git-alt"></i>
-  if (fileName.startsWith('readme')) return <i className="fas fa-file-alt"></i>
-  if (fileName === 'package.json') return <i className="fas fa-box"></i>
-  if (fileName === 'package-lock.json' || fileName === 'yarn.lock') return <i className="fas fa-lock"></i>
+  if (fileName === 'dockerfile' || fileName.startsWith('dockerfile')) return <>🐳</>
+  if (fileName === '.gitignore') return <>🚫</>
+  if (fileName.startsWith('readme')) return <>📖</>
+  if (fileName === 'package.json') return <>📦</>
+  if (fileName === 'package-lock.json' || fileName === 'yarn.lock') return <>🔒</>
   
   // 확장자별 아이콘 매핑
   switch (extension) {
@@ -54,39 +54,39 @@ const getFileIcon = (filePath: string): React.ReactNode => {
     case 'jsx':
     case 'ts':
     case 'tsx':
-      return <i className="fab fa-js-square"></i>
+      return <>🟨</>
     // Python
     case 'py':
     case 'pyw':
     case 'pyx':
-      return <i className="fab fa-python"></i>
+      return <>🐍</>
     // Java/Kotlin
     case 'java':
     case 'kt':
     case 'scala':
-      return <i className="fab fa-java"></i>
+      return <>☕</>
     // Web
     case 'html':
     case 'css':
     case 'scss':
     case 'sass':
-      return <i className="fab fa-css3-alt"></i>
+      return <>🎨</>
     // Config files
     case 'json':
     case 'yaml':
     case 'yml':
     case 'toml':
-      return <i className="fas fa-cogs"></i>
+      return <>⚙️</>
     // Others
     case 'md':
     case 'txt':
-      return <i className="fas fa-file-alt"></i>
+      return <>📝</>
     case 'sql':
-      return <i className="fas fa-database"></i>
+      return <>🗄️</>
     case 'dockerfile':
-      return <i className="fas fa-cogs"></i>
+      return <>🐳</>
     default:
-      return <i className="fas fa-file"></i>
+      return <>📄</>
   }
 }
 
@@ -145,7 +145,7 @@ export const CriticalFilesPreview: React.FC<CriticalFilesPreviewProps> = ({
       <div className="preview-header">
         <div className="header-content">
           <h3 className="section-title">
-            <i className="fas fa-bullseye title-icon"></i>
+            🎯
             핵심 분석 파일
           </h3>
           <span className="file-count">
