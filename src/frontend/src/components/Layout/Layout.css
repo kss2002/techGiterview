@@ -158,9 +158,10 @@
 
 /* 푸터 */
 .footer {
-  background: #2d3748;
-  color: white;
+  background: var(--gray-50);
+  color: var(--gray-700);
   margin-top: auto;
+  border-top: 1px solid var(--gray-200);
 }
 
 .footer-container {
@@ -190,11 +191,11 @@
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 12px;
-  color: #e2e8f0;
+  color: var(--gray-700);
 }
 
 .footer-section p {
-  color: #a0aec0;
+  color: var(--gray-600);
   line-height: 1.6;
   margin: 0;
 }
@@ -207,13 +208,13 @@
 
 .footer-section li {
   padding: 4px 0;
-  color: #a0aec0;
+  color: var(--gray-600);
   font-size: 0.875rem;
   line-height: 1.5;
 }
 
 .footer-section li:hover {
-  color: #e2e8f0;
+  color: var(--gray-800);
 }
 
 .footer-bottom {
@@ -221,8 +222,8 @@
   justify-content: space-between;
   align-items: center;
   padding-top: 20px;
-  border-top: 1px solid #4a5568;
-  color: #a0aec0;
+  border-top: 1px solid var(--gray-300);
+  color: var(--gray-600);
   font-size: 0.875rem;
 }
 
@@ -232,13 +233,13 @@
 }
 
 .footer-links a {
-  color: #a0aec0;
+  color: var(--gray-600);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 .footer-links a:hover {
-  color: #007bff;
+  color: var(--primary-600);
 }
 
 /* 반응형 디자인 */
