@@ -9,6 +9,7 @@ import React, { useState, useMemo } from 'react'
 import './SmartFileImportanceSection.css'
 import FileDetailModal from './FileDetailModal'
 import ImportanceDistributionChart from './ImportanceDistributionChart'
+import { useChartStyles, useDynamicStyles } from '../hooks/useStyles'
 
 // 스마트 파일 중요도 분석 결과 인터페이스
 interface SmartFileAnalysis {
@@ -67,6 +68,10 @@ export const SmartFileImportanceSection: React.FC<SmartFileImportanceSectionProp
   const [showReasons, setShowReasons] = useState<Record<string, boolean>>({})
   const [modalFile, setModalFile] = useState<SmartFileAnalysis | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  
+  // 스타일링 Hook들 추가
+  const chartStyles = useChartStyles()
+  const dynamicStyles = useDynamicStyles()
 
   // 카테고리별 파일 분류
   const categorizedFiles = useMemo(() => {
@@ -253,7 +258,10 @@ export const SmartFileImportanceSection: React.FC<SmartFileImportanceSectionProp
                   <span className={`category-badge ${getCategoryBadgeClass(file.category)}`}>
                     {file.category.toUpperCase()}
                   </span>
-                  <span className="importance-score" style={{ color: getImportanceColor(file.importance_score) }}>
+                  <span 
+                    className="importance-score" 
+                    style={dynamicStyles.createColorStyle(getImportanceColor(file.importance_score))}
+                  >
                     {file.importance_score.toFixed(3)}
                   </span>
                 </div>
@@ -266,7 +274,7 @@ export const SmartFileImportanceSection: React.FC<SmartFileImportanceSectionProp
                   <div className="metric-progress">
                     <div 
                       className="progress-fill structural"
-                      style={{ width: `${file.metrics.structural_importance * 100}%` }}
+                      style={dynamicStyles.createProgressBarStyle(file.metrics.structural_importance * 100)}
                     ></div>
                     <span className="metric-value">{file.metrics.structural_importance.toFixed(2)}</span>
                   </div>
@@ -276,7 +284,7 @@ export const SmartFileImportanceSection: React.FC<SmartFileImportanceSectionProp
                   <div className="metric-progress">
                     <div 
                       className="progress-fill dependency"
-                      style={{ width: `${file.metrics.dependency_centrality * 100}%` }}
+                      style={dynamicStyles.createProgressBarStyle(file.metrics.dependency_centrality * 100)}
                     ></div>
                     <span className="metric-value">{file.metrics.dependency_centrality.toFixed(2)}</span>
                   </div>
@@ -286,7 +294,7 @@ export const SmartFileImportanceSection: React.FC<SmartFileImportanceSectionProp
                   <div className="metric-progress">
                     <div 
                       className="progress-fill churn"
-                      style={{ width: `${file.metrics.churn_risk * 100}%` }}
+                      style={dynamicStyles.createProgressBarStyle(file.metrics.churn_risk * 100)}
                     ></div>
                     <span className="metric-value">{file.metrics.churn_risk.toFixed(2)}</span>
                   </div>
@@ -296,7 +304,7 @@ export const SmartFileImportanceSection: React.FC<SmartFileImportanceSectionProp
                   <div className="metric-progress">
                     <div 
                       className="progress-fill complexity"
-                      style={{ width: `${file.metrics.complexity_score * 100}%` }}
+                      style={dynamicStyles.createProgressBarStyle(file.metrics.complexity_score * 100)}
                     ></div>
                     <span className="metric-value">{file.metrics.complexity_score.toFixed(2)}</span>
                   </div>

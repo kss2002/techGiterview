@@ -79,11 +79,6 @@ export default defineConfig({
   
   // CSS 설정
   css: {
-    devSourcemap: true,
-    preprocessorOptions: {
-      scss: {
-        additionalData: `@import "@/styles/variables.scss";`
-      }
-    }
+    devSourcemap: true
   }
 })

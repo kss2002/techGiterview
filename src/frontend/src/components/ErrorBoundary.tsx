@@ -1,4 +1,5 @@
 import React, { Component, ReactNode } from 'react'
+import { useErrorBoundaryStyles } from '../hooks/useStyles'
 
 interface Props {
   children: ReactNode
@@ -43,79 +44,48 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback
       }
 
-      return (
-        <div style={{
-          padding: '40px',
-          textAlign: 'center',
-          background: '#fff',
-          border: '1px solid #ff6b6b',
-          borderRadius: '8px',
-          margin: '20px',
-          maxWidth: '800px',
-          marginLeft: 'auto',
-          marginRight: 'auto'
-        }}>
-          <h2 style={{ color: '#e53e3e', marginBottom: '16px' }}>
-            ⚠️ 컴포넌트 렌더링 오류
-          </h2>
-          <p style={{ color: '#666', marginBottom: '16px' }}>
-            페이지를 렌더링하는 중 오류가 발생했습니다.
-          </p>
-          <details style={{ textAlign: 'left', marginBottom: '20px' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
-              오류 상세 정보 보기
-            </summary>
-            <div style={{
-              background: '#f8f9fa',
-              padding: '12px',
-              borderRadius: '4px',
-              marginTop: '8px',
-              fontSize: '14px',
-              fontFamily: 'monospace',
-              whiteSpace: 'pre-wrap',
-              color: '#d63384'
-            }}>
-              {this.state.error?.toString()}
-              {this.state.errorInfo}
-            </div>
-          </details>
-          <div>
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                background: '#007bff',
-                color: 'white',
-                border: 'none',
-                padding: '12px 24px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                marginRight: '12px',
-                fontSize: '14px',
-                fontWeight: '600'
-              }}
-            >
-              🔄 새로고침
-            </button>
-            <button
-              onClick={() => window.history.back()}
-              style={{
-                background: '#6c757d',
-                color: 'white',
-                border: 'none',
-                padding: '12px 24px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '600'
-              }}
-            >
-              ← 뒤로가기
-            </button>
-          </div>
-        </div>
-      )
+      return <ErrorFallback error={this.state.error} errorInfo={this.state.errorInfo} />
     }
 
     return this.props.children
   }
+}
+
+// 에러 폴백 컴포넌트 분리 (함수형 컴포넌트로 Hook 사용 가능)
+function ErrorFallback({ error, errorInfo }: { error: Error | null; errorInfo: string }) {
+  const styles = useErrorBoundaryStyles()
+
+  return (
+    <div className={styles.container}>
+      <h2 className={styles.title}>
+        ⚠️ 컴포넌트 렌더링 오류
+      </h2>
+      <p className={styles.message}>
+        페이지를 렌더링하는 중 오류가 발생했습니다.
+      </p>
+      <details className={styles.details}>
+        <summary>
+          오류 상세 정보 보기
+        </summary>
+        <div className={styles.detailsContent}>
+          {error?.toString()}
+          {errorInfo}
+        </div>
+      </details>
+      <div className={styles.actions}>
+        <button
+          onClick={() => window.location.reload()}
+          className={styles.primaryButton}
+        >
+          🔄 새로고침
+        </button>
+        <button
+          onClick={() => window.history.back()}
+          className={styles.secondaryButton}
+        >
+          ← 뒤로가기
+        </button>
+      </div>
+    </div>
+  )
 }
