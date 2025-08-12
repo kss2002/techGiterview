@@ -32,6 +32,19 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo)
+    
+    // 메시지 채널 오류 특별 처리
+    if (error.message?.includes('message channel closed') || 
+        error.message?.includes('asynchronous response')) {
+      console.warn('브라우저 확장 프로그램 충돌로 인한 오류로 판단됩니다:', error.message)
+      // 자동 복구 시도
+      setTimeout(() => {
+        if (this.state.hasError) {
+          this.setState({ hasError: false, error: null, errorInfo: '' })
+        }
+      }, 1000)
+    }
+    
     this.setState({
       error,
       errorInfo: errorInfo.componentStack
