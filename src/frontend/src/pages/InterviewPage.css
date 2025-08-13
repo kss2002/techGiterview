@@ -1,74 +1,65 @@
 /* TechGiterview - Modern Interview Page Design */
 
-/* CSS 변수 정의 */
-:root {
-  /* 메인 컬러 팔레트 */
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-light: #dbeafe;
-  --primary-dark: #1e3a8a;
+/* CSS 변수 정의 - design-tokens.css와 통합 */
+.interview-page {
+  /* 메인 컬러 팔레트 - design-tokens.css 변수 사용 */
+  --primary: var(--primary-600);
+  --primary-hover: var(--primary-700);
+  --primary-light: var(--primary-100);
+  --primary-dark: var(--primary-800);
   
-  --success: #059669;
-  --success-light: #d1fae5;
+  --success: var(--success-600);
+  --success-light: var(--success-100);
   
-  --warning: #d97706;
-  --warning-light: #fef3c7;
+  --warning: var(--warning-600);
+  --warning-light: var(--warning-100);
   
-  --error: #dc2626;
-  --error-light: #fee2e2;
+  --error: var(--error-600);
+  --error-light: var(--error-100);
   
-  /* 뉴트럴 컬러 */
+  /* 뉴트럴 컬러 - design-tokens.css 변수 사용 */
   --white: #ffffff;
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
-  --gray-700: #374151;
-  --gray-800: #1f2937;
-  --gray-900: #111827;
+  /* gray 변수는 design-tokens.css에서 이미 정의됨 */
   
-  /* 그림자 */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  /* 그림자 - design-tokens.css 변수 사용 */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
   
-  /* 타이포그래피 */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
-  --font-mono: 'Fira Code', 'Monaco', 'Cascadia Code', monospace;
+  /* 타이포그래피 - design-tokens.css 변수 사용 */
+  --font-family: var(--font-sans);
+  --font-mono: var(--font-mono);
   
-  /* 간격 */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.25rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
-  --space-16: 4rem;
-  --space-20: 5rem;
+  /* 간격 - design-tokens.css 변수 사용 */
+  --space-1: var(--spacing-1);
+  --space-2: var(--spacing-2);
+  --space-3: var(--spacing-3);
+  --space-4: var(--spacing-4);
+  --space-5: var(--spacing-5);
+  --space-6: var(--spacing-6);
+  --space-8: var(--spacing-8);
+  --space-10: var(--spacing-10);
+  --space-12: var(--spacing-12);
+  --space-16: var(--spacing-16);
+  --space-20: var(--spacing-20);
   
-  /* 반응형 브레이크포인트 */
-  --mobile: 768px;
-  --tablet: 1024px;
-  --desktop: 1280px;
+  /* 반응형 브레이크포인트 - design-tokens.css 변수 사용 */
+  --mobile: var(--breakpoint-md);
+  --tablet: var(--breakpoint-lg);
+  --desktop: var(--breakpoint-xl);
   
-  /* 애니메이션 */
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow: 500ms ease;
+  /* 애니메이션 - design-tokens.css 변수 사용 */
+  --transition-fast: var(--transition-fast);
+  --transition-normal: var(--transition-normal);
+  --transition-slow: var(--transition-slow);
   
-  /* 테두리 반지름 */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
+  /* 테두리 반지름 - design-tokens.css 변수 사용 */
+  --radius-sm: var(--radius-md);
+  --radius-md: var(--radius-lg);
+  --radius-lg: var(--radius-xl);
+  --radius-xl: var(--radius-2xl);
+  --radius-2xl: var(--radius-3xl);
 }
 
 /* 전역 스타일 리셋 */
@@ -186,19 +177,19 @@ body {
 }
 
 .step {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: 600;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: all var(--transition-normal);
   position: relative;
   background: var(--white);
-  border: 3px solid var(--gray-200);
+  border: 2px solid var(--gray-200);
   color: var(--gray-400);
 }
 
@@ -209,7 +200,7 @@ body {
   top: 50%;
   transform: translateY(-50%);
   width: var(--space-3);
-  height: 3px;
+  height: 2px;
   background: var(--gray-200);
   border-radius: var(--radius-sm);
   margin-left: var(--space-1);
@@ -234,8 +225,8 @@ body {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--white);
-  transform: scale(1.1);
-  box-shadow: 0 0 25px rgba(37, 99, 235, 0.3);
+  transform: scale(1.2);
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
   animation: pulse 2s infinite;
 }
 
@@ -498,6 +489,20 @@ body {
   margin-bottom: var(--space-6);
 }
 
+.question-context {
+  background: var(--gray-50);
+  border-left: 4px solid var(--warning);
+  padding: var(--space-4) var(--space-6);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  margin-top: var(--space-6);
+  color: var(--gray-700);
+  font-style: italic;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  line-height: 1.6;
+}
+
 /* 답변 히스토리 */
 .answer-history {
   display: flex;
@@ -677,15 +682,17 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  font-size: 0.75rem;
-  color: var(--gray-500);
+  font-size: 0.7rem;
+  color: var(--gray-400);
+  opacity: 0.8;
 }
 
 .input-help span {
-  background: var(--gray-200);
-  padding: var(--space-1) var(--space-2);
+  background: var(--gray-100);
+  padding: 2px var(--space-2);
   border-radius: var(--radius-sm);
-  font-weight: 500;
+  font-weight: 400;
+  border: 1px solid var(--gray-200);
 }
 
 .save-status {
@@ -759,34 +766,45 @@ body {
 
 .clear-btn, .save-btn {
   padding: var(--space-2) var(--space-4);
-  border: 2px solid var(--gray-300);
-  background: var(--white);
+  border: 1px solid var(--gray-300);
+  background: transparent;
   border-radius: var(--radius-md);
-  font-weight: 600;
-  color: var(--gray-700);
+  font-weight: 500;
+  color: var(--gray-600);
   cursor: pointer;
   transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
 }
 
-.clear-btn:hover {
+.clear-btn:hover:not(:disabled) {
   border-color: var(--error);
   color: var(--error);
   background: var(--error-light);
 }
 
-.save-btn:hover {
+.save-btn:hover:not(:disabled) {
   border-color: var(--success);
   color: var(--success);
   background: var(--success-light);
 }
 
+.clear-btn:disabled,
+.save-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  color: var(--gray-400);
+  border-color: var(--gray-200);
+}
+
 .submit-answer-btn {
-  padding: var(--space-3) var(--space-8);
+  padding: var(--space-3) var(--space-6);
   background: var(--primary);
   color: var(--white);
   border: none;
-  border-radius: var(--radius-xl);
-  font-weight: 700;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
   transition: all var(--transition-normal);
@@ -794,6 +812,8 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  min-width: 140px;
+  justify-content: center;
 }
 
 .submit-answer-btn:hover {
@@ -807,9 +827,11 @@ body {
 }
 
 .submit-answer-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+  background: var(--gray-400);
+  box-shadow: none;
 }
 
 /* 반응형 디자인 */

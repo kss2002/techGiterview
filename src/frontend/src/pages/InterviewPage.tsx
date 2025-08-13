@@ -2,6 +2,57 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import {
+  MessageCircle,
+  Clock,
+  Sun,
+  Moon,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Send,
+  Save,
+  Trash2,
+  User,
+  Bot,
+  HelpCircle,
+  AlertCircle,
+  CheckCircle,
+  Code,
+  Database,
+  Server,
+  Globe,
+  Cpu,
+  Layers,
+  Shield,
+  Bug,
+  Zap,
+  Terminal,
+  FileCode,
+  Monitor,
+  Smartphone,
+  Palette,
+  Image,
+  Archive,
+  BookOpen,
+  Github,
+  GitFork,
+  Star,
+  Info,
+  Tag,
+  File,
+  FileText,
+  Search,
+  Play,
+  Pause,
+  RotateCcw,
+  X,
+  Check,
+  ArrowRight,
+  ArrowLeft,
+  MessageSquare,
+  Lightbulb
+} from 'lucide-react'
 import { AnswerFeedback } from '../components/AnswerFeedback'
 import './InterviewPage.css'
 
@@ -245,7 +296,7 @@ export const InterviewPage: React.FC = () => {
   }, [currentQuestionIndex, interviewId, questions])
 
   // 세션 히스토리 로딩 (답변, 피드백, 대화 포함)
-  const loadSessionHistory = async (questionsList: Question[]) => {
+  const loadSessionHistory = async (questionsList: Question[], sessionData: any) => {
     if (!interviewId) return
 
     try {
@@ -254,6 +305,13 @@ export const InterviewPage: React.FC = () => {
       
       if (!response.ok) {
         console.warn('[세션 데이터] 불러오기 실패:', response.status)
+        // 데이터 로딩 실패 시에도 기본 진행률 표시
+        setMessages(prev => [...prev, {
+          id: 'history-load-failed',
+          type: 'system',
+          content: '이전 답변 기록을 불러올 수 없었습니다. 새로 시작합니다.',
+          timestamp: new Date()
+        }])
         return
       }
       
@@ -263,63 +321,71 @@ export const InterviewPage: React.FC = () => {
       // 답변 히스토리를 메시지로 변환
       const historyMessages: Message[] = []
       
-      // 답변과 피드백을 질문 순서대로 정렬
+      // 질문별 답변 맵핑 생성
+      const answersByQuestion = new Map()
       data.answers.forEach((answer: any) => {
-        // 답변 메시지 추가
-        historyMessages.push({
-          id: `answer-${answer.question_id}`,
-          type: 'answer',
-          content: answer.user_answer,
-          timestamp: new Date(answer.submitted_at),
-          question_id: answer.question_id
-        })
-        
-        // 피드백 메시지 추가 (있는 경우)
-        if (answer.feedback) {
+        answersByQuestion.set(answer.question_id, answer)
+      })
+      
+      // 질문 순서대로 답변과 피드백 추가
+      questionsList.forEach((question, index) => {
+        const answer = answersByQuestion.get(question.id)
+        if (answer) {
+          // 답변 메시지 추가
           historyMessages.push({
-            id: `feedback-${answer.question_id}`,
-            type: 'feedback',
-            content: answer.feedback.message,
-            timestamp: new Date(answer.feedback.created_at),
-            question_id: answer.question_id,
-            feedback: {
-              score: answer.feedback.score,
-              message: answer.feedback.message,
-              feedback_type: answer.feedback.feedback_type,
-              details: answer.feedback.details,
-              keywords_found: [],
-              keywords_missing: [],
-              suggestions: answer.feedback.suggestions,
-              technical_accuracy: answer.feedback.details
-            }
+            id: `answer-${answer.question_id}`,
+            type: 'answer',
+            content: answer.user_answer,
+            timestamp: new Date(answer.submitted_at),
+            question_id: answer.question_id
           })
+          
+          // 피드백 메시지 추가 (있는 경우)
+          if (answer.feedback && answer.feedback.score) {
+            historyMessages.push({
+              id: `feedback-${answer.question_id}`,
+              type: 'feedback', 
+              content: answer.feedback.message || '피드백이 생성되었습니다.',
+              timestamp: new Date(answer.feedback.created_at || answer.submitted_at),
+              question_id: answer.question_id,
+              feedback: {
+                score: answer.feedback.score,
+                message: answer.feedback.message,
+                feedback_type: answer.feedback.feedback_type || 'general',
+                details: answer.feedback.details,
+                keywords_found: answer.feedback.keywords_found || [],
+                keywords_missing: answer.feedback.keywords_missing || [],
+                suggestions: answer.feedback.suggestions || [],
+                technical_accuracy: answer.feedback.technical_accuracy || answer.feedback.details
+              }
+            })
+          }
         }
       })
       
-      // 대화 메시지 추가
-      data.conversations.forEach((msg: any) => {
-        if (msg.type === 'user' || msg.type === 'ai') {
+      // 대화 메시지 추가 (최신순으로)
+      data.conversations.forEach((conv: any) => {
+        if (conv.type === 'user') {
           historyMessages.push({
-            id: msg.id,
-            type: msg.type === 'user' ? 'answer' : 'feedback',
-            content: msg.content,
-            timestamp: new Date(msg.timestamp),
-            question_id: msg.question_id
+            id: `conversation-user-${conv.id}`,
+            type: 'answer',
+            content: conv.content,
+            timestamp: new Date(conv.timestamp),
+            question_id: conv.question_id
+          })
+        } else if (conv.type === 'ai') {
+          historyMessages.push({
+            id: `conversation-ai-${conv.id}`,
+            type: 'system',
+            content: conv.content,
+            timestamp: new Date(conv.timestamp),
+            question_id: conv.question_id
           })
         }
       })
       
       // 시간순으로 정렬
       historyMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-      
-      // 기존 시스템 메시지와 합치기 전에 히스토리 메시지 저장
-      if (historyMessages.length > 0) {
-        setMessages(prev => {
-          // 기존 시스템 메시지만 유지
-          const systemMessages = prev.filter(msg => msg.type === 'system')
-          return [...systemMessages, ...historyMessages]
-        })
-      }
       
       // 저장된 답변들을 상태에 반영
       const answersMap: Record<string, string> = {}
@@ -328,19 +394,38 @@ export const InterviewPage: React.FC = () => {
       })
       setSavedAnswers(answersMap)
       
+      // 현재 질문 인덱스 계산 (답변된 질문 수 기준)
+      const answeredCount = data.answers.length
+      const calculatedCurrentIndex = Math.min(answeredCount, questionsList.length - 1)
+      setCurrentQuestionIndex(calculatedCurrentIndex)
+      
       console.log('[HISTORY] 전체 히스토리 로드 완료:', {
         answersCount: data.answers.length,
         conversationsCount: data.conversations.length,
-        messagesCount: historyMessages.length
+        messagesCount: historyMessages.length,
+        currentQuestionIndex: calculatedCurrentIndex
       })
+      
+      return { historyMessages, answeredCount, calculatedCurrentIndex }
       
     } catch (error) {
       console.error('[ERROR] 세션 히스토리 로딩 실패:', error)
+      // 에러 발생 시 기본 상태로 시작
+      setMessages(prev => [...prev, {
+        id: 'history-error',
+        type: 'system',
+        content: '세션 기록을 복원하는 중 오류가 발생했습니다. 새로 시작합니다.',
+        timestamp: new Date()
+      }])
+      return null
     }
   }
 
   const loadInterview = async () => {
     console.log('[LOAD] loadInterview 함수 시작');
+    
+    setLoadingStates({ session: true, questions: true })
+    
     try {
       console.log('[API] 면접 세션 및 질문 데이터 로딩 시작');
       // 병렬 API 호출로 성능 개선
@@ -354,13 +439,56 @@ export const InterviewPage: React.FC = () => {
         questions: questionsResponse.status
       });
       
-      if (!sessionResponse.ok || !questionsResponse.ok) {
-        console.log('[ERROR] API 응답 에러:', {
-          sessionOk: sessionResponse.ok,
-          questionsOk: questionsResponse.ok
-        });
-        throw new Error('면접 데이터를 불러올 수 없습니다.')
+      // 세션 데이터 확인
+      setLoadingStates(prev => ({ ...prev, session: false }))
+      
+      if (!sessionResponse.ok) {
+        if (sessionResponse.status === 404) {
+          // 404 에러에 대한 사용자 친화적 처리
+          setMessages([{
+            id: 'session-not-found',
+            type: 'system',
+            content: '⚠️ 면접 세션을 찾을 수 없습니다. 세션이 만료되었거나 시스템이 업데이트되었을 수 있습니다. 새로운 면접을 시작해주세요.',
+            timestamp: new Date()
+          }])
+          
+          setTimeout(() => {
+            navigate('/dashboard', { 
+              state: { 
+                message: '이전 면접 세션이 만료되었습니다. 새로운 분석을 시작해주세요.',
+                type: 'warning'
+              }
+            })
+          }, 3000)
+          return
+        }
+        throw new Error(`면접 세션을 불러오는데 실패했습니다. (${sessionResponse.status})`)
       }
+      
+      if (!questionsResponse.ok) {
+        if (questionsResponse.status === 404) {
+          // 질문 데이터를 찾을 수 없는 경우
+          setMessages([{
+            id: 'questions-not-found',
+            type: 'system',
+            content: '⚠️ 면접 질문을 찾을 수 없습니다. 분석 데이터가 손실되었거나 시스템이 업데이트되었을 수 있습니다.',
+            timestamp: new Date()
+          }])
+          
+          setTimeout(() => {
+            navigate('/dashboard', { 
+              state: { 
+                message: '면접 질문 데이터를 찾을 수 없습니다. 새로운 분석을 시작해주세요.',
+                type: 'warning'
+              }
+            })
+          }, 3000)
+          return
+        }
+        throw new Error(`면접 질문을 불러오는데 실패했습니다. (${questionsResponse.status})`)
+      }
+      
+      setLoadingStates(prev => ({ ...prev, questions: false }))
 
       console.log('[PARSE] JSON 파싱 시작');
       const [sessionResult, questionsResult] = await Promise.all([
@@ -375,81 +503,118 @@ export const InterviewPage: React.FC = () => {
         questionsData: questionsResult.data
       });
 
-      if (sessionResult.success && questionsResult.success) {
-        console.log('[SUCCESS] API 결과 검증 통과, 상태 업데이트 시작');
+      if (!sessionResult.success || !questionsResult.success) {
+        throw new Error(sessionResult.message || questionsResult.message || '면접 데이터를 불러오는데 실패했습니다.')
+      }
         
-        setInterview(sessionResult.data)
-        setQuestions(questionsResult.data.questions)
+      console.log('[SUCCESS] API 결과 검증 통과, 상태 업데이트 시작');
+      
+      const sessionData = sessionResult.data
+      const questionsData = questionsResult.data.questions
+      
+      // 질문 데이터 형식 변환 (context 객체를 문자열로 변환)
+      const transformedQuestions = questionsData.map((q: any) => ({
+        id: q.id,
+        question: q.question,
+        category: q.category,
+        difficulty: q.difficulty,
+        context: typeof q.context === 'object' ? 
+          (q.context?.original_data?.context || q.context?.context || JSON.stringify(q.context)) : 
+          q.context,
+        parent_question_id: q.context?.original_data?.parent_question_id,
+        sub_question_index: q.context?.original_data?.sub_question_index,
+        total_sub_questions: q.context?.original_data?.total_sub_questions,
+        is_compound_question: q.context?.original_data?.is_compound_question
+      }))
+      
+      setInterview(sessionData)
+      setQuestions(transformedQuestions)
+      
+      console.log('[UPDATE] 상태 업데이트 완료');
+      
+      // 세션 히스토리 데이터 로딩
+      const historyResult = await loadSessionHistory(transformedQuestions, sessionData);
+      
+      // 현재 질문 인덱스 결정 (히스토리에서 계산된 값 우선 사용)
+      let actualCurrentIndex = questionsResult.data.current_question_index || 0
+      if (historyResult?.calculatedCurrentIndex !== undefined) {
+        actualCurrentIndex = historyResult.calculatedCurrentIndex
+      }
+      
+      // 세션 상태에 따른 메시지 설정
+      const currentQuestion = transformedQuestions[actualCurrentIndex]
+      const isResuming = historyResult && historyResult.historyMessages.length > 0
+      
+      console.log('[QUESTION] 현재 질문 정보:', {
+        index: actualCurrentIndex,
+        question: currentQuestion,
+        isResuming: isResuming,
+        totalQuestions: transformedQuestions.length
+      });
+      
+      // 메시지 설정
+      const welcomeMessages: Message[] = []
+      
+      if (isResuming) {
+        // 기존 세션 복원
+        welcomeMessages.push({
+          id: 'session-restored',
+          type: 'system', 
+          content: `✅ 이전 면접 세션이 복원되었습니다. (${historyResult.answeredCount}/${transformedQuestions.length} 질문 완료)`,
+          timestamp: new Date()
+        })
         
-        console.log('[UPDATE] 상태 업데이트 완료');
+        // 히스토리 메시지 추가
+        welcomeMessages.push(...historyResult.historyMessages)
         
-        // 세션 히스토리 데이터 로딩
-        await loadSessionHistory(questionsResult.data.questions);
-        
-        // 현재 질문 표시
-        const currentQuestionIndex = questionsResult.data.current_question_index
-        const currentQuestion = questionsResult.data.questions[currentQuestionIndex]
-        
-        console.log('[QUESTION] 현재 질문 정보:', {
-          index: currentQuestionIndex,
-          question: currentQuestion
-        });
-        
-        // 기존 메시지가 있는지 확인
-        const hasExistingMessages = messages.length > 0;
-        console.log('[DEBUG] 기존 메시지 존재 여부:', hasExistingMessages, '개수:', messages.length);
-        
-        if (hasExistingMessages) {
-          // 답변 제출 후 재로드하는 경우 - 기존 메시지 유지하고 새 질문만 추가
-          console.log('[DEBUG] 기존 대화 유지하면서 새 질문 추가');
+        // 현재 진행 상황 표시
+        if (actualCurrentIndex < transformedQuestions.length) {
+          welcomeMessages.push({
+            id: 'current-progress',
+            type: 'system',
+            content: `📍 현재 진행상황: ${actualCurrentIndex + 1}/${transformedQuestions.length} (${Math.round(((actualCurrentIndex + 1) / transformedQuestions.length) * 100)}%)`,
+            timestamp: new Date()
+          })
           
-          // 진행 상황 업데이트 메시지 추가
-          if (sessionResult.data.progress.total_questions > 0) {
-            setMessages(prev => [...prev, {
-              id: `progress-${Date.now()}`,
-              type: 'system',
-              content: `> 진행상황: ${sessionResult.data.progress.current_question}/${sessionResult.data.progress.total_questions} (${sessionResult.data.progress.progress_percentage}%)`,
-              timestamp: new Date()
-            }]);
-          }
-          
-          // 새 질문 추가
+          // 현재/다음 질문 표시
           if (currentQuestion) {
-            console.log('[DEBUG] 새 질문 메시지 추가');
-            setMessages(prev => [...prev, {
+            welcomeMessages.push({
               id: `question-${currentQuestion.id}`,
               type: 'question',
               content: currentQuestion.question,
               timestamp: new Date(),
               question_id: currentQuestion.id
-            }]);
+            })
           }
         } else {
-          // 첫 로드인 경우 - 초기 메시지 설정
-          console.log('[DEBUG] 첫 로드 - 초기 메시지 설정');
-          const initialMessages: Message[] = [
-            {
-              id: 'welcome',
-              type: 'system',
-              content: '* 모의면접을 시작합니다! 편안하게 답변해주세요.',
-              timestamp: new Date()
-            }
-          ]
+          // 모든 질문 완료
+          welcomeMessages.push({
+            id: 'all-completed',
+            type: 'system',
+            content: '🎉 모든 질문이 완료되었습니다! 면접을 종료하거나 답변을 검토해보세요.',
+            timestamp: new Date()
+          })
+        }
+      } else {
+        // 새로운 면접 시작
+        welcomeMessages.push({
+          id: 'welcome',
+          type: 'system',
+          content: '🎤 모의면접을 시작합니다! 편안하게 답변해주세요.',
+          timestamp: new Date()
+        })
+        
+        if (transformedQuestions.length > 0) {
+          welcomeMessages.push({
+            id: 'interview-info',
+            type: 'system',
+            content: `📋 총 ${transformedQuestions.length}개의 질문이 준비되었습니다.`,
+            timestamp: new Date()
+          })
           
-          // 면접 상태 메시지 표시
-          if (sessionResult.data.progress.total_questions > 0) {
-            initialMessages.push({
-              id: 'current-status',
-              type: 'system',
-              content: `> 진행상황: ${sessionResult.data.progress.current_question}/${sessionResult.data.progress.total_questions} (${sessionResult.data.progress.progress_percentage}%)`,
-              timestamp: new Date()
-            })
-          }
-
-          // 현재 질문 표시
+          // 첫 번째 질문 표시
           if (currentQuestion) {
-            console.log('[DEBUG] 현재 질문 메시지 추가');
-            initialMessages.push({
+            welcomeMessages.push({
               id: `question-${currentQuestion.id}`,
               type: 'question',
               content: currentQuestion.question,
@@ -457,25 +622,33 @@ export const InterviewPage: React.FC = () => {
               question_id: currentQuestion.id
             })
           }
-          
-          console.log('[DEBUG] 메시지 업데이트:', initialMessages);
-          setMessages(initialMessages);
         }
-        
-        console.log('[DEBUG] loadInterview 완료');
-      } else {
-        console.log('[ERROR] API 결과 검증 실패:', {
-          sessionSuccess: sessionResult.success,
-          questionsSuccess: questionsResult.success
-        });
       }
+      
+      setMessages(welcomeMessages)
+      setCurrentQuestionIndex(actualCurrentIndex)
+      
+      console.log('[DEBUG] loadInterview 완료 - actualCurrentIndex:', actualCurrentIndex);
+      
     } catch (error) {
       console.error('[ERROR] Error loading interview:', error)
-      alert('면접 데이터를 불러오는데 실패했습니다.')
-      navigate('/dashboard')
+      const errorMessage = error instanceof Error ? error.message : '면접 데이터를 불러오는데 실패했습니다.'
+      
+      setMessages([{
+        id: 'load-error',
+        type: 'system',
+        content: `❌ ${errorMessage}`,
+        timestamp: new Date()
+      }])
+      
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 3000)
+      
     } finally {
       console.log('[UPDATE] setIsLoading(false) 설정');
       setIsLoading(false)
+      setLoadingStates({ session: false, questions: false })
     }
   }
 
@@ -545,12 +718,15 @@ export const InterviewPage: React.FC = () => {
     setIsSubmitting(true)
     
     try {
-      const currentQuestion = questions[interview.progress.current_question - 1]
+      // 현재 질문 찾기 (progress 대신 실제 currentQuestionIndex 사용)
+      const currentQuestion = questions[currentQuestionIndex]
       console.log('[QUESTION] currentQuestion:', currentQuestion);
+      console.log('[QUESTION] currentQuestionIndex:', currentQuestionIndex);
       
       if (!currentQuestion) {
-        console.log('[ERROR] currentQuestion이 없음 - progress:', interview.progress);
-        throw new Error('현재 질문을 찾을 수 없습니다.');
+        console.log('[ERROR] currentQuestion이 없음 - currentQuestionIndex:', currentQuestionIndex);
+        console.log('[ERROR] questions 배열 길이:', questions.length);
+        throw new Error('현재 질문을 찾을 수 없습니다. 페이지를 새로고침해보세요.');
       }
       
       // 답변 메시지 추가
@@ -619,22 +795,51 @@ export const InterviewPage: React.FC = () => {
         // 다음 질문으로 이동하거나 완료 처리
         if (result.data.is_completed) {
           console.log('[COMPLETE] 면접 완료');
+          setInterview(prev => prev ? { ...prev, status: 'completed' } : null)
           setMessages(prev => [...prev, {
             id: 'completed',
             type: 'system',
-            content: '[COMPLETE] 모든 질문이 완료되었습니다! 수고하셨습니다.',
+            content: '🎉 모든 질문이 완료되었습니다! 수고하셨습니다. 결과를 확인해보세요.',
             timestamp: new Date()
           }])
         } else {
-          console.log('[NEXT] 다음 질문으로 이동');
-          // 피드백 점수가 높으면 바로 다음 질문으로, 낮으면 대화 모드 대기
-          if (result.data.feedback && result.data.feedback.score >= 7.0) {
-            // 점수가 높으면 바로 다음 질문으로
-            setTimeout(async () => {
-              await loadInterview();
-            }, 3000);
+          console.log('[NEXT] 다음 질문으로 이동 준비');
+          
+          // 피드백 점수에 따른 안내 메시지
+          if (result.data.feedback) {
+            const score = result.data.feedback.score
+            let guidanceMessage = ''
+            
+            if (score >= 8.0) {
+              guidanceMessage = '✨ 훌륭한 답변입니다! 다음 질문으로 자동 진행됩니다.'
+              
+              // 높은 점수면 자동으로 다음 질문
+              setTimeout(async () => {
+                await loadInterview();
+              }, 2500);
+              
+            } else if (score >= 6.0) {
+              guidanceMessage = '👍 좋은 답변입니다. 추가 질문이 있으면 언제든 물어보세요. "다음 질문"을 입력하면 계속 진행할 수 있습니다.'
+            } else {
+              guidanceMessage = '💡 답변에 대해 더 자세히 알아보고 싶다면 추가 질문을 해보세요. 준비가 되면 "다음 질문"을 입력하세요.'
+            }
+            
+            if (guidanceMessage) {
+              setMessages(prev => [...prev, {
+                id: `guidance-${Date.now()}`,
+                type: 'system',
+                content: guidanceMessage,
+                timestamp: new Date()
+              }])
+            }
           } else {
-            // 자동 유도 문구 제거됨 - 사용자가 필요에 따라 직접 대화하거나 다음 질문으로 넘어갈 수 있음
+            // 피드백이 없는 경우 기본 안내
+            setMessages(prev => [...prev, {
+              id: `next-guidance-${Date.now()}`,
+              type: 'system',
+              content: '📝 답변이 저장되었습니다. "다음 질문"을 입력하여 계속 진행하거나, 이 문제에 대해 더 질문해보세요.',
+              timestamp: new Date()
+            }])
           }
         }
       } else {
@@ -884,29 +1089,29 @@ export const InterviewPage: React.FC = () => {
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
-  const getMessageIcon = (type: string) => {
+  const getMessageIcon = (type: string): React.ReactNode => {
     switch (type) {
-      case 'system': return '[SYS]'
-      case 'question': return '[Q]'
-      case 'answer': return '[A]'
-      case 'feedback': return '[FB]'
-      default: return '[MSG]'
+      case 'system': return <Settings className="w-4 h-4 text-blue-600" />
+      case 'question': return <HelpCircle className="w-4 h-4 text-purple-600" />
+      case 'answer': return <User className="w-4 h-4 text-green-600" />
+      case 'feedback': return <Bot className="w-4 h-4 text-orange-600" />
+      default: return <MessageSquare className="w-4 h-4 text-gray-600" />
     }
   }
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = (category: string): React.ReactNode => {
     switch (category?.toLowerCase()) {
-      case 'technical': return '[TECH]'
-      case 'tech_stack': return '[STACK]'
-      case 'architecture': return '[ARCH]'
-      case 'algorithm': return '[ALGO]'
-      case 'database': return '[DB]'
-      case 'frontend': return '[FRONT]'
-      case 'backend': return '[BACK]'
-      case 'devops': return '[OPS]'
-      case 'testing': return '[TEST]'
-      case 'security': return '[SEC]'
-      default: return '[?]'
+      case 'technical': return <Code className="w-4 h-4 text-blue-600" />
+      case 'tech_stack': return <Layers className="w-4 h-4 text-purple-600" />
+      case 'architecture': return <Monitor className="w-4 h-4 text-indigo-600" />
+      case 'algorithm': return <Zap className="w-4 h-4 text-yellow-600" />
+      case 'database': return <Database className="w-4 h-4 text-green-600" />
+      case 'frontend': return <Palette className="w-4 h-4 text-pink-600" />
+      case 'backend': return <Server className="w-4 h-4 text-orange-600" />
+      case 'devops': return <Terminal className="w-4 h-4 text-gray-600" />
+      case 'testing': return <Bug className="w-4 h-4 text-red-600" />
+      case 'security': return <Shield className="w-4 h-4 text-emerald-600" />
+      default: return <HelpCircle className="w-4 h-4 text-gray-500" />
     }
   }
 
@@ -957,7 +1162,7 @@ export const InterviewPage: React.FC = () => {
       {/* 헤더 */}
       <div className="interview-header">
         <div className="header-left">
-          <h1>[INTERVIEW] 모의면접 진행중</h1>
+          <h1><MessageCircle className="w-8 h-8 mr-3 inline-block" /> 모의면접 진행중</h1>
           <div className="interview-info">
             <span className="question-progress">
               {getProgressText()}
@@ -984,7 +1189,7 @@ export const InterviewPage: React.FC = () => {
               onClick={() => setIsDarkMode(!isDarkMode)}
               title="다크 모드 (Ctrl+D)"
             >
-              {isDarkMode ? '[LIGHT]' : '[DARK]'}
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
             <select 
               className="font-size-selector"
@@ -998,7 +1203,7 @@ export const InterviewPage: React.FC = () => {
             </select>
           </div>
           <div className="timer">
-            <span className="timer-icon">[TIME]</span>
+            <Clock className="w-5 h-5" />
             <span className="timer-value">{formatTime(timeRemaining)}</span>
           </div>
           <div className={`connection-status ${wsConnected ? 'connected' : 'disconnected'}`}>
@@ -1021,7 +1226,7 @@ export const InterviewPage: React.FC = () => {
                       ? `Q${currentQuestion.sub_question_index}` 
                       : `Q${currentQuestionIndex + 1}`}
                   </span>
-                  <span className="category-icon">{getCategoryIcon(currentQuestion.category)}</span>
+                  {getCategoryIcon(currentQuestion.category)}
                   <span className="category-name">{currentQuestion.category}</span>
                   <span 
                     className="difficulty-badge"
@@ -1037,7 +1242,8 @@ export const InterviewPage: React.FC = () => {
                     disabled={currentQuestionIndex === 0}
                     title="이전 질문 (Ctrl+←)"
                   >
-                    ← 이전
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    이전
                   </button>
                   <button 
                     className="nav-btn next"
@@ -1045,7 +1251,8 @@ export const InterviewPage: React.FC = () => {
                     disabled={currentQuestionIndex === questions.length - 1}
                     title="다음 질문 (Ctrl+→)"
                   >
-                    {isLastQuestionInGroup(currentQuestionIndex) ? '다음 그룹 →' : '다음 →'}
+                    {isLastQuestionInGroup(currentQuestionIndex) ? '다음 그룹' : '다음'}
+                    <ChevronRight className="w-4 h-4 ml-1" />
                   </button>
                 </div>
               </div>
@@ -1055,8 +1262,8 @@ export const InterviewPage: React.FC = () => {
                     remarkPlugins={[remarkGfm]}
                     components={{
                       p: ({ children }) => <p style={{ margin: '0 0 20px 0', lineHeight: '1.8' }}>{children}</p>,
-                      code: ({ children }) => <code style={{ background: '#f1f5f9', padding: '3px 6px', borderRadius: '4px', fontSize: '0.9em', border: '1px solid #e2e8f0' }}>{children}</code>,
-                      pre: ({ children }) => <pre style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', overflow: 'auto', border: '1px solid #e2e8f0', lineHeight: '1.6' }}>{children}</pre>
+                      code: ({ children }) => <code style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', fontSize: '0.9em', color: '#334155' }}>{children}</code>,
+                      pre: ({ children }) => <pre style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', overflow: 'auto', lineHeight: '1.6', color: '#475569' }}>{children}</pre>
                     }}
                   >
                     {currentQuestion.question}
@@ -1064,7 +1271,8 @@ export const InterviewPage: React.FC = () => {
                 </div>
                 {currentQuestion.context && (
                   <div className="question-context">
-                    [TIP] {currentQuestion.context}
+                    <Lightbulb className="w-4 h-4 inline mr-2 text-yellow-600" />
+                    {currentQuestion.context}
                   </div>
                 )}
               </div>
@@ -1234,6 +1442,7 @@ export const InterviewPage: React.FC = () => {
                     className="clear-btn"
                     disabled={!currentAnswer || isSubmitting}
                   >
+                    <Trash2 className="w-4 h-4 mr-1" />
                     지우기
                   </button>
                   <button
@@ -1241,6 +1450,7 @@ export const InterviewPage: React.FC = () => {
                     className="save-btn"
                     disabled={!currentAnswer || isSubmitting}
                   >
+                    <Save className="w-4 h-4 mr-1" />
                     저장 (Ctrl+S)
                   </button>
                   <button
@@ -1261,10 +1471,11 @@ export const InterviewPage: React.FC = () => {
                         <span className="spinner-small"></span>
                         {conversationMode ? '질문 중...' : '제출 중...'}
                       </>
-                    ) : !currentAnswer.trim() ? (
-                      conversationMode ? '질문을 입력해주세요' : '답변을 입력해주세요'
                     ) : (
-                      conversationMode ? '질문하기 (Ctrl+Enter)' : '답변 제출 (Ctrl+Enter)'
+                      <>
+                        <Send className="w-4 h-4 mr-1" />
+                        {conversationMode ? '질문하기' : '답변 제출'}
+                      </>
                     )}
                   </button>
                 </div>
@@ -1277,7 +1488,7 @@ export const InterviewPage: React.FC = () => {
           {interview.status === 'completed' && (
             <div className="interview-completed">
               <div className="completion-message">
-                <h3>[COMPLETE] 면접이 완료되었습니다!</h3>
+                <h3><CheckCircle className="w-6 h-6 mr-2 inline text-green-600" /> 면접이 완료되었습니다!</h3>
                 <p>수고하셨습니다. 결과 리포트를 확인해보세요.</p>
                 <div className="completion-actions">
                   <button
@@ -1302,7 +1513,7 @@ export const InterviewPage: React.FC = () => {
         {!isFocusMode && (
           <div className="sidebar">
             <div className="sidebar-section">
-              <h3>[LIST] 질문 목록</h3>
+              <h3><FileText className="w-5 h-5 mr-2 inline" /> 질문 목록</h3>
               <div className="questions-list">
                 {questions.map((question, index) => (
                   <div 
@@ -1334,7 +1545,7 @@ export const InterviewPage: React.FC = () => {
             </div>
           
           <div className="sidebar-section">
-            <h3>[TIPS] 면접 팁</h3>
+            <h3><Lightbulb className="w-5 h-5 mr-2 inline" /> 면접 팁</h3>
             <ul className="interview-tips">
               <li>차분하게 생각한 후 답변하세요</li>
               <li>구체적인 예시를 들어 설명하세요</li>
@@ -1344,7 +1555,7 @@ export const InterviewPage: React.FC = () => {
           </div>
           
           <div className="sidebar-section">
-            <h3>◇ 면접 설정</h3>
+            <h3><Settings className="w-5 h-5 mr-2 inline" /> 면접 설정</h3>
             <div className="interview-controls">
               <button
                 onClick={finishInterview}
