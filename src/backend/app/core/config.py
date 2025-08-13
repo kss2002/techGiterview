@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     debug: bool = True
     
     # Database
-    database_url: str = "sqlite+aiosqlite:///:memory:"
+    database_url: str = "sqlite:///./interviews.db"
     redis_url: str = "redis://localhost:6379"
     
     # External APIs

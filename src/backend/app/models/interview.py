@@ -85,6 +85,30 @@ class InterviewConversation(Base):
         return f"<InterviewConversation(id={self.id}, speaker='{self.speaker}', order={self.conversation_order})>"
 
 
+class InterviewAnswer(Base):
+    """면접 답변 모델"""
+    
+    __tablename__ = "interview_answers"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("interview_sessions.id"), nullable=False)
+    question_id = Column(UUID(as_uuid=True), ForeignKey("interview_questions.id"), nullable=False)
+    user_answer = Column(Text, nullable=False)
+    feedback_score = Column(Numeric(3, 2), nullable=True)  # 0.00 ~ 10.00
+    feedback_message = Column(Text, nullable=True)
+    feedback_details = Column(JSON, nullable=True)  # 세부 피드백 데이터
+    time_taken_seconds = Column(Integer, nullable=True)  # 답변 소요 시간
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    session = relationship("InterviewSession", backref="answers")
+    question = relationship("InterviewQuestion", backref="answers")
+    
+    def __repr__(self):
+        return f"<InterviewAnswer(id={self.id}, question_id={self.question_id}, score={self.feedback_score})>"
+
+
 class InterviewReport(Base):
     """면접 결과 리포트 모델"""
     
