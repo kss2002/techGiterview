@@ -12,6 +12,8 @@ import { ErrorTestComponent } from '@components/ErrorTestComponent'
 import { TestComponent } from './TestComponent'
 import { CSSDebugComponent } from './CSSDebugComponent'
 import { HomePageSimple } from './pages/HomePageSimple'
+import { IconTestPage } from './pages/IconTestPage'
+import { InterviewTestPage } from './pages/InterviewTestPage'
 import './App.css'
 
 function App() {
@@ -26,6 +28,8 @@ function App() {
               <Route path="/design-test" element={<TestComponent />} />
               <Route path="/css-debug" element={<CSSDebugComponent />} />
               <Route path="/simple-test" element={<HomePageSimple />} />
+              <Route path="/icon-test" element={<IconTestPage />} />
+              <Route path="/interview-test" element={<InterviewTestPage />} />
               <Route path="/error-test" element={<ErrorBoundary><ErrorTestComponent /></ErrorBoundary>} />
               <Route path="/dashboard" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
               <Route path="/dashboard/:analysisId" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />

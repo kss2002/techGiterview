@@ -454,7 +454,7 @@ export const HomePage: React.FC = () => {
             <div className="footer-section">
               <h4>연락처</h4>
               <ul>
-                <li>📧 support@techgiterview.com</li>
+                <li>📧 hong112424@naver.com</li>
                 <li>🐛 GitHub Issues</li>
                 <li>💬 Discord Community</li>
                 <li>📚 Documentation</li>

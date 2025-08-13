@@ -1,5 +1,16 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { 
+  Zap, 
+  Home, 
+  BarChart3, 
+  FileText, 
+  Plus,
+  Mail,
+  Github,
+  MessageCircle,
+  Book
+} from 'lucide-react'
 import './Layout.css'
 
 interface LayoutProps {
@@ -16,9 +27,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }
 
   const navigation = [
-    { name: '홈', path: '/', icon: '◈' },
-    { name: '대시보드', path: '/dashboard', icon: '■' },
-    { name: '리포트', path: '/reports', icon: '◐' }
+    { name: '홈', path: '/', icon: () => <Home className="w-5 h-5" /> },
+    { name: '대시보드', path: '/dashboard', icon: () => <BarChart3 className="w-5 h-5" /> },
+    { name: '리포트', path: '/reports', icon: () => <FileText className="w-5 h-5" /> }
   ]
 
   // 홈페이지에서는 네비게이션 숨김
@@ -31,7 +42,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="nav-container">
             <div className="nav-brand">
               <Link to="/" className="brand-link">
-                <span className="brand-icon">◆</span>
+                <Zap className="brand-icon w-8 h-8" />
                 <span className="brand-text">TechGiterview</span>
               </Link>
             </div>
@@ -43,7 +54,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   to={item.path}
                   className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
                 >
-                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-icon">{item.icon()}</span>
                   <span className="nav-text">{item.name}</span>
                 </Link>
               ))}
@@ -54,7 +65,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="new-analysis-btn"
                 onClick={() => window.location.href = '/'}
               >
-                <span className="btn-icon">➕</span>
+                <Plus className="btn-icon w-4 h-4" />
                 <span className="btn-text">새 분석</span>
               </button>
             </div>
@@ -71,7 +82,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="footer-container">
             <div className="footer-content">
               <div className="footer-section">
-                <h3>◆ TechGiterview</h3>
+                <h3><Zap className="w-5 h-5 inline mr-2" />TechGiterview</h3>
                 <p>GitHub 기반 AI 기술면접 준비 플랫폼</p>
               </div>
               
@@ -98,10 +109,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="footer-section">
                 <h4>연락처</h4>
                 <ul>
-                  <li>◎ support@techgiterview.com</li>
-                  <li>◈ GitHub Issues</li>
-                  <li>◇ Discord Community</li>
-                  <li>■ Documentation</li>
+                  <li><Mail className="w-4 h-4 inline mr-2" />support@techgiterview.com</li>
+                  <li><Github className="w-4 h-4 inline mr-2" />GitHub Issues</li>
+                  <li><MessageCircle className="w-4 h-4 inline mr-2" />Discord Community</li>
+                  <li><Book className="w-4 h-4 inline mr-2" />Documentation</li>
                 </ul>
               </div>
             </div>

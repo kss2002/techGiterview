@@ -42,7 +42,8 @@
 }
 
 .brand-icon {
-  font-size: 2rem;
+  color: var(--primary-600);
+  flex-shrink: 0;
 }
 
 .brand-text {
@@ -100,7 +101,10 @@
 }
 
 .nav-icon {
-  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
 }
 
 .nav-text {
@@ -134,7 +138,9 @@
 }
 
 .btn-icon {
-  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-text {
@@ -411,6 +417,47 @@
 
 .nav-link:hover::before {
   left: 100%;
+}
+
+/* Lucide Icon 전역 스타일 - InterviewPage와 다른 페이지에서 일관성 확보 */
+.interview-page .nav-icon,
+.interview-page .btn-icon,
+.interview-page svg[data-lucide] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+/* InterviewPage 헤더에서 아이콘 크기 통일 */
+.interview-page .interview-header svg[data-lucide] {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* 메시지 아이콘 스타일 통일 */
+.interview-page .answer-item svg[data-lucide],
+.interview-page .question-meta svg[data-lucide] {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+/* 버튼 내 아이콘 스타일 */
+.interview-page button svg[data-lucide] {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+/* 액션 버튼의 큰 아이콘 */
+.interview-page .submit-answer-btn svg[data-lucide],
+.interview-page .new-analysis-btn svg[data-lucide] {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
 }
 
 /* 다크 모드 지원 (미래 확장용) */
