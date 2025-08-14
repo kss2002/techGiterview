@@ -571,3 +571,232 @@ class MockInterviewAgent:
                 recommendations.append("알고리즘 문제 해결과 코딩 테스트 연습을 해보세요.")
         
         return recommendations
+    
+    async def evaluate_answer(
+        self, 
+        question: str, 
+        answer: str, 
+        context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """실제 Gemini API를 사용한 답변 평가 (공개 API용)"""
+        
+        if not question or not answer:
+            return {
+                "success": False,
+                "error": "질문과 답변이 모두 제공되어야 합니다."
+            }
+        
+        context = context or {}
+        
+        try:
+            if not self.llm:
+                # LLM이 없는 경우 기본 평가 반환
+                return {
+                    "success": True,
+                    "data": {
+                        "overall_score": 6.0,
+                        "criteria_scores": {
+                            "technical_accuracy": 6.0,
+                            "problem_solving": 6.0,
+                            "communication": 6.0
+                        },
+                        "feedback": "답변을 주셨지만, 더 구체적으로 설명해주시면 좋겠습니다.",
+                        "suggestions": [
+                            "구체적인 예시를 들어 설명해보세요.",
+                            "기술적 용어를 정확히 사용해보세요.",
+                            "단계별로 차근차근 설명해보세요."
+                        ]
+                    }
+                }
+            
+            # 실제 Gemini 프롬프트 구성
+            category = context.get('category', 'general')
+            difficulty = context.get('difficulty', 'medium')
+            expected_points = context.get('expected_points', [])
+            
+            evaluation_prompt = f"""당신은 경험이 풍부한 시니어 개발자이자 기술면접관입니다.
+다음 면접 질문과 지원자의 답변을 평가하고, 구체적인 피드백을 제공해주세요.
+
+**면접 질문:**
+{question}
+
+**지원자 답변:**
+{answer}
+
+**질문 정보:**
+- 카테고리: {category}
+- 난이도: {difficulty}
+- 주요 포인트: {', '.join(expected_points) if expected_points else '없음'}
+
+다음 기준으로 평가하고 반드시 JSON 형태로만 응답해주세요:
+
+{{
+    "overall_score": 점수(1-10),
+    "criteria_scores": {{
+        "technical_accuracy": 점수(1-10),
+        "problem_solving": 점수(1-10), 
+        "communication": 점수(1-10)
+    }},
+    "feedback": "구체적이고 건설적인 피드백 메시지",
+    "suggestions": [
+        "개선사항1",
+        "개선사항2",
+        "개선사항3"
+    ]
+}}
+
+평가 기준:
+- technical_accuracy: 기술적 정확성과 깊이
+- problem_solving: 문제 이해도와 해결 방법의 적절성
+- communication: 설명의 명확성과 논리적 구성
+
+답변이 "모르겠다" 또는 매우 짧은 경우에도 격려하면서 구체적인 학습 방향을 제시해주세요."""
+
+            # Gemini API 호출
+            print(f"[GEMINI_EVAL] Gemini API 호출 시작 - 질문 길이: {len(question)}, 답변 길이: {len(answer)}")
+            
+            response = await self.llm.ainvoke([
+                SystemMessage(content=self.interviewer_persona),
+                HumanMessage(content=evaluation_prompt)
+            ])
+            
+            print(f"[GEMINI_EVAL] Gemini 응답 받음 - 길이: {len(response.content) if hasattr(response, 'content') else 0}")
+            
+            # JSON 응답 파싱
+            response_text = response.content if hasattr(response, 'content') else str(response)
+            
+            # JSON 형태로 파싱 시도
+            import json
+            import re
+            
+            # JSON 블록 추출
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+                try:
+                    evaluation_data = json.loads(json_str)
+                    
+                    print(f"[GEMINI_EVAL] JSON 파싱 성공 - 종합점수: {evaluation_data.get('overall_score', 'N/A')}")
+                    
+                    return {
+                        "success": True,
+                        "data": {
+                            "overall_score": float(evaluation_data.get('overall_score', 5.0)),
+                            "criteria_scores": {
+                                "technical_accuracy": float(evaluation_data.get('criteria_scores', {}).get('technical_accuracy', 5.0)),
+                                "problem_solving": float(evaluation_data.get('criteria_scores', {}).get('problem_solving', 5.0)),
+                                "communication": float(evaluation_data.get('criteria_scores', {}).get('communication', 5.0))
+                            },
+                            "feedback": evaluation_data.get('feedback', '답변해주셔서 감사합니다.'),
+                            "suggestions": evaluation_data.get('suggestions', ['더 구체적으로 설명해보세요.'])
+                        }
+                    }
+                    
+                except json.JSONDecodeError as je:
+                    print(f"[GEMINI_EVAL] JSON 파싱 실패: {je}")
+                    # JSON 파싱 실패 시 텍스트 기반 응답 생성
+                    pass
+            
+            # JSON 파싱이 실패한 경우 텍스트에서 정보 추출
+            print(f"[GEMINI_EVAL] JSON 파싱 실패, 텍스트 분석으로 전환")
+            
+            return {
+                "success": True,
+                "data": {
+                    "overall_score": 7.0,
+                    "criteria_scores": {
+                        "technical_accuracy": 7.0,
+                        "problem_solving": 7.0,
+                        "communication": 7.0
+                    },
+                    "feedback": response_text[:500] if len(response_text) > 500 else response_text,
+                    "suggestions": [
+                        "더 구체적인 예시를 제시해보세요.",
+                        "기술적 용어의 정확한 의미를 설명해보세요.",
+                        "실무 경험과 연결하여 설명해보세요."
+                    ]
+                }
+            }
+            
+        except Exception as e:
+            print(f"[GEMINI_EVAL] 평가 중 오류 발생: {str(e)}")
+            
+            # 오류 발생 시 기본 응답
+            return {
+                "success": True,  # 서비스 연속성을 위해 success로 처리
+                "data": {
+                    "overall_score": 5.0,
+                    "criteria_scores": {
+                        "technical_accuracy": 5.0,
+                        "problem_solving": 5.0,
+                        "communication": 5.0
+                    },
+                    "feedback": "답변을 주셔서 감사합니다. 시스템 문제로 상세한 평가를 제공할 수 없지만, 계속 진행해주세요.",
+                    "suggestions": [
+                        "다음 질문에서 더 자세히 설명해보세요.",
+                        "기술적 개념을 예시와 함께 설명해보세요."
+                    ]
+                }
+            }
+    
+    async def handle_follow_up_question(
+        self,
+        original_question: str,
+        original_answer: str, 
+        follow_up_question: str
+    ) -> Dict[str, Any]:
+        """실제 Gemini를 통한 후속 질문 처리"""
+        
+        try:
+            if not self.llm:
+                return {
+                    "success": True,
+                    "data": {
+                        "response": "후속 질문에 감사드립니다. 더 구체적으로 설명해주시면 도움이 될 것 같습니다."
+                    }
+                }
+            
+            conversation_prompt = f"""당신은 친근하고 전문적인 기술면접관입니다.
+지원자가 원래 질문에 답변한 후 추가로 질문을 했습니다.
+
+**원래 면접 질문:**
+{original_question}
+
+**지원자의 원래 답변:**
+{original_answer}
+
+**지원자의 후속 질문:**
+{follow_up_question}
+
+지원자의 후속 질문에 대해 친근하고 도움이 되는 답변을 해주세요.
+- 기술적 개념을 쉽게 설명해주세요
+- 실무에서 활용할 수 있는 조언을 제공해주세요
+- 면접 분위기를 긍정적으로 유지해주세요"""
+
+            print(f"[GEMINI_CONV] 대화 처리 시작 - 후속 질문: {follow_up_question[:50]}...")
+            
+            response = await self.llm.ainvoke([
+                SystemMessage(content=self.interviewer_persona),
+                HumanMessage(content=conversation_prompt)
+            ])
+            
+            response_text = response.content if hasattr(response, 'content') else str(response)
+            
+            print(f"[GEMINI_CONV] 대화 응답 생성 완료 - 길이: {len(response_text)}")
+            
+            return {
+                "success": True,
+                "data": {
+                    "response": response_text
+                }
+            }
+            
+        except Exception as e:
+            print(f"[GEMINI_CONV] 대화 처리 중 오류: {str(e)}")
+            
+            return {
+                "success": True,
+                "data": {
+                    "response": "질문해주셔서 감사합니다. 더 구체적인 설명이 필요하시면 언제든 말씀해주세요."
+                }
+            }

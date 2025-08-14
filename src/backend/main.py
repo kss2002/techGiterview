@@ -72,6 +72,7 @@ from app.api.ai_settings import router as ai_settings_router
 from app.api.interview import router as interview_router
 from app.api.websocket import router as websocket_router
 from app.api.config import router as config_router
+from app.api.homepage import router as homepage_router
 
 # GitHub API 라우터 추가
 app.include_router(github_router, prefix="/api/v1/repository", tags=["repository"])
@@ -93,6 +94,9 @@ app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 
 # Config 라우터 추가
 app.include_router(config_router, tags=["config"])
+
+# Homepage 라우터 추가
+app.include_router(homepage_router, tags=["homepage"])
 
 
 if __name__ == "__main__":

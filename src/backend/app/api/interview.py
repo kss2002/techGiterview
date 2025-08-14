@@ -160,10 +160,13 @@ async def start_interview(request: InterviewStartRequest, db: Session = Depends(
 async def get_interview_session(interview_id: str, db: Session = Depends(get_db)):
     """면접 세션 정보 조회"""
     try:
-        # UUID 검증
-        session_uuid = uuid.UUID(interview_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="올바르지 않은 면접 ID 형식입니다.")
+        # UUID 정규화 후 검증
+        normalized_interview_id = normalize_uuid_string(interview_id)
+        session_uuid = uuid.UUID(normalized_interview_id)
+        print(f"[DEBUG] 면접 세션 조회 - UUID 정규화: '{interview_id}' → '{normalized_interview_id}'")
+    except ValueError as e:
+        print(f"[ERROR] 면접 ID UUID 변환 실패: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"올바르지 않은 면접 ID 형식입니다: {str(e)}")
     
     repo = InterviewRepository(db)
     session_data = repo.get_session_with_details(session_uuid)
@@ -194,9 +197,12 @@ async def get_interview_session(interview_id: str, db: Session = Depends(get_db)
 async def get_interview_questions(interview_id: str, db: Session = Depends(get_db)):
     """면접 질문 목록 조회"""
     try:
-        session_uuid = uuid.UUID(interview_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="올바르지 않은 면접 ID 형식입니다.")
+        normalized_interview_id = normalize_uuid_string(interview_id)
+        session_uuid = uuid.UUID(normalized_interview_id)
+        print(f"[DEBUG] 면접 질문 조회 - UUID 정규화: '{interview_id}' → '{normalized_interview_id}'")
+    except ValueError as e:
+        print(f"[ERROR] 면접 ID UUID 변환 실패: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"올바르지 않은 면접 ID 형식입니다: {str(e)}")
     
     repo = InterviewRepository(db)
     session = repo.get_session(session_uuid)
@@ -238,9 +244,12 @@ async def get_interview_questions(interview_id: str, db: Session = Depends(get_d
 async def get_session_data(interview_id: str, db: Session = Depends(get_db)):
     """세션 데이터 상세 조회 (답변 및 피드백 포함)"""
     try:
-        session_uuid = uuid.UUID(interview_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="올바르지 않은 면접 ID 형식입니다.")
+        normalized_interview_id = normalize_uuid_string(interview_id)
+        session_uuid = uuid.UUID(normalized_interview_id)
+        print(f"[DEBUG] 면접 질문 조회 - UUID 정규화: '{interview_id}' → '{normalized_interview_id}'")
+    except ValueError as e:
+        print(f"[ERROR] 면접 ID UUID 변환 실패: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"올바르지 않은 면접 ID 형식입니다: {str(e)}")
     
     repo = InterviewRepository(db)
     session_data = repo.get_session_with_details(session_uuid)
@@ -284,14 +293,49 @@ async def get_session_data(interview_id: str, db: Session = Depends(get_db)):
     }
 
 
+def normalize_uuid_string(uuid_str: str) -> str:
+    """UUID 문자열을 표준 형식으로 변환 (하이픈 제거/추가 자동 처리)"""
+    if not uuid_str:
+        raise ValueError("UUID 문자열이 비어있습니다.")
+    
+    # 하이픈 제거
+    cleaned = uuid_str.replace('-', '')
+    
+    # 길이 검증
+    if len(cleaned) != 32:
+        raise ValueError(f"UUID 길이가 올바르지 않습니다: {len(cleaned)} (32 필요)")
+    
+    # 표준 UUID 형식으로 변환
+    return f"{cleaned[:8]}-{cleaned[8:12]}-{cleaned[12:16]}-{cleaned[16:20]}-{cleaned[20:]}"
+
+
 @router.post("/answer")
 async def submit_answer(request: AnswerSubmitRequest, db: Session = Depends(get_db)):
     """답변 제출"""
+    print(f"[DEBUG] 원본 요청 데이터:")
+    print(f"  - interview_id: '{request.interview_id}'")
+    print(f"  - question_id: '{request.question_id}'")
+    print(f"  - answer: '{request.answer[:50]}...'")
+    
     try:
-        session_uuid = uuid.UUID(request.interview_id)
-        question_uuid = uuid.UUID(request.question_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="올바르지 않은 ID 형식입니다.")
+        # UUID 정규화 후 변환
+        normalized_interview_id = normalize_uuid_string(request.interview_id)
+        normalized_question_id = normalize_uuid_string(request.question_id)
+        
+        print(f"[DEBUG] 정규화된 UUID:")
+        print(f"  - interview_id: '{normalized_interview_id}'")
+        print(f"  - question_id: '{normalized_question_id}'")
+        
+        session_uuid = uuid.UUID(normalized_interview_id)
+        question_uuid = uuid.UUID(normalized_question_id)
+        
+        print(f"[DEBUG] UUID 변환 성공:")
+        print(f"  - session_uuid: {session_uuid}")
+        print(f"  - question_uuid: {question_uuid}")
+        
+    except ValueError as e:
+        print(f"[ERROR] UUID 변환 실패: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"올바르지 않은 ID 형식입니다: {str(e)}")
     
     repo = InterviewRepository(db)
     session = repo.get_session(session_uuid)
@@ -324,6 +368,14 @@ async def submit_answer(request: AnswerSubmitRequest, db: Session = Depends(get_
                 "expected_points": question.expected_points or []
             }
         )
+        
+        print(f"[FEEDBACK_RESULT] 피드백 생성 결과:", feedback_result)
+        if feedback_result and feedback_result.get("success"):
+            feedback_data = feedback_result.get("data", {})
+            print(f"[FEEDBACK_DATA] 피드백 데이터:")
+            print(f"  - overall_score: {feedback_data.get('overall_score', 'N/A')}")
+            print(f"  - feedback: {feedback_data.get('feedback', 'N/A')[:50]}...")
+            print(f"  - suggestions count: {len(feedback_data.get('suggestions', []))}")
         
         # 답변 및 피드백 저장
         answer_data = {
@@ -367,9 +419,13 @@ async def submit_answer(request: AnswerSubmitRequest, db: Session = Depends(get_
 async def handle_conversation(request: ConversationRequest, db: Session = Depends(get_db)):
     """대화 처리"""
     try:
-        session_uuid = uuid.UUID(request.interview_id)
-        question_uuid = uuid.UUID(request.question_id)
-    except ValueError:
+        normalized_interview_id = normalize_uuid_string(request.interview_id)
+        normalized_question_id = normalize_uuid_string(request.question_id)
+        session_uuid = uuid.UUID(normalized_interview_id)
+        question_uuid = uuid.UUID(normalized_question_id)
+        print(f"[DEBUG] 대화 처리 - UUID 정규화: '{request.interview_id}' → '{normalized_interview_id}', '{request.question_id}' → '{normalized_question_id}'")
+    except ValueError as e:
+        print(f"[ERROR] 대화 처리 UUID 변환 실패: {str(e)}")
         raise HTTPException(status_code=400, detail="올바르지 않은 ID 형식입니다.")
     
     repo = InterviewRepository(db)
@@ -476,9 +532,12 @@ async def get_latest_session(db: Session = Depends(get_db)):
 async def complete_interview(interview_id: str, db: Session = Depends(get_db)):
     """면접 완료 처리"""
     try:
-        session_uuid = uuid.UUID(interview_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="올바르지 않은 면접 ID 형식입니다.")
+        normalized_interview_id = normalize_uuid_string(interview_id)
+        session_uuid = uuid.UUID(normalized_interview_id)
+        print(f"[DEBUG] 면접 질문 조회 - UUID 정규화: '{interview_id}' → '{normalized_interview_id}'")
+    except ValueError as e:
+        print(f"[ERROR] 면접 ID UUID 변환 실패: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"올바르지 않은 면접 ID 형식입니다: {str(e)}")
     
     repo = InterviewRepository(db)
     success = repo.update_session_status(session_uuid, "completed")
@@ -489,5 +548,30 @@ async def complete_interview(interview_id: str, db: Session = Depends(get_db)):
     return {
         "success": True,
         "message": "면접이 완료되었습니다.",
+        "data": {"status": "completed"}
+    }
+
+
+@router.post("/{interview_id}/finish")
+async def finish_interview(interview_id: str, db: Session = Depends(get_db)):
+    """면접 종료 처리 (프론트엔드 호환성을 위한 별칭)"""
+    # complete_interview 함수와 동일한 로직
+    try:
+        normalized_interview_id = normalize_uuid_string(interview_id)
+        session_uuid = uuid.UUID(normalized_interview_id)
+        print(f"[DEBUG] 면접 질문 조회 - UUID 정규화: '{interview_id}' → '{normalized_interview_id}'")
+    except ValueError as e:
+        print(f"[ERROR] 면접 ID UUID 변환 실패: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"올바르지 않은 면접 ID 형식입니다: {str(e)}")
+    
+    repo = InterviewRepository(db)
+    success = repo.update_session_status(session_uuid, "completed")
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="면접 세션을 찾을 수 없습니다.")
+    
+    return {
+        "success": True,
+        "message": "면접이 종료되었습니다.",
         "data": {"status": "completed"}
     }
