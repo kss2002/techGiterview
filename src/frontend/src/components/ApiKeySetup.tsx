@@ -77,7 +77,15 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
   useEffect(() => {
     const checkMode = async () => {
       try {
-        const response = await fetch('/api/v1/config/keys-required')
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 3000) // 3초 타임아웃
+        
+        const response = await fetch('/api/v1/config/keys-required', {
+          signal: controller.signal
+        })
+        
+        clearTimeout(timeoutId)
+        
         if (response.ok) {
           const data: KeysRequiredResponse = await response.json()
           setUseLocalStorageMode(data.use_local_storage)
@@ -91,11 +99,23 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
               console.log('저장된 API 키를 로드했습니다.')
             }
           }
+        } else {
+          // 서버 응답이 실패한 경우 로컬 모드로 전환
+          console.warn(`서버 응답 실패 (${response.status}), 로컬 모드로 전환`)
+          setUseLocalStorageMode(true)
         }
       } catch (error) {
-        console.error('모드 확인 실패:', error)
-        // 기본적으로 로컬스토리지 모드로 설정
+        console.warn('백엔드 서버 연결 실패, 로컬 모드로 전환:', error)
+        // 연결 실패 시 로컬스토리지 모드로 강제 설정
         setUseLocalStorageMode(true)
+        
+        // 저장된 키가 있으면 자동 로드
+        const storedKeys = storageUtils.loadApiKeys()
+        if (storedKeys.githubToken && storedKeys.googleApiKey) {
+          setGithubToken(storedKeys.githubToken)
+          setGoogleApiKey(storedKeys.googleApiKey)
+          console.log('오프라인 모드: 저장된 API 키를 로드했습니다.')
+        }
       }
     }
     
@@ -192,6 +212,17 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="api-key-form">
+          {/* Hidden username field for accessibility */}
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            style={{ display: 'none' }}
+            value="techgiterview-user"
+            readOnly
+            aria-hidden="true"
+          />
+          
           <div className="form-group">
             <label htmlFor="github-token" className="form-label">
               🐙 GitHub Personal Access Token
@@ -203,6 +234,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
               onChange={(e) => setGithubToken(e.target.value)}
               placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
               className="form-input"
+              autoComplete="username"
               required
               disabled={isLoading}
             />
@@ -231,6 +263,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
               onChange={(e) => setGoogleApiKey(e.target.value)}
               placeholder="AIzaxxxxxxxxxxxxxxxxxxxxxxxx"
               className="form-input"
+              autoComplete="new-password"
               required
               disabled={isLoading}
             />

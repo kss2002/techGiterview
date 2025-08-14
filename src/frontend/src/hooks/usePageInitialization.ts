@@ -49,20 +49,31 @@ interface PageInitData {
 
 // 통합 API 호출 함수 (새로운 단일 엔드포인트 사용)
 const fetchPageInitData = async (): Promise<PageInitData> => {
-  const headers = createApiHeaders(true)
-  
-  // 새로운 통합 API 호출
-  const response = await fetch('/api/v1/homepage/init', { headers })
-  
-  if (!response.ok) {
-    throw new Error(`Homepage Init API 오류: ${response.status}`)
-  }
-  
-  const data = await response.json()
-  
-  return {
-    config: data.config,
-    providers: data.providers
+  try {
+    const headers = createApiHeaders(true)
+    
+    // 새로운 통합 API 호출
+    const response = await fetch('/api/v1/homepage/init', { 
+      headers,
+      timeout: 5000 // 5초 타임아웃
+    })
+    
+    if (!response.ok) {
+      // 백엔드 연결 실패 시 로컬 데이터로 폴백
+      console.warn(`Homepage Init API 연결 실패 (${response.status}), 로컬 모드로 전환`)
+      throw new Error(`Backend connection failed: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    
+    return {
+      config: data.config,
+      providers: data.providers
+    }
+  } catch (error) {
+    // 네트워크 에러나 연결 실패 시 로컬 데이터 사용
+    console.warn('백엔드 서버 연결 실패, 로컬 모드로 전환:', error)
+    throw error // React Query가 에러를 처리하도록 함
   }
 }
 
@@ -104,8 +115,13 @@ export const usePageInitialization = () => {
     queryKey: ['page-initialization'],
     queryFn: fetchPageInitData,
     staleTime: 5 * 60 * 1000, // 5분 캐시
-    retry: 2,
+    retry: 1, // 재시도 1번으로 줄여서 빠른 폴백
     retryDelay: 1000,
+    // 에러 발생 시에도 로컬 데이터 사용하므로 silent 실패
+    throwOnError: false,
+    // 백그라운드에서 재시도하지 않음 (로컬 모드로 동작)
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true, // 네트워크 재연결 시에만 재시도
   })
   
   // 서버 데이터가 있으면 사용, 없으면 로컬 데이터 사용
