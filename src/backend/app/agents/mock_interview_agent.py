@@ -576,6 +576,7 @@ class MockInterviewAgent:
         self, 
         question: str, 
         answer: str, 
+        is_first_answer: bool = True,
         context: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """실제 Gemini API를 사용한 답변 평가 (공개 API용)"""
@@ -587,6 +588,16 @@ class MockInterviewAgent:
             }
         
         context = context or {}
+        
+        print(f"[EVALUATE] 답변 평가 시작: is_first_answer={is_first_answer}")
+        
+        # 첫 번째 답변이 아닌 경우 대화형 응답 생성
+        if not is_first_answer:
+            print(f"[EVALUATE] 추가 답변으로 인식 - 대화형 응답 생성")
+            return await self._generate_conversation_response(question, answer, context)
+        
+        # 첫 번째 답변인 경우 정식 평가 진행
+        print(f"[EVALUATE] 첫 번째 답변으로 인식 - 정식 평가 진행")
         
         try:
             if not self.llm:
@@ -798,5 +809,73 @@ class MockInterviewAgent:
                 "success": True,
                 "data": {
                     "response": "질문해주셔서 감사합니다. 더 구체적인 설명이 필요하시면 언제든 말씀해주세요."
+                }
+            }
+    
+    async def _generate_conversation_response(
+        self, 
+        question: str, 
+        answer: str, 
+        context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """추가 답변에 대한 대화형 응답 생성 (점수 없음)"""
+        
+        try:
+            if not self.llm:
+                # LLM이 없는 경우 기본 대화 응답
+                return {
+                    "success": True,
+                    "data": {
+                        "feedback": f"'{answer}'에 대해 답변드리겠습니다. 추가적인 설명이나 질문이 있으시면 언제든 말씀해주세요.",
+                        "is_conversation": True
+                    }
+                }
+            
+            # 대화형 프롬프트 생성
+            conversation_prompt = f"""당신은 친근하고 전문적인 기술면접관입니다.
+지원자가 다음 질문에 추가로 '{answer}'라고 답변했습니다.
+
+**원래 면접 질문:**
+{question}
+
+**지원자의 추가 답변:**
+{answer}
+
+다음과 같이 자연스럽고 도움이 되는 응답을 해주세요:
+- 점수나 평가 없이 내용 위주로 응답
+- 면접관 톤으로 친근하지만 전문적으로 답변  
+- 구체적이고 실용적인 조언 제공
+- 하나의 통합된 답변으로 제공
+
+200-300자 내외로 답변해주세요."""
+
+            print(f"[CONVERSATION] 대화형 응답 생성 시작")
+            
+            response = await self.llm.ainvoke([
+                SystemMessage(content=self.interviewer_persona),
+                HumanMessage(content=conversation_prompt)
+            ])
+            
+            response_text = response.content if hasattr(response, 'content') else str(response)
+            
+            print(f"[CONVERSATION] 대화형 응답 생성 완료 - 길이: {len(response_text)}")
+            
+            return {
+                "success": True,
+                "data": {
+                    "feedback": response_text,
+                    "is_conversation": True  # 프론트엔드에서 구분용
+                }
+            }
+            
+        except Exception as e:
+            print(f"[CONVERSATION] 대화형 응답 생성 중 오류: {str(e)}")
+            
+            # 오류 발생 시 기본 응답
+            return {
+                "success": True,
+                "data": {
+                    "feedback": f"'{answer}'에 대해 답변드리겠습니다. 더 구체적인 설명이나 질문이 있으시면 언제든 말씀해주세요.",
+                    "is_conversation": True
                 }
             }

@@ -347,6 +347,16 @@ async def submit_answer(request: AnswerSubmitRequest, db: Session = Depends(get_
         raise HTTPException(status_code=400, detail="활성화된 면접 세션에만 답변할 수 있습니다.")
     
     try:
+        # 첫 번째 답변인지 확인 (기존 답변 존재 여부로 판단)
+        existing_answer = db.query(InterviewAnswer).filter(
+            InterviewAnswer.session_id == session_uuid,
+            InterviewAnswer.question_id == question_uuid
+        ).first()
+        is_first_answer = existing_answer is None
+        
+        print(f"[DEBUG] 질문 {question_uuid}: 첫 번째 답변? {is_first_answer}")
+        print(f"[DEBUG] 기존 답변 존재: {existing_answer is not None}")
+        
         # Mock Interview Agent를 사용하여 피드백 생성
         interview_agent = MockInterviewAgent()
         
@@ -358,10 +368,11 @@ async def submit_answer(request: AnswerSubmitRequest, db: Session = Depends(get_
         if not question:
             raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다.")
         
-        # 피드백 생성
+        # 피드백 생성 (답변 횟수 정보 포함)
         feedback_result = await interview_agent.evaluate_answer(
             question=question.question_text,
             answer=request.answer,
+            is_first_answer=is_first_answer,  # 답변 횟수 정보 전달
             context={
                 "category": question.category,
                 "difficulty": question.difficulty,
