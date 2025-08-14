@@ -1315,7 +1315,7 @@ export const InterviewPage: React.FC = () => {
           
           {/* 답변 히스토리 */}
           <div className="answer-history">
-            {messages.filter(msg => msg.type === 'answer').map((message) => (
+            {messages.filter(msg => msg.type === 'answer' && msg.question_id === currentQuestion?.id).map((message) => (
               <div key={message.id} className={`answer-item ${message.type === 'system' ? 'system-message' : ''}`}>
                 <div className="answer-header">
                   <span className="answer-label">
@@ -1386,7 +1386,8 @@ export const InterviewPage: React.FC = () => {
             <div className="conversation-area">
               <div className="conversation-header">[CHAT] AI 멘토와 대화</div>
               {messages.filter(msg => 
-                msg.type === 'system' && (
+                msg.type === 'system' && 
+                msg.question_id === currentQuestion?.id && (
                   msg.content.includes('다음 질문으로 넘어가겠습니다') ||
                   msg.content.includes('좋은 질문이네요') ||
                   msg.content.includes('답변드리겠습니다') ||
@@ -1406,6 +1407,7 @@ export const InterviewPage: React.FC = () => {
               {messages.filter(msg => 
                 msg.type === 'answer' && conversationMode && 
                 msg.question_id === conversationMode.questionId &&
+                msg.question_id === currentQuestion?.id &&
                 msg.content !== conversationMode.originalAnswer
               ).map((message) => (
                 <div key={message.id} className="conversation-message user-message">
