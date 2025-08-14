@@ -107,18 +107,27 @@ interface Message {
 }
 
 interface AnswerFeedbackData {
-  score: number
-  message: string
-  feedback_type: 'strength' | 'improvement' | 'suggestion' | 'keyword_missing'
-  details: string
-  keywords_found: string[]
-  keywords_missing: string[]
+  overall_score: number
+  criteria_scores?: {
+    technical_accuracy: number
+    problem_solving: number
+    communication: number
+  }
+  feedback: string
   suggestions: string[]
-  technical_accuracy: string
+  is_conversation?: boolean
+  // 기존 필드들 (호환성 유지)
+  score?: number
+  message?: string
+  feedback_type?: 'strength' | 'improvement' | 'suggestion' | 'keyword_missing'
+  details?: string
+  keywords_found?: string[]
+  keywords_missing?: string[]
+  technical_accuracy?: string
 }
 
 export const InterviewPage: React.FC = () => {
-  const { interviewId } = useParams<{ interviewId: string }>()
+  const { analysisId, interviewId } = useParams<{ analysisId?: string; interviewId: string }>()
   const navigate = useNavigate()
   
   const [interview, setInterview] = useState<InterviewData | null>(null)
@@ -199,7 +208,7 @@ export const InterviewPage: React.FC = () => {
   // 면접 데이터 로드
   useEffect(() => {
     if (!interviewId) {
-      navigate('/dashboard')
+      navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')
       return
     }
     
@@ -453,7 +462,7 @@ export const InterviewPage: React.FC = () => {
           }])
           
           setTimeout(() => {
-            navigate('/dashboard', { 
+            navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard', { 
               state: { 
                 message: '이전 면접 세션이 만료되었습니다. 새로운 분석을 시작해주세요.',
                 type: 'warning'
@@ -476,7 +485,7 @@ export const InterviewPage: React.FC = () => {
           }])
           
           setTimeout(() => {
-            navigate('/dashboard', { 
+            navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard', { 
               state: { 
                 message: '면접 질문 데이터를 찾을 수 없습니다. 새로운 분석을 시작해주세요.',
                 type: 'warning'
@@ -642,7 +651,7 @@ export const InterviewPage: React.FC = () => {
       }])
       
       setTimeout(() => {
-        navigate('/dashboard')
+        navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')
       }, 3000)
       
     } finally {
@@ -689,12 +698,27 @@ export const InterviewPage: React.FC = () => {
   const submitAnswer = async () => {
     console.log('[SUBMIT] submitAnswer 함수 실행됨');
     console.log('[SUBMIT] currentAnswer:', currentAnswer);
+    console.log('[SUBMIT] currentAnswer.length:', currentAnswer.length);
+    console.log('[SUBMIT] currentAnswer.trim():', currentAnswer.trim());
+    console.log('[SUBMIT] currentAnswer.trim().length:', currentAnswer.trim().length);
     console.log('[SUBMIT] conversationMode:', conversationMode);
+    console.log('[SUBMIT] isSubmitting:', isSubmitting);
     
-    if (!currentAnswer.trim()) {
-      console.log('[ERROR] currentAnswer가 비어있음');
+    // 이미 제출 중인 경우 중복 실행 방지
+    if (isSubmitting) {
+      console.log('[BLOCK] 이미 제출 중 - 중복 실행 방지');
       return;
     }
+    
+    if (!currentAnswer.trim()) {
+      console.log('[ERROR] currentAnswer가 비어있음 - 제출 중단');
+      alert('답변을 입력해주세요!');
+      return;
+    }
+
+    // 즉시 제출 상태로 설정하여 중복 실행 방지
+    console.log('[LOCK] 제출 상태 잠금 설정');
+    setIsSubmitting(true);
 
     // 대화 모드인 경우 대화 처리
     if (conversationMode) {
@@ -707,15 +731,16 @@ export const InterviewPage: React.FC = () => {
     console.log('[SUBMIT] questions.length:', questions.length);
     if (!interview) {
       console.log('[ERROR] interview 객체가 없음');
+      setIsSubmitting(false);
       return;
     }
     if (!interviewId) {
       console.log('[ERROR] interviewId가 없음');
+      setIsSubmitting(false);
       return;
     }
 
     console.log('[SUCCESS] 모든 조건 통과, 답변 제출 시작');
-    setIsSubmitting(true)
     
     try {
       // 현재 질문 찾기 (progress 대신 실제 currentQuestionIndex 사용)
@@ -777,10 +802,17 @@ export const InterviewPage: React.FC = () => {
         // 피드백 처리 - 답변 메시지에 피드백 데이터 추가
         if (result.data.feedback) {
           console.log('[FEEDBACK] 피드백 데이터 수신:', result.data.feedback);
+          console.log('[FEEDBACK] overall_score:', result.data.feedback.overall_score);
+          console.log('[FEEDBACK] 전체 구조:', JSON.stringify(result.data.feedback, null, 2));
           
           // 방금 추가한 답변 메시지에 피드백 추가
           setMessages(prev => prev.map(msg => {
             if (msg.id === answerMessageId) {
+              console.log('[FEEDBACK_UPDATE] 메시지 업데이트:', {
+                messageId: msg.id,
+                feedbackData: result.data.feedback,
+                overallScore: result.data.feedback.overall_score
+              });
               return {
                 ...msg,
                 feedback: result.data.feedback
@@ -842,13 +874,14 @@ export const InterviewPage: React.FC = () => {
             }])
           }
         }
+        
+        // 성공적으로 처리된 경우에만 답변 입력창 초기화
+        console.log('[CLEAR] 답변 입력창 초기화');
+        setCurrentAnswer('');
       } else {
         console.log('[ERROR] API 호출은 성공했지만 result.success가 false');
         throw new Error(result.message || '답변 처리에 실패했습니다.');
       }
-      
-      console.log('[CLEAR] 답변 입력창 초기화');
-      setCurrentAnswer('')
       
     } catch (error) {
       console.error('[ERROR] Error submitting answer:', error)
@@ -858,12 +891,13 @@ export const InterviewPage: React.FC = () => {
       setMessages(prev => [...prev, {
         id: `error-${Date.now()}`,
         type: 'system',
-        content: `[ERROR] ${errorMessage}`,
+        content: `❌ ${errorMessage}. 잠시 후 다시 시도해주세요.`,
         timestamp: new Date()
       }]);
       
-      // alert 대신 더 나은 UI 피드백
-      alert(errorMessage);
+      // 답변 내용은 유지 (사용자가 다시 입력하지 않도록)
+      console.log('[PRESERVE] 오류 발생으로 답변 내용 유지');
+      
     } finally {
       console.log('[UPDATE] isSubmitting을 false로 설정');
       setIsSubmitting(false)
@@ -1149,7 +1183,7 @@ export const InterviewPage: React.FC = () => {
     return (
       <div className="interview-error">
         <h2>면접을 찾을 수 없습니다</h2>
-        <button onClick={() => navigate('/dashboard')}>대시보드로 돌아가기</button>
+        <button onClick={() => navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')}>대시보드로 돌아가기</button>
       </div>
     )
   }
@@ -1305,7 +1339,7 @@ export const InterviewPage: React.FC = () => {
                           <span className="feedback-label">AI 응답</span>
                         </div>
                         <div className="feedback-message">
-                          {message.feedback.message}
+                          {message.feedback.feedback || message.feedback.message}
                         </div>
                       </div>
                     ) : (
@@ -1313,10 +1347,21 @@ export const InterviewPage: React.FC = () => {
                       <>
                         <div className="feedback-header">
                           <span className="feedback-label">AI 피드백</span>
-                          <span className="feedback-score">{message.feedback.score}/10</span>
+                          <span className="feedback-score">
+                            {(() => {
+                              console.log('[RENDER] 피드백 스코어 렌더링:', {
+                                messageId: message.id,
+                                feedbackExists: !!message.feedback,
+                                overallScore: message.feedback?.overall_score,
+                                fallbackScore: message.feedback?.score,
+                                fullFeedback: message.feedback
+                              });
+                              return message.feedback?.overall_score || message.feedback?.score || 0;
+                            })()}/10
+                          </span>
                         </div>
                         <div className="feedback-message">
-                          {message.feedback.message}
+                          {message.feedback.feedback || message.feedback.message}
                         </div>
                         {message.feedback.suggestions && (
                           <div className="feedback-suggestions">
@@ -1414,15 +1459,28 @@ export const InterviewPage: React.FC = () => {
             <div className="input-container">
               <textarea
                 value={currentAnswer}
-                onChange={(e) => setCurrentAnswer(e.target.value)}
+                onChange={(e) => {
+                  console.log('[INPUT] onChange 이벤트 발생 - 새 값:', e.target.value);
+                  console.log('[INPUT] 이전 currentAnswer:', currentAnswer);
+                  setCurrentAnswer(e.target.value);
+                  console.log('[INPUT] setCurrentAnswer 호출됨');
+                }}
                 placeholder={conversationMode ? "궁금한 점을 질문해보세요..." : "답변을 입력하세요... (구체적인 예시와 함께 설명해주세요)"}
                 className="answer-textarea"
                 rows={8}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey && (e.ctrlKey || e.metaKey)) {
                     console.log('[KEY] Ctrl+Enter 키보드 단축키로 답변 제출 시도');
-                    e.preventDefault()
-                    submitAnswer()
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // 이미 제출 중인 경우 무시
+                    if (isSubmitting) {
+                      console.log('[KEY] 이미 제출 중 - 키보드 이벤트 무시');
+                      return;
+                    }
+                    
+                    submitAnswer();
                   }
                 }}
                 disabled={isSubmitting}
@@ -1454,13 +1512,23 @@ export const InterviewPage: React.FC = () => {
                     저장 (Ctrl+S)
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      
                       console.log('[CLICK] submit-answer-btn 클릭됨');
                       console.log('[STATUS] 버튼 상태 체크:');
                       console.log('  - currentAnswer.trim():', Boolean(currentAnswer.trim()));
                       console.log('  - isSubmitting:', isSubmitting);
                       console.log('  - wsConnected:', wsConnected);
                       console.log('  - 버튼 disabled:', !currentAnswer.trim() || isSubmitting);
+                      
+                      // 이미 제출 중인 경우 무시
+                      if (isSubmitting) {
+                        console.log('[CLICK] 이미 제출 중 - 버튼 클릭 무시');
+                        return;
+                      }
+                      
                       submitAnswer();
                     }}
                     disabled={!currentAnswer.trim() || isSubmitting}
@@ -1498,7 +1566,7 @@ export const InterviewPage: React.FC = () => {
                     결과 보기
                   </button>
                   <button
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')}
                     className="back-dashboard-btn"
                   >
                     대시보드로

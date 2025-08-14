@@ -652,7 +652,7 @@ export const DashboardPage: React.FC = () => {
 
       const result = await response.json()
       if (result.success) {
-        navigate(`/interview/${result.data.interview_id}`)
+        navigate(`/dashboard/${analysisResult.analysis_id}/interview/${result.data.interview_id}`)
       }
     } catch (error) {
       console.error('Error starting interview:', error)
