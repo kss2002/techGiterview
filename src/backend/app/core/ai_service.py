@@ -49,55 +49,89 @@ class AIService:
     def _initialize_providers(self):
         """사용 가능한 AI 제공업체 초기화"""
         
-        # 기존 providers 초기화 (재초기화 시 중요)
-        self.available_providers.clear()
-        
-        logger.info("Initializing AI providers...")
-        
-        # Google Gemini Flash 초기화 (최우선)
-        google_api_key = settings.google_api_key
-        logger.info(f"Google API Key found: {google_api_key is not None}")
-        logger.info(f"Google AI available: {GOOGLE_AI_AVAILABLE}")
-        
-        if google_api_key and GOOGLE_AI_AVAILABLE:
+        try:
+            # 기존 providers 초기화 (재초기화 시 중요)
+            self.available_providers.clear()
+            
+            logger.info("Initializing AI providers...")
+            
+            # Google Gemini Flash 초기화 (최우선)
             try:
-                genai.configure(api_key=google_api_key)
-                self.available_providers[AIProvider.GEMINI_FLASH] = {
-                    "client": genai,
-                    "model": "gemini-2.0-flash",
-                    "status": "ready"
-                }
-                logger.info("Google Gemini Flash initialized successfully")
+                google_api_key = getattr(settings, 'google_api_key', None)
+                logger.info(f"Google API Key found: {google_api_key is not None}")
+                logger.info(f"Google AI available: {GOOGLE_AI_AVAILABLE}")
+                
+                if google_api_key and GOOGLE_AI_AVAILABLE:
+                    try:
+                        genai.configure(api_key=google_api_key)
+                        self.available_providers[AIProvider.GEMINI_FLASH] = {
+                            "client": genai,
+                            "model": "gemini-2.0-flash",
+                            "status": "ready"
+                        }
+                        logger.info("Google Gemini Flash initialized successfully")
+                    except Exception as e:
+                        logger.error(f"Failed to initialize Google Gemini: {e}")
+                        # Gemini 초기화 실패해도 계속 진행
+                elif not google_api_key:
+                    logger.warning("Google API key not found")
+                elif not GOOGLE_AI_AVAILABLE:
+                    logger.warning("Google AI library not available")
             except Exception as e:
-                logger.error(f"Failed to initialize Google Gemini: {e}")
-        elif not google_api_key:
-            logger.warning("Google API key not found")
-        elif not GOOGLE_AI_AVAILABLE:
-            logger.warning("Google AI library not available")
-        
-        # OpenAI 초기화
-        openai_api_key = settings.openai_api_key
-        logger.info(f"OpenAI API Key: {openai_api_key}")
-        if openai_api_key and openai_api_key != "your_openai_api_key_here":
-            self.available_providers[AIProvider.OPENAI_GPT] = {
-                "client": None,  # OpenAI 클라이언트는 필요시 구현
-                "model": "gpt-3.5-turbo",
-                "status": "configured"
+                logger.error(f"Error accessing Google API settings: {e}")
+                # settings 접근 오류 시에도 계속 진행
+            
+            # OpenAI 초기화
+            try:
+                openai_api_key = getattr(settings, 'openai_api_key', None)
+                logger.info(f"OpenAI API Key: {openai_api_key}")
+                if openai_api_key and openai_api_key != "your_openai_api_key_here":
+                    self.available_providers[AIProvider.OPENAI_GPT] = {
+                        "client": None,  # OpenAI 클라이언트는 필요시 구현
+                        "model": "gpt-3.5-turbo",
+                        "status": "configured"
+                    }
+                    logger.info("OpenAI GPT configured")
+            except Exception as e:
+                logger.error(f"Error accessing OpenAI API settings: {e}")
+                # OpenAI 설정 오류 시에도 계속 진행
+            
+            # Anthropic Claude 초기화
+            try:
+                anthropic_api_key = getattr(settings, 'anthropic_api_key', None)
+                logger.info(f"Anthropic API Key: {anthropic_api_key}")
+                if anthropic_api_key and anthropic_api_key != "your_anthropic_api_key_here":
+                    self.available_providers[AIProvider.ANTHROPIC_CLAUDE] = {
+                        "client": None,  # Anthropic 클라이언트는 필요시 구현
+                        "model": "claude-3-sonnet",
+                        "status": "configured"
+                    }
+                    logger.info("Anthropic Claude configured")
+            except Exception as e:
+                logger.error(f"Error accessing Anthropic API settings: {e}")
+                # Anthropic 설정 오류 시에도 계속 진행
+            
+            logger.info(f"Total providers initialized: {len(self.available_providers)}")
+            
+            # 프로바이더가 하나도 없는 경우 기본 프로바이더 추가
+            if not self.available_providers:
+                logger.warning("No AI providers available, adding fallback provider")
+                self.available_providers[AIProvider.GEMINI_FLASH] = {
+                    "client": None,
+                    "model": "gemini-2.0-flash",
+                    "status": "fallback"
+                }
+                
+        except Exception as e:
+            logger.error(f"Critical error during AI providers initialization: {e}")
+            # 최소한의 fallback 프로바이더라도 제공
+            self.available_providers = {
+                AIProvider.GEMINI_FLASH: {
+                    "client": None,
+                    "model": "gemini-2.0-flash",
+                    "status": "error_fallback"
+                }
             }
-            logger.info("OpenAI GPT configured")
-        
-        # Anthropic Claude 초기화
-        anthropic_api_key = settings.anthropic_api_key
-        logger.info(f"Anthropic API Key: {anthropic_api_key}")
-        if anthropic_api_key and anthropic_api_key != "your_anthropic_api_key_here":
-            self.available_providers[AIProvider.ANTHROPIC_CLAUDE] = {
-                "client": None,  # Anthropic 클라이언트는 필요시 구현
-                "model": "claude-3-sonnet",
-                "status": "configured"
-            }
-            logger.info("Anthropic Claude configured")
-        
-        logger.info(f"Total providers initialized: {len(self.available_providers)}")
     
     def reinitialize(self):
         """AI 서비스를 완전히 재초기화 (API 키 업데이트 시 사용)"""

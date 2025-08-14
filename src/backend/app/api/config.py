@@ -72,20 +72,43 @@ async def set_api_keys(request: ApiKeysRequest):
 @router.get("/keys-required", response_model=KeysRequiredResponse)
 async def check_keys_required():
     """API 키 입력이 필요한지 확인"""
-    env_exists = check_env_file_exists()
-    has_keys = bool(settings.github_token and settings.google_api_key)
-    
-    # .env.dev 파일이 없으면 로컬스토리지 모드 사용
-    use_local_storage = not env_exists
-    
-    # 로컬스토리지 모드에서는 항상 키 입력 필요 (클라이언트에서 처리)
-    keys_required = use_local_storage or not has_keys
-    
-    return KeysRequiredResponse(
-        keys_required=keys_required,
-        use_local_storage=use_local_storage,
-        missing_keys={
-            "github_token": not bool(settings.github_token),
-            "google_api_key": not bool(settings.google_api_key)
-        }
-    )
+    try:
+        env_exists = check_env_file_exists()
+        
+        # settings 접근을 안전하게 처리
+        try:
+            github_token = getattr(settings, 'github_token', None)
+            google_api_key = getattr(settings, 'google_api_key', None)
+            has_keys = bool(github_token and google_api_key)
+        except Exception as e:
+            # settings 접근 실패 시 기본값 사용
+            print(f"Warning: Failed to access settings: {e}")
+            github_token = None
+            google_api_key = None
+            has_keys = False
+        
+        # .env.dev 파일이 없으면 로컬스토리지 모드 사용
+        use_local_storage = not env_exists
+        
+        # 로컬스토리지 모드에서는 항상 키 입력 필요 (클라이언트에서 처리)
+        keys_required = use_local_storage or not has_keys
+        
+        return KeysRequiredResponse(
+            keys_required=keys_required,
+            use_local_storage=use_local_storage,
+            missing_keys={
+                "github_token": not bool(github_token),
+                "google_api_key": not bool(google_api_key)
+            }
+        )
+    except Exception as e:
+        # 전체 함수 실패 시 안전한 기본값 반환
+        print(f"Error in check_keys_required: {e}")
+        return KeysRequiredResponse(
+            keys_required=True,
+            use_local_storage=True,
+            missing_keys={
+                "github_token": True,
+                "google_api_key": True
+            }
+        )

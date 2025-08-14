@@ -76,6 +76,10 @@ async def get_homepage_init_data(
         
     except Exception as e:
         # 에러 발생 시 최소한의 데이터라도 제공
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Homepage initialization failed: {e}", exc_info=True)
+        
         fallback_data = {
             "config": {
                 "keys_required": True,
@@ -95,7 +99,8 @@ async def get_homepage_init_data(
             "cache_info": {
                 "ttl": 60,
                 "last_updated": "fallback",
-                "source": "error_fallback"
+                "source": "error_fallback",
+                "error": str(e)
             }
         }
         
