@@ -1,145 +1,38 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiKeySetup } from '../components/ApiKeySetup'
+import { usePageInitialization } from '../hooks/usePageInitialization'
 import './HomePage.css'
 
-// 로컬스토리지에서 API 키를 가져오는 헬퍼 함수
-const getApiKeysFromStorage = () => {
-  try {
-    return {
-      githubToken: localStorage.getItem('techgiterview_github_token') || '',
-      googleApiKey: localStorage.getItem('techgiterview_google_api_key') || ''
-    }
-  } catch (error) {
-    return { githubToken: '', googleApiKey: '' }
-  }
-}
-
-// API 요청용 헤더 생성 함수
-const createApiHeaders = (includeApiKeys: boolean = false) => {
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  }
-  
-  if (includeApiKeys) {
-    const { githubToken, googleApiKey } = getApiKeysFromStorage()
-    if (githubToken) headers['X-GitHub-Token'] = githubToken
-    if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
-  }
-  
-  return headers
-}
-
-interface AIProvider {
-  id: string
-  name: string
-  model: string
-  status: string
-  recommended: boolean
-}
-
 export const HomePage: React.FC = () => {
-  const [repoUrl, setRepoUrl] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [selectedAI, setSelectedAI] = useState<string>('')
-  const [availableProviders, setAvailableProviders] = useState<AIProvider[]>([])
-  const [isLoadingProviders, setIsLoadingProviders] = useState(true)
-  const [showApiKeySetup, setShowApiKeySetup] = useState(false)
-  const [isCheckingConfig, setIsCheckingConfig] = useState(true)
   const navigate = useNavigate()
-
-  // 초기 설정 상태 확인
-  useEffect(() => {
-    const checkInitialConfig = async () => {
-      try {
-        const response = await fetch('/api/v1/config/keys-required', {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-          }
-        })
-        
-        if (response.ok) {
-          const result = await response.json()
-          if (result.keys_required) {
-            setShowApiKeySetup(true)
-          }
-        }
-      } catch (error) {
-        console.error('설정 상태 확인 실패:', error)
-        // 에러가 발생해도 계속 진행 (키가 있을 수도 있음)
-      } finally {
-        setIsCheckingConfig(false)
-      }
-    }
-    
-    checkInitialConfig()
-  }, [])
-
-  // AI 제공업체 목록 로드
-  useEffect(() => {
-    if (isCheckingConfig || showApiKeySetup) return
-    
-    const loadAIProviders = async () => {
-      try {
-        const response = await fetch('/api/v1/ai/providers', {
-          method: 'GET',
-          headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
-          // 5초 타임아웃 설정
-          signal: AbortSignal.timeout(5000)
-        })
-        
-        if (response.ok) {
-          const providers = await response.json()
-          setAvailableProviders(providers)
-          // 기본값으로 추천 제공업체 선택 (Gemini Flash 우선)
-          const recommended = providers.find((p: AIProvider) => p.recommended)
-          if (recommended) {
-            setSelectedAI(recommended.id)
-          } else if (providers.length > 0) {
-            setSelectedAI(providers[0].id)
-          }
-        } else {
-          console.error('AI 제공업체 로드 실패:', response.status, response.statusText)
-          // Fallback: 기본 제공업체 목록 사용
-          setAvailableProviders([
-            {
-              id: 'gemini_flash',
-              name: 'Google Gemini 2.0 Flash',
-              model: 'gemini-2.0-flash-exp',
-              status: 'available',
-              recommended: true
-            }
-          ])
-          setSelectedAI('gemini_flash')
-        }
-      } catch (error) {
-        console.error('AI 제공업체 로드 실패:', error)
-        // Fallback: 기본 제공업체 목록 사용
-        setAvailableProviders([
-          {
-            id: 'gemini_flash',
-            name: 'Google Gemini 2.0 Flash',
-            model: 'gemini-2.0-flash-exp',
-            status: 'available',
-            recommended: true
-          }
-        ])
-        setSelectedAI('gemini_flash')
-      } finally {
-        setIsLoadingProviders(false)
-      }
-    }
-    
-    loadAIProviders()
-  }, [isCheckingConfig, showApiKeySetup])
-
+  
+  // 모든 초기화 로직을 Hook으로 위임
+  const {
+    config,
+    providers,
+    selectedAI,
+    setSelectedAI,
+    isLoading,
+    error,
+    isUsingLocalData,
+    hasStoredKeys,
+    createApiHeaders
+  } = usePageInitialization()
+  
+  // 컴포넌트 상태 (최소화)
+  const [repoUrl, setRepoUrl] = useState('')
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [showApiKeySetup, setShowApiKeySetup] = useState(false)
+  
+  // API 키 설정 모달 표시 여부 결정
+  const shouldShowApiKeySetup = showApiKeySetup || (config.keys_required && !hasStoredKeys())
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!repoUrl.trim()) return
+    if (!repoUrl.trim() || !selectedAI) return
 
-    setIsLoading(true)
+    setIsAnalyzing(true)
     
     try {
       // GitHub URL 유효성 검사
@@ -152,7 +45,7 @@ export const HomePage: React.FC = () => {
       // 저장소 분석 요청
       const response = await fetch('/api/v1/repository/analyze', {
         method: 'POST',
-        headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
+        headers: createApiHeaders(true),
         body: JSON.stringify({
           repo_url: repoUrl,
           store_results: true,
@@ -165,23 +58,15 @@ export const HomePage: React.FC = () => {
       }
 
       const result = await response.json()
-      console.log('Backend response:', result) // 디버깅용
-      console.log('Response keys:', Object.keys(result)) // 키 목록 확인
       
       // 응답 구조에 따라 분기 처리
-      let analysisData = result;
+      let analysisData = result
       if (result.data) {
-        // {success: true, data: {...}} 형태인 경우
-        analysisData = result.data;
-        console.log('Using result.data:', analysisData);
+        analysisData = result.data
       }
       
-      console.log('Analysis ID:', analysisData.analysis_id) // 분석 ID 확인
-      
       if (result.success || analysisData.success) {
-        // 분석 성공 시 고유 ID를 포함한 대시보드로 이동
         if (analysisData.analysis_id) {
-          console.log('Navigating to:', `/dashboard/${analysisData.analysis_id}`)
           navigate(`/dashboard/${analysisData.analysis_id}`)
         } else {
           throw new Error('분석 ID를 받지 못했습니다.')
@@ -191,11 +76,16 @@ export const HomePage: React.FC = () => {
       }
       
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Analysis error:', error)
       alert(error instanceof Error ? error.message : '오류가 발생했습니다.')
     } finally {
-      setIsLoading(false)
+      setIsAnalyzing(false)
     }
+  }
+
+  const handleApiKeysSet = () => {
+    setShowApiKeySetup(false)
+    // React Query가 자동으로 데이터를 refetch함
   }
 
   const sampleRepos = [
@@ -205,23 +95,6 @@ export const HomePage: React.FC = () => {
     'https://github.com/django/django',
     'https://github.com/hong-seongmin/HWnow'
   ]
-
-  const handleApiKeysSet = () => {
-    setShowApiKeySetup(false)
-    // API 키 설정 후 AI 제공업체 목록을 다시 로드
-    setIsLoadingProviders(true)
-  }
-
-  if (isCheckingConfig) {
-    return (
-      <div className="home-page">
-        <div className="loading-screen">
-          <div className="spinner"></div>
-          <p>설정을 확인하는 중...</p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="homepage-container-new">
@@ -254,6 +127,25 @@ export const HomePage: React.FC = () => {
                 ⚙️ API 키 설정
               </button>
             </div>
+            
+            {/* 상태 표시 */}
+            <div className="status-indicators">
+              {isUsingLocalData && (
+                <div className="status-badge local">
+                  💾 로컬 데이터 사용 중
+                </div>
+              )}
+              {error && (
+                <div className="status-badge error">
+                  ⚠️ 서버 연결 오류 (오프라인 모드)
+                </div>
+              )}
+              {!isLoading && !error && !isUsingLocalData && (
+                <div className="status-badge online">
+                  ✅ 서버 연결됨
+                </div>
+              )}
+            </div>
           </div>
 
           {/* AI 모델 선택 섹션 */}
@@ -261,11 +153,9 @@ export const HomePage: React.FC = () => {
             <h3 className="ai-selection-title-new">
               🤖 AI 모델 선택
             </h3>
-            {isLoadingProviders ? (
-              <div className="loading-providers">AI 모델을 불러오는 중...</div>
-            ) : availableProviders.length > 0 ? (
+            {providers.length > 0 ? (
               <div className="ai-providers-grid">
-                {availableProviders.map((provider) => (
+                {providers.map((provider) => (
                   <label
                     key={provider.id}
                     className={`ai-provider-card-new ${selectedAI === provider.id ? 'selected' : ''} ${provider.recommended ? 'recommended' : ''}`}
@@ -292,7 +182,16 @@ export const HomePage: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="no-providers">사용 가능한 AI 모델이 없습니다.</div>
+              <div className="no-providers">
+                {isLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <div className="spinner" style={{ width: '16px', height: '16px' }}></div>
+                    <span>AI 모델을 불러오는 중...</span>
+                  </div>
+                ) : (
+                  '사용 가능한 AI 모델이 없습니다.'
+                )}
+              </div>
             )}
           </div>
 
@@ -305,14 +204,14 @@ export const HomePage: React.FC = () => {
                 placeholder="GitHub 저장소 URL을 입력하세요 (예: https://github.com/facebook/react)"
                 className="repo-input-new"
                 required
-                disabled={isLoading}
+                disabled={isAnalyzing}
               />
               <button 
                 type="submit" 
                 className="analyze-button-new"
-                disabled={isLoading || !repoUrl.trim() || !selectedAI}
+                disabled={isAnalyzing || !repoUrl.trim() || !selectedAI}
               >
-                {isLoading ? (
+                {isAnalyzing ? (
                   <>
                     <span className="spinner"></span>
                     분석 중...
@@ -334,7 +233,7 @@ export const HomePage: React.FC = () => {
                   key={index}
                   onClick={() => setRepoUrl(repo)}
                   className="sample-repo-button-new"
-                  disabled={isLoading}
+                  disabled={isAnalyzing}
                 >
                   {repo.split('/').slice(-2).join('/')}
                 </button>
@@ -344,6 +243,7 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
+      {/* 기능 섹션 */}
       <div className="features-section-new">
         <h2 className="features-title-new">주요 기능</h2>
         <div className="features-grid-new">
@@ -381,6 +281,7 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
+      {/* 작동 원리 */}
       <div className="how-it-works-section-new">
         <h2 className="section-title-new">작동 원리</h2>
         <div className="steps-container-new">
@@ -416,11 +317,12 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {showApiKeySetup && (
+      {/* API 키 설정 모달 */}
+      {shouldShowApiKeySetup && (
         <ApiKeySetup onApiKeysSet={handleApiKeysSet} />
       )}
       
-      {/* 푸터 섹션 */}
+      {/* 푸터 */}
       <footer className="homepage-footer">
         <div className="footer-container">
           <div className="footer-content">

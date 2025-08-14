@@ -28,6 +28,45 @@ div.home-page {
   position: relative !important;
 }
 
+/* 상태 표시 스타일 */
+.status-indicators {
+  margin-top: 8px !important;
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+}
+
+.status-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 4px 8px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border: 1px solid !important;
+  transition: all 0.2s ease !important;
+}
+
+.status-badge.local {
+  background-color: #e3f2fd !important;
+  color: #1976d2 !important;
+  border-color: #bbdefb !important;
+}
+
+.status-badge.error {
+  background-color: #ffebee !important;
+  color: #d32f2f !important;
+  border-color: #ffcdd2 !important;
+}
+
+.status-badge.online {
+  background-color: #e8f5e8 !important;
+  color: #2e7d32 !important;
+  border-color: #c8e6c9 !important;
+}
+
 .title-new {
   font-size: 3.5rem !important;
   font-weight: 700 !important;
