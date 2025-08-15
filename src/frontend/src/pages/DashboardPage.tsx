@@ -265,10 +265,22 @@ const getFileIcon = (filePath: string): React.ReactNode => {
 
 export const DashboardPage: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
-  const [questions, setQuestions] = useState<Question[]>([])
+  const [questions, setQuestionsInternal] = useState<Question[]>([])
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false)
   const [questionsGenerated, setQuestionsGenerated] = useState(false)
+  
+  // 질문 상태 변경 추적을 위한 래퍼 함수
+  const setQuestions = (newQuestions: Question[]) => {
+    console.log('[Questions State] 🔄 Updating questions state:', {
+      previousCount: questions.length,
+      newCount: newQuestions.length,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n')
+    })
+    setQuestionsInternal(newQuestions)
+    console.log('[Questions State] ✅ Questions state updated:', newQuestions.length)
+  }
   const [allFiles, setAllFiles] = useState<FileTreeNode[]>([])
   const [isLoadingAllFiles, setIsLoadingAllFiles] = useState(false)
   const [showAllFiles, setShowAllFiles] = useState(true)
@@ -392,46 +404,113 @@ export const DashboardPage: React.FC = () => {
   }
 
   const loadOrGenerateQuestions = async (analysisToUse: AnalysisResult) => {
+    console.log('[Questions] 🎯 Starting loadOrGenerateQuestions for analysis:', analysisToUse.analysis_id)
+    console.log('[Questions] 📊 Current questions state:', { 
+      questionsCount: questions.length, 
+      questionsGenerated, 
+      isLoadingQuestions 
+    })
+    
     setIsLoadingQuestions(true)
     try {
       // 먼저 이미 생성된 질문이 있는지 확인
-      const checkResponse = await fetch(`/api/v1/questions/analysis/${analysisToUse.analysis_id}`)
+      const checkUrl = `/api/v1/questions/analysis/${analysisToUse.analysis_id}`
+      console.log('[Questions] 📤 Fetching existing questions from:', checkUrl)
+      
+      const checkResponse = await fetch(checkUrl, {
+        method: 'GET',
+        headers: createApiHeaders(false) // 질문 조회는 API 키 불필요
+      })
+      console.log('[Questions] 📥 Check response received:', {
+        status: checkResponse.status,
+        statusText: checkResponse.statusText,
+        ok: checkResponse.ok,
+        url: checkResponse.url
+      })
       
       if (checkResponse.ok) {
         const checkResult = await checkResponse.json()
-        if (checkResult.success && checkResult.questions.length > 0) {
+        console.log('[Questions] ✅ Parsed check result:', {
+          success: checkResult.success,
+          questionsLength: checkResult.questions?.length || 0,
+          questionsExists: !!checkResult.questions,
+          analysisId: checkResult.analysis_id,
+          error: checkResult.error
+        })
+        
+        if (checkResult.success && checkResult.questions && checkResult.questions.length > 0) {
           // 이미 생성된 질문이 있음
+          console.log('[Questions] 🎉 Found existing questions, setting state:', checkResult.questions.length)
           setQuestions(checkResult.questions)
           setQuestionsGenerated(true)
+          console.log('[Questions] ✨ Questions state updated successfully')
           return
+        } else {
+          console.log('[Questions] 🔍 No existing questions found, will generate new ones')
         }
+      } else {
+        console.warn('[Questions] ⚠️ Check response not ok:', {
+          status: checkResponse.status,
+          statusText: checkResponse.statusText
+        })
       }
       
       // 질문이 없으면 새로 생성
+      console.log('[Questions] 🛠️ Generating new questions...')
+      const generatePayload = {
+        repo_url: `https://github.com/${analysisToUse.repo_info.owner}/${analysisToUse.repo_info.name}`,
+        analysis_result: analysisToUse,
+        question_type: "technical",
+        difficulty: "medium"
+      }
+      console.log('[Questions] 📦 Generation payload:', generatePayload)
+      
       const generateResponse = await fetch('/api/v1/questions/generate', {
         method: 'POST',
         headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
-        body: JSON.stringify({
-          repo_url: `https://github.com/${analysisToUse.repo_info.owner}/${analysisToUse.repo_info.name}`,
-          analysis_result: analysisToUse,
-          question_type: "technical",
-          difficulty: "medium"
-        })
+        body: JSON.stringify(generatePayload)
+      })
+
+      console.log('[Questions] 📥 Generate response received:', {
+        status: generateResponse.status,
+        statusText: generateResponse.statusText,
+        ok: generateResponse.ok
       })
 
       if (!generateResponse.ok) {
-        throw new Error('질문 생성에 실패했습니다.')
+        const errorText = await generateResponse.text()
+        console.error('[Questions] ❌ Generate response error:', errorText)
+        throw new Error(`질문 생성에 실패했습니다. (${generateResponse.status}: ${errorText})`)
       }
 
       const generateResult = await generateResponse.json()
+      console.log('[Questions] ✅ Parsed generate result:', {
+        success: generateResult.success,
+        questionsLength: generateResult.questions?.length || 0,
+        questionsExists: !!generateResult.questions,
+        analysisId: generateResult.analysis_id,
+        error: generateResult.error
+      })
+      
       if (generateResult.success) {
+        console.log('[Questions] 🎉 Generated questions successfully, setting state:', generateResult.questions?.length || 0)
         setQuestions(generateResult.questions || [])
         setQuestionsGenerated(true)
+        console.log('[Questions] ✨ Generated questions state updated successfully')
+      } else {
+        console.error('[Questions] ❌ Generate result not successful:', generateResult.error)
+        throw new Error(`질문 생성 실패: ${generateResult.error}`)
       }
     } catch (error) {
-      console.error('Error loading/generating questions:', error)
+      console.error('[Questions] 💥 Critical error in loadOrGenerateQuestions:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined,
+        analysisId: analysisToUse.analysis_id
+      })
       // 질문 생성에 실패해도 대시보드는 표시
     } finally {
+      console.log('[Questions] 🏁 loadOrGenerateQuestions finished, setting isLoadingQuestions to false')
       setIsLoadingQuestions(false)
     }
   }
@@ -1036,7 +1115,28 @@ export const DashboardPage: React.FC = () => {
               })()}
               
               <div className="questions-grid">
-              {questions.map((question, index) => (
+              {questions.length === 0 ? (
+                <div className="questions-empty-state">
+                  <div className="empty-state-content">
+                    <MessageSquare className="empty-state-icon" />
+                    <h3>질문을 불러오는 중입니다</h3>
+                    <p>
+                      {questionsGenerated 
+                        ? "질문 생성이 완료되었지만 표시되지 않고 있습니다. 잠시 후 다시 시도해주세요."
+                        : "AI가 저장소를 분석하여 맞춤형 면접 질문을 준비하고 있습니다."
+                      }
+                    </p>
+                    <button 
+                      className="btn btn-outline"
+                      onClick={() => analysisResult && loadOrGenerateQuestions(analysisResult)}
+                      disabled={isLoadingQuestions}
+                    >
+                      {isLoadingQuestions ? '로딩 중...' : '질문 다시 불러오기'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                questions.map((question, index) => (
                 <div 
                   key={question.id} 
                   className="question-card"
@@ -1115,7 +1215,8 @@ export const DashboardPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-              ))}
+                ))
+              )}
               </div>
             </>
           )}
