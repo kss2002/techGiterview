@@ -5,6 +5,15 @@
  */
 
 import React, { useState, useEffect } from 'react'
+import { 
+  Settings, 
+  FileText, 
+  AlertTriangle, 
+  Map,
+  Clock,
+  Target,
+  TreePine
+} from 'lucide-react'
 import './AnalysisDashboard.css'
 import { SmartFileImportanceSection } from './SmartFileImportanceSection'
 import { useChartStyles, useDynamicStyles } from '../hooks/useStyles'
@@ -655,13 +664,13 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
             {/* 고도화된 분석 개요 */}
             <div className="advanced-overview">
               <h3>
-                ⚙️
+                <Settings className="icon" />
                 고도화된 분석 결과
               </h3>
               <div className="advanced-stats">
                 <div className="advanced-stat-card">
                   <div className="stat-icon">
-                    📄
+                    <FileText className="icon" />
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{advancedAnalysis.analysis_summary.total_files}</div>
@@ -670,7 +679,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="advanced-stat-card">
                   <div className="stat-icon">
-                    ⚠️
+                    <AlertTriangle className="icon" />
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{advancedAnalysis.analysis_summary.high_risk_files}</div>
@@ -767,7 +776,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
             {/* 의존성 그래프 분석 */}
             <div className="dependency-graph-section">
               <h3>
-                🗺️
+                <Map className="icon" />
                 의존성 그래프 분석
               </h3>
               <div className="graph-overview">
@@ -855,21 +864,21 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                     <div className="hotspot-metrics-advanced">
                       <div className="hotspot-metric">
                         <span className="metric-icon">
-                          🎯
+                          <Target className="icon" />
                         </span>
                         <span className="metric-label">핫스팟 점수</span>
                         <span className="metric-value">{hotspot.hotspot_score.toFixed(1)}</span>
                       </div>
                       <div className="hotspot-metric">
                         <span className="metric-icon">
-                          🌳
+                          <TreePine className="icon" />
                         </span>
                         <span className="metric-label">총 커밋</span>
                         <span className="metric-value">{hotspot.commit_count}</span>
                       </div>
                       <div className="hotspot-metric">
                         <span className="metric-icon">
-                          🕰️
+                          <Clock className="icon" />
                         </span>
                         <span className="metric-label">최근 커밋</span>
                         <span className="metric-value">{hotspot.recent_commits}</span>

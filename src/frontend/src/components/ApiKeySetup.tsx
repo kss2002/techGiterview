@@ -1,4 +1,14 @@
 import React, { useState, useEffect } from 'react'
+import { 
+  Key, 
+  Github, 
+  Globe, 
+  HardDrive, 
+  Shield, 
+  AlertTriangle, 
+  CheckCircle,
+  Loader
+} from 'lucide-react'
 import './ApiKeySetup.css'
 
 // 로컬스토리지 키 상수
@@ -198,7 +208,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
       <div className="api-key-setup-modal">
         <div className="setup-header">
           <h2 className="setup-title">
-            🔑 API 키 설정 필요
+            <Key className="icon" /> API 키 설정 필요
           </h2>
           <p className="setup-description">
             TechGiterview를 사용하려면 GitHub 토큰과 Google API 키가 필요합니다.
@@ -225,7 +235,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
           
           <div className="form-group">
             <label htmlFor="github-token" className="form-label">
-              🐙 GitHub Personal Access Token
+              <Github className="icon" /> GitHub Personal Access Token
             </label>
             <input
               type="password"
@@ -254,7 +264,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
 
           <div className="form-group">
             <label htmlFor="google-api-key" className="form-label">
-              🌍 Google API Key (Gemini)
+              <Globe className="icon" /> Google API Key (Gemini)
             </label>
             <input
               type="password"
@@ -291,7 +301,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
                   disabled={isLoading}
                 />
                 <span className="checkbox-text">
-                  💾 브라우저에 API 키 저장 (다음에 자동 로드)
+                  <HardDrive className="icon" /> 브라우저에 API 키 저장 (다음에 자동 로드)
                 </span>
               </label>
               <div className="form-help">
@@ -308,7 +318,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
 
           {error && (
             <div className="error-message">
-              ⚠️ {error}
+              <AlertTriangle className="icon" /> {error}
             </div>
           )}
 
@@ -320,12 +330,12 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
             >
               {isLoading ? (
                 <>
-                  <span className="spinner"></span>
+                  <Loader className="icon spinner" />
                   설정 중...
                 </>
               ) : (
                 <>
-                  ✅ API 키 설정
+                  <CheckCircle className="icon" /> API 키 설정
                 </>
               )}
             </button>
@@ -333,7 +343,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
         </form>
 
         <div className="security-notice">
-          🔒
+          <Shield className="icon" />
           <span>
             {useLocalStorageMode ? (
               '개인 API 키 모드에서는 키가 서버에 전송되지 않고 브라우저에서만 사용됩니다. 저장 시 로컬스토리지에 보관되며 언제든지 삭제할 수 있습니다.'

@@ -1,4 +1,5 @@
 import React, { Component, ReactNode } from 'react'
+import { AlertTriangle, RotateCcw, ArrowLeft } from 'lucide-react'
 import { useErrorBoundaryStyles } from '../hooks/useStyles'
 
 interface Props {
@@ -71,7 +72,7 @@ function ErrorFallback({ error, errorInfo }: { error: Error | null; errorInfo: s
   return (
     <div className={styles.container}>
       <h2 className={styles.title}>
-        ⚠️ 컴포넌트 렌더링 오류
+        <AlertTriangle className="icon" /> 컴포넌트 렌더링 오류
       </h2>
       <p className={styles.message}>
         페이지를 렌더링하는 중 오류가 발생했습니다.
@@ -90,13 +91,13 @@ function ErrorFallback({ error, errorInfo }: { error: Error | null; errorInfo: s
           onClick={() => window.location.reload()}
           className={styles.primaryButton}
         >
-          🔄 새로고침
+          <RotateCcw className="icon" /> 새로고침
         </button>
         <button
           onClick={() => window.history.back()}
           className={styles.secondaryButton}
         >
-          ← 뒤로가기
+          <ArrowLeft className="icon" /> 뒤로가기
         </button>
       </div>
     </div>
