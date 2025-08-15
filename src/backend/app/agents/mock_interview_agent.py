@@ -49,7 +49,7 @@ class MockInterviewAgent:
     
     def __init__(self):
         self.question_generator = QuestionGenerator()
-        self.vector_db = VectorDBService()
+        # self.vector_db = VectorDBService()  # 미사용으로 주석 처리 (chromadb 의존성 제거)
         
         # Google Gemini LLM 초기화
         self.llm = get_gemini_llm()
