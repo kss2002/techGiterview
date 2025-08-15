@@ -3,21 +3,14 @@
 @import './styles/components.css';
 @import './styles/utilities.css';
 
-/* CSS Custom Properties Support Check */
+/* CSS Custom Properties Support Check - 최소한의 fallback만 유지 */
 @supports not (color: var(--test)) {
-  /* 오래된 브라우저를 위한 fallback styles */
-  .home-page {
-    background: #1e3a8a !important;
-    color: #f9fafb !important;
-  }
-  
-  .hero-title {
-    font-size: 3.75rem !important;
-    font-weight: 700 !important;
-  }
-  
-  .hero-section {
-    padding: 5rem 1.25rem !important;
+  /* 오래된 브라우저를 위한 필수 fallback styles만 유지 */
+  :root {
+    /* 브라우저 호환성을 위한 최소한의 색상 fallback */
+    --fallback-primary: #181677;
+    --fallback-bg: #f9fafb;
+    --fallback-text: #1f2937;
   }
 }
 

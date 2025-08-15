@@ -1,0 +1,451 @@
+/**
+ * TechGiterview 통합 디자인 토큰 시스템
+ * 
+ * 모든 색상, 간격, 타이포그래피, 그림자 등의 디자인 요소를 중앙에서 관리합니다.
+ * 이 파일은 프로젝트 전체에서 일관된 디자인을 보장하기 위한 Single Source of Truth입니다.
+ */
+
+:root {
+  /* ============================================
+     TechGiterview 브랜드 컬러 시스템 (Brand Color System)
+     ============================================ */
+  
+  /* Brand Navy - 군청(#181677) 기반 파스텔 그라데이션 */
+  --brand-navy-50: #f0f1ff;     /* 매우 연한 파스텔 네이비 */
+  --brand-navy-100: #e0e2fe;    /* 연한 파스텔 네이비 */
+  --brand-navy-200: #c7cbfd;    /* 파스텔 네이비 */
+  --brand-navy-300: #a5aafb;    /* 중간 파스텔 네이비 */
+  --brand-navy-400: #7c82f8;    /* 진한 파스텔 네이비 */
+  --brand-navy-500: #4c51bf;    /* 중간 톤 네이비 */
+  --brand-navy-600: #181677;    /* 브랜드 군청 */
+  --brand-navy-700: #141460;    /* 진한 군청 */
+  --brand-navy-800: #0f0e4a;    /* 매우 진한 군청 */
+  --brand-navy-900: #0a0935;    /* 가장 진한 군청 */
+  --brand-navy-950: #050420;    /* 블랙에 가까운 네이비 */
+
+  /* Brand Green - 진녹(#1B5410) 기반 파스텔 그라데이션 */
+  --brand-green-50: #f0fdf4;    /* 매우 연한 파스텔 그린 */
+  --brand-green-100: #dcfce7;   /* 연한 파스텔 그린 */
+  --brand-green-200: #bbf7d0;   /* 파스텔 그린 */
+  --brand-green-300: #86efac;   /* 중간 파스텔 그린 */
+  --brand-green-400: #4ade80;   /* 진한 파스텔 그린 */
+  --brand-green-500: #22c55e;   /* 중간 톤 그린 */
+  --brand-green-600: #1B5410;   /* 브랜드 진녹 */
+  --brand-green-700: #15401a;   /* 진한 녹색 */
+  --brand-green-800: #0f2e15;   /* 매우 진한 녹색 */
+  --brand-green-900: #0a1c10;   /* 가장 진한 녹색 */
+  --brand-green-950: #05140a;   /* 블랙에 가까운 그린 */
+
+  /* Brand Lime - 연두(#88E83C) 기반 파스텔 그라데이션 */
+  --brand-lime-50: #f7fee7;     /* 매우 연한 파스텔 라임 */
+  --brand-lime-100: #ecfccb;    /* 연한 파스텔 라임 */
+  --brand-lime-200: #d9f99d;    /* 파스텔 라임 */
+  --brand-lime-300: #bef264;    /* 중간 파스텔 라임 */
+  --brand-lime-400: #a3e635;    /* 진한 파스텔 라임 */
+  --brand-lime-500: #88E83C;    /* 브랜드 연두 */
+  --brand-lime-600: #65a30d;    /* 중간 톤 라임 */
+  --brand-lime-700: #4d7c0f;    /* 진한 라임 */
+  --brand-lime-800: #365314;    /* 매우 진한 라임 */
+  --brand-lime-900: #1a2e05;    /* 가장 진한 라임 */
+  --brand-lime-950: #0f1a03;    /* 블랙에 가까운 라임 */
+  
+  /* Primary Colors - 브랜드 네이비를 Primary로 매핑 */
+  --primary-50: var(--brand-navy-50);
+  --primary-100: var(--brand-navy-100);
+  --primary-200: var(--brand-navy-200);
+  --primary-300: var(--brand-navy-300);
+  --primary-400: var(--brand-navy-400);
+  --primary-500: var(--brand-navy-500);
+  --primary-600: var(--brand-navy-600);
+  --primary-700: var(--brand-navy-700);
+  --primary-800: var(--brand-navy-800);
+  --primary-900: var(--brand-navy-900);
+  --primary-950: var(--brand-navy-950);
+  
+  /* 테스트용 - CSS 변경 감지 완료 ✅ */
+
+  /* Secondary Colors - 브랜드 그린을 Secondary로 매핑 */
+  --secondary-50: var(--brand-green-50);
+  --secondary-100: var(--brand-green-100);
+  --secondary-200: var(--brand-green-200);
+  --secondary-300: var(--brand-green-300);
+  --secondary-400: var(--brand-green-400);
+  --secondary-500: var(--brand-green-500);
+  --secondary-600: var(--brand-green-600);
+  --secondary-700: var(--brand-green-700);
+  --secondary-800: var(--brand-green-800);
+  --secondary-900: var(--brand-green-900);
+  --secondary-950: var(--brand-green-950);
+
+  /* Core Colors */
+  --white: #ffffff;
+  --black: #000000;
+
+  /* Gray Scale - 회색 팔레트 */
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --gray-950: #030712;
+
+  /* Semantic Colors - 의미 기반 색상 */
+  --success-50: #f0fdf4;
+  --success-100: #dcfce7;
+  --success-200: #bbf7d0;
+  --success-300: #86efac;
+  --success-400: #4ade80;
+  --success-500: #22c55e;
+  --success-600: #16a34a;
+  --success-700: #15803d;
+  --success-800: #166534;
+  --success-900: #14532d;
+
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-200: #fde68a;
+  --warning-300: #fcd34d;
+  --warning-400: #fbbf24;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+  --warning-800: #92400e;
+  --warning-900: #78350f;
+
+  --error-50: #fef2f2;
+  --error-100: #fee2e2;
+  --error-200: #fecaca;
+  --error-300: #fca5a5;
+  --error-400: #f87171;
+  --error-500: #ef4444;
+  --error-600: #dc2626;
+  --error-700: #b91c1c;
+  --error-800: #991b1b;
+  --error-900: #7f1d1d;
+
+  --info-50: var(--primary-50);
+  --info-100: var(--primary-100);
+  --info-200: var(--primary-200);
+  --info-300: var(--primary-300);
+  --info-400: var(--primary-400);
+  --info-500: var(--primary-500);
+  --info-600: var(--primary-600);
+  --info-700: var(--primary-700);
+  --info-800: var(--primary-800);
+  --info-900: var(--primary-900);
+
+  /* Accent Colors - 브랜드 라임을 Accent로 매핑 */
+  --accent-50: var(--brand-lime-50);
+  --accent-100: var(--brand-lime-100);
+  --accent-200: var(--brand-lime-200);
+  --accent-300: var(--brand-lime-300);
+  --accent-400: var(--brand-lime-400);
+  --accent-500: var(--brand-lime-500);
+  --accent-600: var(--brand-lime-600);
+  --accent-700: var(--brand-lime-700);
+  --accent-800: var(--brand-lime-800);
+  --accent-900: var(--brand-lime-900);
+  --accent-950: var(--brand-lime-950);
+
+  /* File Importance Colors - 브랜드 컬러 기반 파스텔 그라데이션 */
+  --importance-critical: var(--brand-navy-600);
+  --importance-critical-bg: var(--brand-navy-50);
+  --importance-critical-border: var(--brand-navy-200);
+  
+  --importance-high: var(--brand-green-600);
+  --importance-high-bg: var(--brand-green-50);
+  --importance-high-border: var(--brand-green-200);
+  
+  --importance-medium: var(--brand-lime-600);
+  --importance-medium-bg: var(--brand-lime-50);
+  --importance-medium-border: var(--brand-lime-200);
+  
+  --importance-low: #F59E0B;     /* 파스텔 앰버 - 보완색 */
+  --importance-low-bg: #FFFBEB;
+  --importance-low-border: #FDE68A;
+
+  /* Pastel Extended Colors - 추가 파스텔 컬러 팔레트 */
+  --pastel-coral-50: #FEF7F0;
+  --pastel-coral-100: #FEEDE0;
+  --pastel-coral-200: #FDD6B8;
+  --pastel-coral-300: #FBB88A;
+  --pastel-coral-400: #F8915A;
+  --pastel-coral-500: #F4723D;
+  --pastel-coral-600: #E8591C;
+  --pastel-coral-700: #C04515;
+  --pastel-coral-800: #9A3A17;
+  --pastel-coral-900: #7D3317;
+
+  --pastel-lavender-50: #F8F7FF;
+  --pastel-lavender-100: #F1EFFF;
+  --pastel-lavender-200: #E5E1FF;
+  --pastel-lavender-300: #D2C7FF;
+  --pastel-lavender-400: #B8A3FF;
+  --pastel-lavender-500: #9B7AFF;
+  --pastel-lavender-600: #8B5CF6;
+  --pastel-lavender-700: #7C3AED;
+  --pastel-lavender-800: #6B21C8;
+  --pastel-lavender-900: #551AA3;
+
+  --pastel-sage-50: #F5F7F5;
+  --pastel-sage-100: #E8EDE8;
+  --pastel-sage-200: #C8D4C8;
+  --pastel-sage-300: #A3B8A3;
+  --pastel-sage-400: #7A9A7A;
+  --pastel-sage-500: #5A8060;
+  --pastel-sage-600: #486B4D;
+  --pastel-sage-700: #3A583F;
+  --pastel-sage-800: #2F4834;
+  --pastel-sage-900: #273D2B;
+
+  /* ============================================
+     간격 시스템 (Spacing System) - 8px 기반
+     ============================================ */
+  --spacing-0: 0;
+  --spacing-px: 1px;
+  --spacing-0-5: 0.125rem;  /* 2px */
+  --spacing-1: 0.25rem;     /* 4px */
+  --spacing-1-5: 0.375rem;  /* 6px */
+  --spacing-2: 0.5rem;      /* 8px */
+  --spacing-2-5: 0.625rem;  /* 10px */
+  --spacing-3: 0.75rem;     /* 12px */
+  --spacing-3-5: 0.875rem;  /* 14px */
+  --spacing-4: 1rem;        /* 16px */
+  --spacing-5: 1.25rem;     /* 20px */
+  --spacing-6: 1.5rem;      /* 24px */
+  --spacing-7: 1.75rem;     /* 28px */
+  --spacing-8: 2rem;        /* 32px */
+  --spacing-9: 2.25rem;     /* 36px */
+  --spacing-10: 2.5rem;     /* 40px */
+  --spacing-11: 2.75rem;    /* 44px */
+  --spacing-12: 3rem;       /* 48px */
+  --spacing-14: 3.5rem;     /* 56px */
+  --spacing-16: 4rem;       /* 64px */
+  --spacing-20: 5rem;       /* 80px */
+  --spacing-24: 6rem;       /* 96px */
+  --spacing-28: 7rem;       /* 112px */
+  --spacing-32: 8rem;       /* 128px */
+
+  /* ============================================
+     타이포그래피 시스템 (Typography System)
+     ============================================ */
+  
+  /* Font Families */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  --font-serif: Georgia, Cambria, 'Times New Roman', Times, serif;
+
+  /* Font Sizes */
+  --text-xs: 0.75rem;       /* 12px */
+  --text-sm: 0.875rem;      /* 14px */
+  --text-base: 1rem;        /* 16px */
+  --text-lg: 1.125rem;      /* 18px */
+  --text-xl: 1.25rem;       /* 20px */
+  --text-2xl: 1.5rem;       /* 24px */
+  --text-3xl: 1.875rem;     /* 30px */
+  --text-4xl: 2.25rem;      /* 36px */
+  --text-5xl: 3rem;         /* 48px */
+  --text-6xl: 3.75rem;      /* 60px */
+
+  /* Font Weights */
+  --font-thin: 100;
+  --font-extralight: 200;
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
+
+  /* Line Heights */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* Letter Spacing */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+
+  /* ============================================
+     Border Radius (테두리 둥글기)
+     ============================================ */
+  --radius-none: 0px;
+  --radius-sm: 0.125rem;    /* 2px */
+  --radius-base: 0.25rem;   /* 4px */
+  --radius-md: 0.375rem;    /* 6px */
+  --radius-lg: 0.5rem;      /* 8px */
+  --radius-xl: 0.75rem;     /* 12px */
+  --radius-2xl: 1rem;       /* 16px */
+  --radius-3xl: 1.5rem;     /* 24px */
+  --radius-full: 9999px;
+
+  /* ============================================
+     그림자 시스템 (Shadow System)
+     ============================================ */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+  --shadow-none: 0 0 #0000;
+
+  /* Colored Shadows */
+  --shadow-primary: 0 8px 25px rgba(37, 99, 235, 0.3);
+  --shadow-secondary: 0 8px 25px rgba(14, 165, 233, 0.3);
+  --shadow-success: 0 8px 25px rgba(34, 197, 94, 0.3);
+  --shadow-warning: 0 8px 25px rgba(245, 158, 11, 0.3);
+  --shadow-error: 0 8px 25px rgba(239, 68, 68, 0.3);
+
+  /* ============================================
+     전환 효과 (Transitions)
+     ============================================ */
+  --transition-none: none;
+  --transition-all: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: all 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-colors: color 150ms cubic-bezier(0.4, 0, 0.2, 1), background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Easing Functions */
+  --ease-linear: cubic-bezier(0, 0, 1, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ============================================
+     Z-Index 계층 (Z-Index Scale)
+     ============================================ */
+  --z-hide: -1;
+  --z-base: 0;
+  --z-docked: 10;
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-banner: 1030;
+  --z-overlay: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+
+  /* ============================================
+     브레이크포인트 (Breakpoints)
+     ============================================ */
+  --breakpoint-sm: 640px;   /* 모바일 */
+  --breakpoint-md: 768px;   /* 태블릿 */
+  --breakpoint-lg: 1024px;  /* 데스크톱 */
+  --breakpoint-xl: 1280px;  /* 대형 데스크톱 */
+  --breakpoint-2xl: 1536px; /* 초대형 데스크톱 */
+
+  /* ============================================
+     기타 유틸리티 토큰
+     ============================================ */
+  
+  /* Opacity */
+  --opacity-0: 0;
+  --opacity-5: 0.05;
+  --opacity-10: 0.1;
+  --opacity-20: 0.2;
+  --opacity-25: 0.25;
+  --opacity-30: 0.3;
+  --opacity-40: 0.4;
+  --opacity-50: 0.5;
+  --opacity-60: 0.6;
+  --opacity-70: 0.7;
+  --opacity-75: 0.75;
+  --opacity-80: 0.8;
+  --opacity-90: 0.9;
+  --opacity-95: 0.95;
+  --opacity-100: 1;
+
+  /* Backdrop Filter Blur */
+  --backdrop-blur-none: blur(0);
+  --backdrop-blur-sm: blur(4px);
+  --backdrop-blur-base: blur(8px);
+  --backdrop-blur-md: blur(12px);
+  --backdrop-blur-lg: blur(16px);
+  --backdrop-blur-xl: blur(24px);
+  --backdrop-blur-2xl: blur(40px);
+  --backdrop-blur-3xl: blur(64px);
+
+  /* Content max widths */
+  --content-max-width-sm: 640px;
+  --content-max-width-md: 768px;
+  --content-max-width-lg: 1024px;
+  --content-max-width-xl: 1280px;
+  --content-max-width-2xl: 1536px;
+  --content-max-width-full: 100%;
+
+  /* Code blocks and syntax highlighting - 가독성 강화 */
+  --code-bg: var(--gray-200);
+  --code-border: var(--gray-300);
+  --code-text: var(--gray-900);
+  --code-radius: var(--radius-md);
+  --code-padding-inline: var(--spacing-2);
+  --code-padding-block: var(--spacing-1);
+  --code-block-padding: var(--spacing-4);
+  --code-font-size: 0.875rem;
+  --code-line-height: 1.5;
+}
+
+/* ============================================
+   다크 모드 지원 (미래 확장용)
+   ============================================ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark mode specific overrides */
+    --gray-50: #111827;
+    --gray-100: #1f2937;
+    --gray-200: #374151;
+    --gray-300: #4b5563;
+    --gray-400: #6b7280;
+    --gray-500: #9ca3af;
+    --gray-600: #d1d5db;
+    --gray-700: #e5e7eb;
+    --gray-800: #f3f4f6;
+    --gray-900: #f9fafb;
+    --gray-950: #ffffff;
+  }
+}
+
+/* ============================================
+   고대비 모드 지원 (접근성)
+   ============================================ */
+@media (prefers-contrast: high) {
+  :root {
+    --primary-600: #1d4ed8;
+    --gray-500: #000000;
+    --gray-600: #000000;
+    --gray-700: #000000;
+    --gray-800: #000000;
+    --gray-900: #000000;
+  }
+}
+
+/* ============================================
+   모션 감소 지원 (접근성)
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: none;
+    --transition-normal: none;
+    --transition-slow: none;
+    --transition-all: none;
+    --transition-colors: none;
+  }
+}

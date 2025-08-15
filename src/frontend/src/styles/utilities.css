@@ -1,0 +1,608 @@
+/**
+ * TechGiterview 유틸리티 클래스 시스템
+ * 
+ * 인라인 스타일 제거를 위한 재사용 가능한 유틸리티 클래스들을 정의합니다.
+ * design-tokens.css의 토큰을 활용하여 일관된 디자인을 보장합니다.
+ */
+
+/* ============================================
+   Debug & Development 컴포넌트
+   ============================================ */
+
+/* 디버그 컨테이너 */
+.debug-container {
+  padding: var(--spacing-5);
+  background-color: var(--gray-100);
+  margin: var(--spacing-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.debug-title {
+  color: var(--gray-900);
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  margin-bottom: var(--spacing-3);
+}
+
+.debug-text {
+  color: var(--gray-700);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+  margin-bottom: var(--spacing-2);
+}
+
+.debug-text:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================
+   Error & Status UI 컴포넌트
+   ============================================ */
+
+/* 에러 경계 컨테이너 */
+.error-boundary-container {
+  padding: var(--spacing-10);
+  text-align: center;
+  background: white;
+  border: 1px solid var(--error-300);
+  border-radius: var(--radius-lg);
+  margin: var(--spacing-5);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.5s var(--ease-out);
+}
+
+/* 에러 제목 */
+.error-title {
+  color: var(--error-600);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  margin-bottom: var(--spacing-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+}
+
+/* 에러 메시지 */
+.error-message {
+  color: var(--gray-600);
+  font-size: var(--text-base);
+  margin-bottom: var(--spacing-4);
+  line-height: var(--leading-relaxed);
+}
+
+/* 에러 상세 정보 */
+.error-details {
+  text-align: left;
+  margin-bottom: var(--spacing-5);
+}
+
+.error-details summary {
+  cursor: pointer;
+  font-weight: var(--font-semibold);
+  color: var(--gray-700);
+  padding: var(--spacing-2);
+  border-radius: var(--radius-md);
+  transition: var(--transition-colors);
+}
+
+.error-details summary:hover {
+  background: var(--gray-100);
+}
+
+.error-details-content {
+  background: var(--gray-50);
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  margin-top: var(--spacing-2);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  color: var(--error-700);
+  border: 1px solid var(--error-200);
+  overflow-x: auto;
+}
+
+/* 에러 액션 버튼들 */
+.error-actions {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.error-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-6);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: var(--transition-all);
+  text-decoration: none;
+}
+
+.error-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.error-action-btn.primary {
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+  color: white;
+}
+
+.error-action-btn.primary:hover {
+  background: linear-gradient(135deg, var(--primary-700) 0%, var(--primary-800) 100%);
+}
+
+.error-action-btn.secondary {
+  background: var(--gray-500);
+  color: white;
+}
+
+.error-action-btn.secondary:hover {
+  background: var(--gray-600);
+}
+
+/* ============================================
+   Progress & Loading UI 컴포넌트
+   ============================================ */
+
+/* 진행률 바 컨테이너 */
+.progress-container {
+  width: 100%;
+  background: var(--gray-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  height: var(--spacing-2);
+  position: relative;
+}
+
+.progress-container.lg {
+  height: var(--spacing-3);
+}
+
+.progress-container.xl {
+  height: var(--spacing-4);
+}
+
+/* 진행률 바 */
+.progress-bar {
+  height: 100%;
+  transition: width 0.3s var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar.primary {
+  background: linear-gradient(90deg, var(--primary-500) 0%, var(--primary-600) 100%);
+}
+
+.progress-bar.success {
+  background: linear-gradient(90deg, var(--success-500) 0%, var(--success-600) 100%);
+}
+
+.progress-bar.warning {
+  background: linear-gradient(90deg, var(--warning-500) 0%, var(--warning-600) 100%);
+}
+
+.progress-bar.error {
+  background: linear-gradient(90deg, var(--error-500) 0%, var(--error-600) 100%);
+}
+
+/* 진행률 바 애니메이션 */
+.progress-bar.animated::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background-image: linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.2) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.2) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: progressStripes 2s linear infinite;
+}
+
+/* ============================================
+   Layout & Spacing 유틸리티
+   ============================================ */
+
+/* 중앙 정렬 컨테이너 */
+.center-container {
+  max-width: var(--content-max-width-lg);
+  margin: 0 auto;
+  padding: 0 var(--spacing-5);
+}
+
+.center-container.sm {
+  max-width: var(--content-max-width-sm);
+}
+
+.center-container.md {
+  max-width: var(--content-max-width-md);
+}
+
+.center-container.xl {
+  max-width: var(--content-max-width-xl);
+}
+
+.center-container.full {
+  max-width: var(--content-max-width-full);
+}
+
+/* Flexbox 유틸리티 */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.flex-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.flex-col-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-gap-2 { gap: var(--spacing-2); }
+.flex-gap-3 { gap: var(--spacing-3); }
+.flex-gap-4 { gap: var(--spacing-4); }
+.flex-gap-5 { gap: var(--spacing-5); }
+
+/* ============================================
+   Color Utilities - 동적 색상 시스템
+   ============================================ */
+
+/* 배경 색상 */
+.bg-white { background-color: white; }
+.bg-gray-50 { background-color: var(--gray-50); }
+.bg-gray-100 { background-color: var(--gray-100); }
+.bg-gray-200 { background-color: var(--gray-200); }
+
+.bg-primary { background-color: var(--primary-600); }
+.bg-primary-50 { background-color: var(--primary-50); }
+.bg-primary-100 { background-color: var(--primary-100); }
+
+.bg-success { background-color: var(--success-600); }
+.bg-warning { background-color: var(--warning-600); }
+.bg-error { background-color: var(--error-600); }
+
+/* 텍스트 색상 */
+.text-primary { color: var(--primary-600); }
+.text-gray-600 { color: var(--gray-600); }
+.text-gray-700 { color: var(--gray-700); }
+.text-gray-800 { color: var(--gray-800); }
+.text-gray-900 { color: var(--gray-900); }
+.text-white { color: white; }
+
+.text-success { color: var(--success-600); }
+.text-warning { color: var(--warning-600); }
+.text-error { color: var(--error-600); }
+
+/* 테두리 색상 */
+.border-gray-200 { border-color: var(--gray-200); }
+.border-gray-300 { border-color: var(--gray-300); }
+.border-primary { border-color: var(--primary-600); }
+.border-error { border-color: var(--error-600); }
+
+/* ============================================
+   Interactive States
+   ============================================ */
+
+/* 호버 효과 */
+.hover-lift:hover {
+  transform: translateY(-2px);
+  transition: var(--transition-all);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+  transition: var(--transition-all);
+}
+
+.hover-shadow:hover {
+  box-shadow: var(--shadow-lg);
+  transition: var(--transition-all);
+}
+
+/* 포커스 효과 */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--primary-500);
+}
+
+.focus-ring-error:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  border-color: var(--error-500);
+}
+
+/* ============================================
+   Dynamic Progress Bars & Charts
+   ============================================ */
+
+/* 동적 진행률 바 컨테이너 */
+.bar-container {
+  position: relative;
+  background: var(--gray-200);
+  border-radius: var(--radius-full);
+  height: var(--spacing-8);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: var(--spacing-3);
+}
+
+/* 진행률 바 기본 스타일 */
+.bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  transition: width 0.3s var(--ease-out);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: var(--spacing-3);
+  min-width: 20px; /* 최소 너비 보장 */
+}
+
+/* 진행률 바 유형별 스타일 */
+.bar-fill.importance {
+  background: linear-gradient(90deg, var(--primary-500) 0%, var(--primary-600) 100%);
+}
+
+.bar-fill.complexity {
+  background: linear-gradient(90deg, var(--warning-500) 0%, var(--warning-600) 100%);
+}
+
+.bar-fill.hotspot {
+  background: linear-gradient(90deg, var(--error-500) 0%, var(--error-600) 100%);
+}
+
+.bar-fill.centrality {
+  background: linear-gradient(90deg, var(--secondary-500) 0%, var(--secondary-600) 100%);
+}
+
+/* 언어별 색상 점 */
+.language-color {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  /* 동적 배경색은 CSS 변수로 설정 */
+}
+
+/* 메트릭 값 표시 */
+.metric-value {
+  color: white;
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+/* 아이콘 스타일 */
+.icon-with-margin {
+  margin-right: var(--spacing-2);
+}
+
+/* ============================================
+   Dynamic Color Classes
+   ============================================ */
+
+/* 언어별 색상 (GitHub 표준 색상) */
+.lang-color-javascript { background-color: #f7df1e; }
+.lang-color-typescript { background-color: #3178c6; }
+.lang-color-python { background-color: #3776ab; }
+.lang-color-java { background-color: #ed8b00; }
+.lang-color-cpp { background-color: #00599c; }
+.lang-color-go { background-color: #00add8; }
+.lang-color-rust { background-color: #000000; }
+.lang-color-php { background-color: #777bb4; }
+.lang-color-ruby { background-color: #cc342d; }
+.lang-color-swift { background-color: #fa7343; }
+.lang-color-kotlin { background-color: #a97bff; }
+.lang-color-dart { background-color: #0175c2; }
+.lang-color-html { background-color: #e34f26; }
+.lang-color-css { background-color: #1572b6; }
+.lang-color-scss { background-color: #cf649a; }
+.lang-color-vue { background-color: #4fc08d; }
+.lang-color-react { background-color: #61dafb; }
+.lang-color-angular { background-color: #dd0031; }
+
+/* 기본 색상 팔레트 (차트용) */
+.chart-color-0 { background-color: var(--primary-500); }
+.chart-color-1 { background-color: var(--secondary-500); }
+.chart-color-2 { background-color: var(--success-500); }
+.chart-color-3 { background-color: var(--warning-500); }
+.chart-color-4 { background-color: var(--error-500); }
+.chart-color-5 { background-color: var(--primary-700); }
+.chart-color-6 { background-color: var(--secondary-700); }
+.chart-color-7 { background-color: var(--success-700); }
+
+/* ============================================
+   Animation Keyframes
+   ============================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(var(--spacing-5));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-var(--spacing-10));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes progressStripes {
+  from {
+    background-position: 20px 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Animation classes */
+.animate-fade-in { animation: fadeIn 0.5s var(--ease-out); }
+.animate-fade-in-up { animation: fadeInUp 0.5s var(--ease-out); }
+.animate-slide-in { animation: slideIn 0.5s var(--ease-out); }
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-spin { animation: spin 1s linear infinite; }
+
+/* ============================================
+   Responsive Design 유틸리티
+   ============================================ */
+
+/* 모바일에서 숨김 */
+@media (max-width: 767px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+  
+  .mobile-text-center {
+    text-align: center !important;
+  }
+  
+  .mobile-flex-col {
+    flex-direction: column !important;
+  }
+  
+  .mobile-full-width {
+    width: 100% !important;
+  }
+}
+
+/* 데스크톱에서 숨김 */
+@media (min-width: 768px) {
+  .desktop-hidden {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   Accessibility 유틸리티
+   ============================================ */
+
+/* 스크린 리더 전용 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+  .error-boundary-container {
+    border-width: 2px;
+    border-color: var(--error-600);
+  }
+  
+  .error-title {
+    color: var(--error-800);
+  }
+}
+
+/* 모션 감소 지원 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-in-up,
+  .animate-slide-in,
+  .animate-pulse,
+  .animate-spin,
+  .hover-lift,
+  .hover-scale,
+  .progress-bar.animated {
+    animation: none !important;
+    transition: none !important;
+  }
+}
