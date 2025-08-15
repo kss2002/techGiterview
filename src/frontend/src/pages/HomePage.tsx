@@ -1,5 +1,15 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { 
+  Zap, 
+  Key, 
+  Settings, 
+  HardDrive, 
+  AlertTriangle, 
+  CheckCircle,
+  Github,
+  Sparkles
+} from 'lucide-react'
 import { ApiKeySetup } from '../components/ApiKeySetup'
 import { usePageInitialization } from '../hooks/usePageInitialization'
 import './HomePage.css'
@@ -97,34 +107,37 @@ export const HomePage: React.FC = () => {
   ]
 
   return (
-    <div className="homepage-container-new">
-      <div className="hero-wrapper-new">
-        <div className="hero-content">
-          <h1 className="title-new">
-            ⚡ TechGiterview
+    <div className="home-page">
+      <section className="section">
+        <div className="container">
+          <h1 className="heading-1 text-center">
+            <Zap className="title-icon" aria-hidden="true" />
+            TechGiterview
           </h1>
-          <p className="subtitle-new">
+          <p className="text-subtitle text-center">
             GitHub 저장소를 분석하여 맞춤형 기술면접을 준비하세요
           </p>
-          <p className="description-new">
+          <p className="text-lead text-center">
             AI가 당신의 코드를 분석하고 실제 면접에서 나올 수 있는 질문들을 생성합니다.
             실시간 모의면접으로 완벽한 준비를 해보세요.
           </p>
         </div>
 
-        <div className="repo-input-section">
+        <div className="container">
           {/* API 키 설정 버튼 */}
-          <div className="api-key-section-new">
-            <div className="api-key-header-new">
-              <h3 className="api-key-title-new">
-                🔑 API 키 설정
+          <div className="card">
+            <div className="card-body flex justify-between items-center">
+              <h3 className="heading-4 flex items-center gap-sm">
+                <Key className="icon" />
+                API 키 설정
               </h3>
               <button 
-                className="api-key-button-new"
+                className="btn btn-outline btn-sm hover-scale-sm active-scale-sm focus-ring"
                 onClick={() => setShowApiKeySetup(true)}
                 type="button"
               >
-                ⚙️ API 키 설정
+                <Settings className="icon" />
+                API 키 설정
               </button>
             </div>
             
@@ -132,33 +145,37 @@ export const HomePage: React.FC = () => {
             <div className="status-indicators">
               {isUsingLocalData && (
                 <div className="status-badge local">
-                  💾 로컬 데이터 사용 중
+                  <HardDrive className="icon" />
+                  로컬 데이터 사용 중
                 </div>
               )}
               {error && (
                 <div className="status-badge error">
-                  ⚠️ 서버 연결 오류 (오프라인 모드)
+                  <AlertTriangle className="icon" />
+                  서버 연결 오류 (오프라인 모드)
                 </div>
               )}
               {!isLoading && !error && !isUsingLocalData && (
                 <div className="status-badge online">
-                  ✅ 서버 연결됨
+                  <CheckCircle className="icon" />
+                  서버 연결됨
                 </div>
               )}
             </div>
           </div>
 
           {/* AI 모델 선택 섹션 */}
-          <div className="ai-selection-section-new">
-            <h3 className="ai-selection-title-new">
+          <div className="card">
+            <div className="card-body">
+              <h3 className="heading-4 flex items-center gap-sm">
               🤖 AI 모델 선택
             </h3>
             {providers.length > 0 ? (
-              <div className="ai-providers-grid">
+              <div className="grid grid-auto-fit gap-md">
                 {providers.map((provider) => (
                   <label
                     key={provider.id}
-                    className={`ai-provider-card-new ${selectedAI === provider.id ? 'selected' : ''} ${provider.recommended ? 'recommended' : ''}`}
+                    className={`card hover-lift-sm cursor-pointer transition-fast ${selectedAI === provider.id ? 'border-primary-500 bg-primary-50' : ''} ${provider.recommended ? 'border-brand-green-300' : ''}`}
                   >
                     <input
                       type="radio"
@@ -166,15 +183,15 @@ export const HomePage: React.FC = () => {
                       value={provider.id}
                       checked={selectedAI === provider.id}
                       onChange={(e) => setSelectedAI(e.target.value)}
-                      className="ai-provider-radio"
+                      className="form-radio sr-only"
                     />
-                    <div className="ai-provider-content">
-                      <div className="ai-provider-name-new">
+                    <div className="card-body">
+                      <div className="heading-4 flex items-center justify-between">
                         {provider.name}
-                        {provider.recommended && <span className="recommended-badge-new">추천</span>}
+                        {provider.recommended && <span className="badge badge-success">추천</span>}
                       </div>
-                      <div className="ai-provider-model-new">{provider.model}</div>
-                      <div className={`ai-provider-status-new ${provider.status}`}>
+                      <div className="text-body-sm text-muted">{provider.model}</div>
+                      <div className={`text-body-sm ${provider.status === 'ready' ? 'text-success' : 'text-muted'}`}>
                         {provider.status === 'ready' ? '● 사용 가능' : '○ 설정됨'}
                       </div>
                     </div>
@@ -193,23 +210,33 @@ export const HomePage: React.FC = () => {
                 )}
               </div>
             )}
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="repo-form-new">
-            <div className="input-group-new">
+          <form onSubmit={handleSubmit} className="input-form" role="form" aria-label="저장소 분석 요청">
+            <div className="url-input-group">
+              <label htmlFor="repo-url-input" className="sr-only">
+                GitHub 저장소 URL
+              </label>
               <input
+                id="repo-url-input"
                 type="url"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
                 placeholder="GitHub 저장소 URL을 입력하세요 (예: https://github.com/facebook/react)"
-                className="repo-input-new"
+                className="form-input form-input-lg focus-ring transition-fast"
                 required
                 disabled={isAnalyzing}
+                aria-describedby="url-help"
               />
+              <div id="url-help" className="sr-only">
+                분석하고 싶은 GitHub 저장소의 전체 URL을 입력해주세요. 예: https://github.com/facebook/react
+              </div>
               <button 
                 type="submit" 
-                className="analyze-button-new"
+                className="btn btn-primary btn-xl hover-lift active-scale focus-ring"
                 disabled={isAnalyzing || !repoUrl.trim() || !selectedAI}
+                aria-label={isAnalyzing ? "저장소 분석 중..." : "저장소 분석 시작"}
               >
                 {isAnalyzing ? (
                   <>
@@ -223,99 +250,121 @@ export const HomePage: React.FC = () => {
             </div>
           </form>
 
-          <div className="sample-repos-new">
-            <p className="sample-title-new">
+          <div className="card">
+            <div className="card-body text-center">
+              <p className="text-body">
               💡 샘플 저장소로 체험해보기:
             </p>
-            <div className="sample-links-new">
+              <div className="flex flex-wrap justify-center gap-sm">
               {sampleRepos.map((repo, index) => (
                 <button
                   key={index}
                   onClick={() => setRepoUrl(repo)}
-                  className="sample-repo-button-new"
+                  className="btn btn-ghost btn-sm hover-scale-sm active-scale-sm focus-ring"
                   disabled={isAnalyzing}
                 >
                   {repo.split('/').slice(-2).join('/')}
                 </button>
               ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 기능 섹션 */}
-      <div className="features-section-new">
-        <h2 className="features-title-new">주요 기능</h2>
-        <div className="features-grid-new">
-          <div className="feature-card-new">
-            <div className="feature-icon-new chart">
-              📊
+      <section className="section">
+        <div className="container">
+          <h2 className="heading-2 text-center">주요 기능</h2>
+          <div className="grid grid-auto-fit gap-lg">
+          <div className="card hover-lift-sm animate-fade-in text-center">
+            <div className="card-body">
+              <div className="text-5xl mb-4">
+                📊
+              </div>
+              <h3 className="heading-3">저장소 분석</h3>
+              <p className="text-body">GitHub 저장소의 코드 구조, 기술 스택, 복잡도를 자동으로 분석합니다.</p>
             </div>
-            <h3>저장소 분석</h3>
-            <p>GitHub 저장소의 코드 구조, 기술 스택, 복잡도를 자동으로 분석합니다.</p>
           </div>
           
-          <div className="feature-card-new">
-            <div className="feature-icon-new robot">
-              🤖
+          <div className="card hover-lift-sm animate-fade-in text-center">
+            <div className="card-body">
+              <div className="text-5xl mb-4">
+                🤖
+              </div>
+              <h3 className="heading-3">AI 질문 생성</h3>
+              <p className="text-body">분석 결과를 바탕으로 맞춤형 기술면접 질문을 자동으로 생성합니다.</p>
             </div>
-            <h3>AI 질문 생성</h3>
-            <p>분석 결과를 바탕으로 맞춤형 기술면접 질문을 자동으로 생성합니다.</p>
           </div>
           
-          <div className="feature-card-new">
-            <div className="feature-icon-new chat">
-              💬
+          <div className="card hover-lift-sm animate-fade-in text-center">
+            <div className="card-body">
+              <div className="text-5xl mb-4">
+                💬
+              </div>
+              <h3 className="heading-3">실시간 모의면접</h3>
+              <p className="text-body">WebSocket 기반으로 실제 면접과 같은 환경에서 연습할 수 있습니다.</p>
             </div>
-            <h3>실시간 모의면접</h3>
-            <p>WebSocket 기반으로 실제 면접과 같은 환경에서 연습할 수 있습니다.</p>
           </div>
           
-          <div className="feature-card-new">
-            <div className="feature-icon-new report">
-              📈
+          <div className="card hover-lift-sm animate-fade-in text-center">
+            <div className="card-body">
+              <div className="text-5xl mb-4">
+                📈
+              </div>
+              <h3 className="heading-3">상세 리포트</h3>
+              <p className="text-body">답변에 대한 AI 평가와 개선 제안을 통해 실력을 향상시킬 수 있습니다.</p>
             </div>
-            <h3>상세 리포트</h3>
-            <p>답변에 대한 AI 평가와 개선 제안을 통해 실력을 향상시킬 수 있습니다.</p>
+          </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 작동 원리 */}
-      <div className="how-it-works-section-new">
-        <h2 className="section-title-new">작동 원리</h2>
-        <div className="steps-container-new">
-          <div className="step-new">
-            <div className="step-number-new">1</div>
-            <h3>저장소 입력</h3>
-            <p>GitHub 저장소 URL을 입력하면 자동으로 코드를 분석합니다.</p>
+      <section className="section">
+        <div className="container">
+          <h2 className="heading-2 text-center">작동 원리</h2>
+          <div className="flex justify-center items-center gap-lg flex-wrap">
+          <div className="card hover-scale-sm animate-fade-in-up text-center position-relative">
+            <div className="card-body">
+              <div className="badge badge-primary text-lg mb-4">1</div>
+              <h3 className="heading-4">저장소 입력</h3>
+              <p className="text-body-sm">GitHub 저장소 URL을 입력하면 자동으로 코드를 분석합니다.</p>
+            </div>
           </div>
           
           <div className="step-arrow-new">→</div>
           
-          <div className="step-new">
-            <div className="step-number-new">2</div>
-            <h3>AI 분석</h3>
-            <p>기술 스택, 코드 품질, 복잡도를 종합적으로 평가합니다.</p>
+          <div className="card hover-scale-sm animate-fade-in-up text-center position-relative">
+            <div className="card-body">
+              <div className="badge badge-primary text-lg mb-4">2</div>
+              <h3 className="heading-4">AI 분석</h3>
+              <p className="text-body-sm">기술 스택, 코드 품질, 복잡도를 종합적으로 평가합니다.</p>
+            </div>
           </div>
           
           <div className="step-arrow-new">→</div>
           
-          <div className="step-new">
-            <div className="step-number-new">3</div>
-            <h3>질문 생성</h3>
-            <p>분석 결과를 바탕으로 맞춤형 면접 질문을 생성합니다.</p>
+          <div className="card hover-scale-sm animate-fade-in-up text-center position-relative">
+            <div className="card-body">
+              <div className="badge badge-primary text-lg mb-4">3</div>
+              <h3 className="heading-4">질문 생성</h3>
+              <p className="text-body-sm">분석 결과를 바탕으로 맞춤형 면접 질문을 생성합니다.</p>
+            </div>
           </div>
           
           <div className="step-arrow-new">→</div>
           
-          <div className="step-new">
-            <div className="step-number-new">4</div>
-            <h3>모의면접</h3>
-            <p>실시간으로 질문에 답하고 즉시 피드백을 받습니다.</p>
+          <div className="card hover-scale-sm animate-fade-in-up text-center position-relative">
+            <div className="card-body">
+              <div className="badge badge-primary text-lg mb-4">4</div>
+              <h3 className="heading-4">모의면접</h3>
+              <p className="text-body-sm">실시간으로 질문에 답하고 즉시 피드백을 받습니다.</p>
+            </div>
+          </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* API 키 설정 모달 */}
       {shouldShowApiKeySetup && (
@@ -327,7 +376,10 @@ export const HomePage: React.FC = () => {
         <div className="footer-container">
           <div className="footer-content">
             <div className="footer-section">
-              <h3>⚡ TechGiterview</h3>
+              <h3>
+                <Zap className="icon" />
+                TechGiterview
+              </h3>
               <p>GitHub 기반 AI 기술면접 준비 플랫폼</p>
             </div>
             
