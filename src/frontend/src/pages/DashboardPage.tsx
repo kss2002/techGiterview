@@ -786,7 +786,7 @@ export const DashboardPage: React.FC = () => {
             <p>분석이 완료되지 않았거나 잘못된 ID일 수 있습니다.</p>
           )}
           <div className="error-actions">
-            <button onClick={() => navigate('/')} className="home-btn">
+            <button onClick={() => navigate('/')} className="btn btn-outline">
               🏠 홈으로 돌아가기
             </button>
             <button 
@@ -794,7 +794,7 @@ export const DashboardPage: React.FC = () => {
                 setError(null)
                 if (analysisId) loadAnalysisResult(analysisId)
               }} 
-              className="retry-btn"
+              className="btn btn-ghost"
             >
               🔄 다시 시도
             </button>
@@ -821,11 +821,11 @@ export const DashboardPage: React.FC = () => {
       <div className="dashboard-content">
         {/* 저장소 정보 */}
         <div className="info-section">
-          <div className="repo-info-card">
+          <div className="card card-lg">
             <div className="card-header">
-              <h2><Github className="section-icon" /> 저장소 정보</h2>
+              <h3><Github className="section-icon" /> 저장소 정보</h3>
             </div>
-            <div className="card-content">
+            <div className="card-body">
               <div className="repo-details">
                 <h3>{analysisResult.repo_info.owner}/{analysisResult.repo_info.name}</h3>
                 <p className="repo-description">{analysisResult.repo_info.description}</p>
@@ -851,11 +851,11 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* 개선 제안 */}
-          <div className="recommendations-card">
+          <div className="card card-lg">
             <div className="card-header">
-              <h2><Lightbulb className="section-icon" /> 개선 제안</h2>
+              <h3><Lightbulb className="section-icon" /> 개선 제안</h3>
             </div>
-            <div className="card-content">
+            <div className="card-body">
               <div className="recommendations-list">
                 {analysisResult.recommendations.length > 0 ? (
                   analysisResult.recommendations.map((recommendation, index) => (
@@ -873,7 +873,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* 기술 스택 */}
-        <div className="tech-stack-section">
+        <div className="card card-lg">
           <div className="card-header">
             <h2><Tag className="section-icon" /> 기술 스택</h2>
           </div>
@@ -890,13 +890,13 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* 주요 파일 */}
-        <div className="key-files-section">
+        <div className="card card-lg">
           <div className="card-header">
             <h2><FileText className="section-icon" /> 주요 파일</h2>
             <div className="file-actions">
               {!showAllFiles && (
                 <button 
-                  className="view-all-files-btn"
+                  className="btn btn-outline btn-sm"
                   onClick={loadAllFiles}
                   disabled={isLoadingAllFiles}
                 >
@@ -939,11 +939,11 @@ export const DashboardPage: React.FC = () => {
                               placeholder="파일 검색..."
                               value={searchTerm}
                               onChange={(e) => handleSearch(e.target.value)}
-                              className="file-search-input pl-10"
+                              className="form-input form-input-sm pl-10"
                             />
                           </div>
                           <button 
-                            className="collapse-all-btn flex items-center gap-1"
+                            className="btn btn-ghost btn-sm flex items-center gap-1"
                             onClick={() => setExpandedFolders(new Set())}
                           >
                             <Minus className="w-3 h-3" />
@@ -965,7 +965,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* 면접 질문 */}
-        <div className="questions-section">
+        <div className="card card-lg">
           <div className="card-header">
             <h2><MessageSquare className="section-icon" /> 생성된 면접 질문</h2>
             {questionsGenerated && questions.length > 0 && (
@@ -975,14 +975,14 @@ export const DashboardPage: React.FC = () => {
             )}
             <div className="question-actions">
               <button 
-                className="regenerate-btn"
+                className="btn btn-outline"
                 onClick={regenerateQuestions}
                 disabled={isLoadingQuestions}
               >
                 {isLoadingQuestions ? '생성 중...' : '질문 재생성'}
               </button>
               <button 
-                className="start-interview-btn flex items-center gap-2 justify-center"
+                className="btn btn-primary btn-lg flex items-center gap-2 justify-center"
                 onClick={startInterview}
                 disabled={questions.length === 0 || isLoadingQuestions}
               >

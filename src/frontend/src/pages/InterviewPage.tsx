@@ -1125,27 +1125,27 @@ export const InterviewPage: React.FC = () => {
 
   const getMessageIcon = (type: string): React.ReactNode => {
     switch (type) {
-      case 'system': return <Settings className="w-4 h-4 text-blue-600" />
-      case 'question': return <HelpCircle className="w-4 h-4 text-purple-600" />
-      case 'answer': return <User className="w-4 h-4 text-green-600" />
-      case 'feedback': return <Bot className="w-4 h-4 text-orange-600" />
-      default: return <MessageSquare className="w-4 h-4 text-gray-600" />
+      case 'system': return <Settings className="icon message-icon" style={{ color: 'var(--brand-navy-600)' }} />
+      case 'question': return <HelpCircle className="icon message-icon" style={{ color: 'var(--brand-navy-500)' }} />
+      case 'answer': return <User className="icon message-icon" style={{ color: 'var(--brand-green-600)' }} />
+      case 'feedback': return <Bot className="icon message-icon" style={{ color: 'var(--warning-600)' }} />
+      default: return <MessageSquare className="icon message-icon" style={{ color: 'var(--gray-600)' }} />
     }
   }
 
   const getCategoryIcon = (category: string): React.ReactNode => {
     switch (category?.toLowerCase()) {
-      case 'technical': return <Code className="w-4 h-4 text-blue-600" />
-      case 'tech_stack': return <Layers className="w-4 h-4 text-purple-600" />
-      case 'architecture': return <Monitor className="w-4 h-4 text-indigo-600" />
-      case 'algorithm': return <Zap className="w-4 h-4 text-yellow-600" />
-      case 'database': return <Database className="w-4 h-4 text-green-600" />
-      case 'frontend': return <Palette className="w-4 h-4 text-pink-600" />
-      case 'backend': return <Server className="w-4 h-4 text-orange-600" />
-      case 'devops': return <Terminal className="w-4 h-4 text-gray-600" />
-      case 'testing': return <Bug className="w-4 h-4 text-red-600" />
-      case 'security': return <Shield className="w-4 h-4 text-emerald-600" />
-      default: return <HelpCircle className="w-4 h-4 text-gray-500" />
+      case 'technical': return <Code className="icon category-icon" style={{ color: 'var(--brand-navy-600)' }} />
+      case 'tech_stack': return <Layers className="icon category-icon" style={{ color: 'var(--brand-navy-500)' }} />
+      case 'architecture': return <Monitor className="icon category-icon" style={{ color: 'var(--brand-navy-700)' }} />
+      case 'algorithm': return <Zap className="icon category-icon" style={{ color: 'var(--brand-lime-600)' }} />
+      case 'database': return <Database className="icon category-icon" style={{ color: 'var(--brand-green-600)' }} />
+      case 'frontend': return <Palette className="icon category-icon" style={{ color: 'var(--brand-green-500)' }} />
+      case 'backend': return <Server className="icon category-icon" style={{ color: 'var(--brand-navy-600)' }} />
+      case 'devops': return <Terminal className="icon category-icon" style={{ color: 'var(--gray-600)' }} />
+      case 'testing': return <Bug className="icon category-icon" style={{ color: 'var(--error-600)' }} />
+      case 'security': return <Shield className="icon category-icon" style={{ color: 'var(--brand-green-700)' }} />
+      default: return <HelpCircle className="icon category-icon" style={{ color: 'var(--gray-500)' }} />
     }
   }
 
@@ -1226,7 +1226,7 @@ export const InterviewPage: React.FC = () => {
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
             <select 
-              className="font-size-selector"
+              className="form-input form-input-sm"
               value={fontSize}
               onChange={(e) => setFontSize(e.target.value)}
               title="폰트 크기"
@@ -1305,7 +1305,7 @@ export const InterviewPage: React.FC = () => {
                 </div>
                 {currentQuestion.context && (
                   <div className="question-context">
-                    <Lightbulb className="w-4 h-4 inline mr-2 text-yellow-600" />
+                    <Lightbulb className="icon inline mr-2" style={{ color: 'var(--brand-lime-600)' }} />
                     {currentQuestion.context}
                   </div>
                 )}
@@ -1468,7 +1468,7 @@ export const InterviewPage: React.FC = () => {
                   console.log('[INPUT] setCurrentAnswer 호출됨');
                 }}
                 placeholder={conversationMode ? "궁금한 점을 질문해보세요..." : "답변을 입력하세요... (구체적인 예시와 함께 설명해주세요)"}
-                className="answer-textarea"
+                className="form-input form-textarea"
                 rows={8}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey && (e.ctrlKey || e.metaKey)) {

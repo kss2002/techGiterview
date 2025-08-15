@@ -1,5 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { 
+  BookOpen, 
+  TrendingUp,
+  Star,
+  Diamond,
+  FileText,
+  BarChart3,
+  Target,
+  Circle,
+  Clock,
+  Award,
+  CheckCircle2,
+  ArrowUp,
+  ArrowDown
+} from 'lucide-react'
 import './ReportsPage.css'
 
 interface InterviewReport {
@@ -152,7 +167,7 @@ export const ReportsPage: React.FC = () => {
     <div className="reports-page">
       <div className="reports-header">
         <div className="header-content">
-          <h1>■ 면접 리포트</h1>
+          <h1><FileText className="icon" /> 면접 리포트</h1>
           <p>당신의 면접 성과를 분석하고 개선점을 확인하세요</p>
         </div>
         
@@ -190,7 +205,7 @@ export const ReportsPage: React.FC = () => {
       <div className="reports-content">
         {filteredReports.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">□</div>
+            <div className="empty-icon"><Circle className="icon" /></div>
             <h3>아직 면접 리포트가 없습니다</h3>
             <p>첫 번째 면접을 시작해서 리포트를 생성해보세요!</p>
             <button 
@@ -235,15 +250,15 @@ export const ReportsPage: React.FC = () => {
                     <div className="report-card-content">
                       <div className="report-meta">
                         <div className="meta-item">
-                          <span className="meta-icon">◐</span>
+                          <span className="meta-icon"><Star className="icon" /></span>
                           <span>{formatDate(report.completed_at)}</span>
                         </div>
                         <div className="meta-item">
-                          <span className="meta-icon">◑</span>
+                          <span className="meta-icon"><BookOpen className="icon" /></span>
                           <span>{formatDuration(report.duration_minutes)}</span>
                         </div>
                         <div className="meta-item">
-                          <span className="meta-icon">◒</span>
+                          <span className="meta-icon"><TrendingUp className="icon" /></span>
                           <span>{report.answered_questions}/{report.total_questions} 답변</span>
                         </div>
                       </div>
@@ -281,7 +296,7 @@ export const ReportsPage: React.FC = () => {
               ) : selectedReport ? (
                 <div className="report-detail-content">
                   <div className="detail-header">
-                    <h2>■ 상세 분석</h2>
+                    <h2><BarChart3 className="icon" /> 상세 분석</h2>
                     <div className="repo-info">
                       <h3>{selectedReport.repo_info.owner}/{selectedReport.repo_info.name}</h3>
                       <p>{selectedReport.repo_info.description}</p>
@@ -291,7 +306,7 @@ export const ReportsPage: React.FC = () => {
 
                   {/* 전체 평가 */}
                   <div className="assessment-section">
-                    <h3>▲ 전체 평가</h3>
+                    <h3><ArrowUp className="icon" /> 전체 평가</h3>
                     <div className="assessment-score">
                       <div className="score-display">
                         <span 
@@ -309,7 +324,7 @@ export const ReportsPage: React.FC = () => {
                     
                     <div className="assessment-details">
                       <div className="strengths">
-                        <h4>▲ 강점</h4>
+                        <h4><ArrowUp className="icon" /> 강점</h4>
                         <ul>
                           {selectedReport.overall_assessment.strengths.map((strength, index) => (
                             <li key={index}>{strength}</li>
@@ -318,7 +333,7 @@ export const ReportsPage: React.FC = () => {
                       </div>
                       
                       <div className="weaknesses">
-                        <h4>▽ 개선점</h4>
+                        <h4><ArrowDown className="icon" /> 개선점</h4>
                         <ul>
                           {selectedReport.overall_assessment.weaknesses.map((weakness, index) => (
                             <li key={index}>{weakness}</li>
@@ -327,7 +342,7 @@ export const ReportsPage: React.FC = () => {
                       </div>
                       
                       <div className="recommendations">
-                        <h4>◆ 추천 학습</h4>
+                        <h4><Diamond className="icon" /> 추천 학습</h4>
                         <ul>
                           {selectedReport.overall_assessment.recommendations.map((recommendation, index) => (
                             <li key={index}>{recommendation}</li>
@@ -339,10 +354,10 @@ export const ReportsPage: React.FC = () => {
 
                   {/* 성과 지표 */}
                   <div className="metrics-section">
-                    <h3>▲ 성과 지표</h3>
+                    <h3><Target className="icon" /> 성과 지표</h3>
                     <div className="metrics-grid">
                       <div className="metric-card">
-                        <div className="metric-icon">◇</div>
+                        <div className="metric-icon"><Clock className="icon" /></div>
                         <div className="metric-content">
                           <span className="metric-label">평균 응답 시간</span>
                           <span className="metric-value">{selectedReport.performance_metrics.response_time_avg}초</span>
@@ -350,7 +365,7 @@ export const ReportsPage: React.FC = () => {
                       </div>
                       
                       <div className="metric-card">
-                        <div className="metric-icon">◈</div>
+                        <div className="metric-icon"><CheckCircle2 className="icon" /></div>
                         <div className="metric-content">
                           <span className="metric-label">답변 완성도</span>
                           <span className="metric-value">{selectedReport.performance_metrics.completeness_score}%</span>
@@ -358,7 +373,7 @@ export const ReportsPage: React.FC = () => {
                       </div>
                       
                       <div className="metric-card">
-                        <div className="metric-icon">◉</div>
+                        <div className="metric-icon"><Target className="icon" /></div>
                         <div className="metric-content">
                           <span className="metric-label">기술적 정확성</span>
                           <span className="metric-value">{selectedReport.performance_metrics.technical_accuracy}%</span>
@@ -366,7 +381,7 @@ export const ReportsPage: React.FC = () => {
                       </div>
                       
                       <div className="metric-card">
-                        <div className="metric-icon">○</div>
+                        <div className="metric-icon"><Award className="icon" /></div>
                         <div className="metric-content">
                           <span className="metric-label">의사소통 명확성</span>
                           <span className="metric-value">{selectedReport.performance_metrics.communication_clarity}%</span>
@@ -377,7 +392,7 @@ export const ReportsPage: React.FC = () => {
 
                   {/* 질문별 분석 */}
                   <div className="questions-analysis">
-                    <h3>◎ 질문별 분석</h3>
+                    <h3><BarChart3 className="icon" /> 질문별 분석</h3>
                     <div className="question-analyses">
                       {selectedReport.question_analyses.map((analysis, index) => (
                         <div key={index} className="question-analysis-card">
@@ -431,7 +446,7 @@ export const ReportsPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="no-selection">
-                  <div className="no-selection-icon">■</div>
+                  <div className="no-selection-icon"><FileText className="icon" /></div>
                   <h3>리포트를 선택하세요</h3>
                   <p>왼쪽 목록에서 리포트를 클릭하면 상세 분석을 확인할 수 있습니다.</p>
                 </div>

@@ -1,7 +1,10 @@
+/* TechGiterview Reports - 브랜드 통합 디자인 시스템 */
+@import '../styles/design-tokens.css';
+
 .reports-page {
   min-height: 100vh;
-  background: #f8fafc;
-  padding: 20px;
+  background: var(--gray-50);
+  padding: var(--spacing-5);
 }
 
 .reports-loading {
