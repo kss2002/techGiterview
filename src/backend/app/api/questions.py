@@ -412,19 +412,38 @@ async def get_cache_status():
 @router.get("/analysis/{analysis_id}")
 async def get_questions_by_analysis(analysis_id: str):
     """분석 ID로 생성된 질문 조회"""
-    if analysis_id in question_cache:
-        cache_data = question_cache[analysis_id]
-        return QuestionGenerationResult(
-            success=True,
-            questions=cache_data.parsed_questions if hasattr(cache_data, 'parsed_questions') else [],
-            analysis_id=analysis_id
-        )
-    else:
+    try:
+        if analysis_id in question_cache:
+            cache_data = question_cache[analysis_id]
+            
+            # 캐시 데이터 구조 확인
+            questions = []
+            if hasattr(cache_data, 'parsed_questions'):
+                questions = cache_data.parsed_questions
+            elif hasattr(cache_data, 'questions'):
+                questions = cache_data.questions
+            elif isinstance(cache_data, list):
+                questions = cache_data
+            
+            return QuestionGenerationResult(
+                success=True,
+                questions=questions,
+                analysis_id=analysis_id
+            )
+        else:
+            return QuestionGenerationResult(
+                success=False,
+                questions=[],
+                analysis_id=analysis_id,
+                error="해당 분석 ID에 대한 질문이 없습니다."
+            )
+    except Exception as e:
+        print(f"Error in get_questions_by_analysis: {e}")
         return QuestionGenerationResult(
             success=False,
             questions=[],
             analysis_id=analysis_id,
-            error="해당 분석 ID에 대한 질문이 없습니다."
+            error=f"질문 조회 중 오류가 발생했습니다: {str(e)}"
         )
 
 
