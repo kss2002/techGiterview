@@ -7,10 +7,13 @@ Question Generation API Router
 from typing import Dict, List, Any, Optional
 import re
 import uuid
+import json
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from app.agents.question_generator import QuestionGenerator
+from app.core.database import engine
 
 router = APIRouter()
 
@@ -319,6 +322,9 @@ async def generate_questions(
                 created_at=datetime.now().isoformat()
             )
             question_cache[analysis_id] = cache_data
+            
+            # DB에도 저장하여 영구 보존
+            await _save_questions_to_db(analysis_id, parsed_questions)
         
         return QuestionGenerationResult(
             success=True,
@@ -411,9 +417,11 @@ async def get_cache_status():
 
 @router.get("/analysis/{analysis_id}")
 async def get_questions_by_analysis(analysis_id: str):
-    """분석 ID로 생성된 질문 조회"""
+    """분석 ID로 생성된 질문 조회 - 메모리 캐시 우선, 없으면 DB 조회"""
     try:
+        # 1. 먼저 메모리 캐시에서 조회
         if analysis_id in question_cache:
+            print(f"[QUESTIONS] Found questions in memory cache for {analysis_id}")
             cache_data = question_cache[analysis_id]
             
             # 캐시 데이터 구조 확인
@@ -430,13 +438,32 @@ async def get_questions_by_analysis(analysis_id: str):
                 questions=questions,
                 analysis_id=analysis_id
             )
-        else:
+        
+        # 2. 메모리 캐시에 없으면 DB에서 조회
+        print(f"[QUESTIONS] Memory cache miss, checking database for {analysis_id}")
+        db_questions = await _load_questions_from_db(analysis_id)
+        
+        if db_questions:
+            print(f"[QUESTIONS] Found {len(db_questions)} questions in database, restoring to cache")
+            
+            # DB에서 가져온 질문들을 메모리 캐시에 복원
+            await _restore_questions_to_cache(analysis_id, db_questions)
+            
             return QuestionGenerationResult(
-                success=False,
-                questions=[],
-                analysis_id=analysis_id,
-                error="해당 분석 ID에 대한 질문이 없습니다."
+                success=True,
+                questions=db_questions,
+                analysis_id=analysis_id
             )
+        
+        # 3. 메모리 캐시와 DB 모두에 없음
+        print(f"[QUESTIONS] No questions found for {analysis_id} in cache or database")
+        return QuestionGenerationResult(
+            success=False,
+            questions=[],
+            analysis_id=analysis_id,
+            error="해당 분석 ID에 대한 질문이 없습니다."
+        )
+        
     except Exception as e:
         print(f"Error in get_questions_by_analysis: {e}")
         return QuestionGenerationResult(
@@ -599,3 +626,116 @@ async def clear_question_cache():
         "cleared_items": cache_size_before,
         "current_cache_size": len(question_cache)
     }
+
+
+async def _load_questions_from_db(analysis_id: str) -> List[QuestionResponse]:
+    """데이터베이스에서 질문 조회"""
+    try:
+        with engine.connect() as conn:
+            # InterviewQuestion 테이블에서 질문 조회
+            result = conn.execute(text(
+                """
+                SELECT id, category, difficulty, question_text, expected_points, 
+                       related_files, context, created_at
+                FROM interview_questions 
+                WHERE analysis_id = :analysis_id
+                ORDER BY created_at ASC
+                """
+            ), {"analysis_id": analysis_id})
+            
+            questions = []
+            for row in result:
+                # expected_points JSON 파싱
+                expected_points = None
+                if row[4]:  # expected_points 필드
+                    try:
+                        expected_points = json.loads(row[4]) if isinstance(row[4], str) else row[4]
+                    except json.JSONDecodeError:
+                        expected_points = None
+                
+                # 데이터베이스 row를 QuestionResponse 객체로 변환
+                question = QuestionResponse(
+                    id=str(row[0]),
+                    type=row[1],  # category -> type
+                    question=row[3],  # question_text -> question
+                    difficulty=row[2],
+                    context=None,  # context는 JSON이므로 간단히 None으로 처리
+                    time_estimate="5분",  # 기본값
+                    code_snippet=None,
+                    expected_answer_points=expected_points,
+                    technology=None,
+                    pattern=None
+                )
+                questions.append(question)
+            
+            print(f"[DB] Loaded {len(questions)} questions from database for analysis {analysis_id}")
+            return questions
+            
+    except Exception as e:
+        print(f"[DB] Error loading questions from database: {e}")
+        return []
+
+
+async def _restore_questions_to_cache(analysis_id: str, questions: List[QuestionResponse]):
+    """DB에서 가져온 질문들을 메모리 캐시에 복원"""
+    try:
+        from datetime import datetime
+        
+        # 질문 그룹 관계 생성
+        question_groups = create_question_groups(questions)
+        
+        # 캐시에 저장할 데이터 구조 생성
+        cache_data = QuestionCacheData(
+            original_questions=questions,  # DB에서 가져온 질문들을 원본으로 처리
+            parsed_questions=questions,    # 이미 파싱된 상태로 간주
+            question_groups=question_groups,
+            created_at=datetime.now().isoformat()
+        )
+        
+        # 메모리 캐시에 저장
+        question_cache[analysis_id] = cache_data
+        
+        print(f"[CACHE] Restored {len(questions)} questions to memory cache for analysis {analysis_id}")
+        
+    except Exception as e:
+        print(f"[CACHE] Error restoring questions to cache: {e}")
+
+
+async def _save_questions_to_db(analysis_id: str, questions: List[QuestionResponse]):
+    """생성된 질문들을 데이터베이스에 저장"""
+    try:
+        with engine.connect() as conn:
+            # 기존 질문이 있으면 삭제 (중복 방지)
+            conn.execute(text(
+                "DELETE FROM interview_questions WHERE analysis_id = :analysis_id"
+            ), {"analysis_id": analysis_id})
+            
+            # 새로운 질문들 저장
+            from datetime import datetime
+            current_time = datetime.now()
+            
+            for question in questions:
+                conn.execute(text(
+                    """
+                    INSERT INTO interview_questions 
+                    (id, analysis_id, category, difficulty, question_text, expected_points, created_at)
+                    VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, :created_at)
+                    """
+                ), {
+                    "id": question.id,
+                    "analysis_id": analysis_id,
+                    "category": question.type,
+                    "difficulty": question.difficulty,
+                    "question_text": question.question,
+                    "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
+                    "created_at": current_time
+                })
+            
+            # 변경사항 커밋
+            conn.commit()
+            
+            print(f"[DB] Saved {len(questions)} questions to database for analysis {analysis_id}")
+            
+    except Exception as e:
+        print(f"[DB] Error saving questions to database: {e}")
+        # DB 저장 실패는 질문 생성 자체를 실패시키지 않음
