@@ -401,6 +401,33 @@
   --code-block-padding: var(--spacing-4);
   --code-font-size: 0.875rem;
   --code-line-height: 1.5;
+
+  /* File Tree Indentation System - 통합 들여쓰기 시스템 */
+  --file-tree-indent-per-level: 4px;   /* 기본 들여쓰기 (데스크톱) */
+  --file-tree-max-depth: 6;            /* 최대 깊이 제한 */
+  
+  /* 파일 트리 기타 설정 */
+  --file-tree-padding: var(--spacing-1);           /* 내부 패딩 */
+  --file-tree-line-height: 1.5;                    /* 줄 높이 */
+  --file-tree-transition: var(--transition-fast);  /* 전환 효과 */
+}
+
+/* ============================================
+   반응형 들여쓰기 시스템 (Responsive Indentation)
+   ============================================ */
+
+/* 태블릿: 768px 이상 1024px 미만 */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --file-tree-indent-per-level: 3px;
+  }
+}
+
+/* 모바일: 768px 미만 */
+@media (max-width: 767px) {
+  :root {
+    --file-tree-indent-per-level: 2px;
+  }
 }
 
 /* ============================================
@@ -447,5 +474,28 @@
     --transition-slow: none;
     --transition-all: none;
     --transition-colors: none;
+  }
+}
+
+/* ============================================
+   파일 트리 반응형 들여쓰기 시스템 (수정됨)
+   ============================================ */
+
+/* 기본값을 데스크톱으로 설정 - 미디어 쿼리 밖에서 정의 */
+:root {
+  --file-tree-indent-per-level: 4px; /* 기본 데스크톱 값 */
+}
+
+/* 태블릿 (768px ~ 1023px) - 3px */
+@media (max-width: 1023px) and (min-width: 768px) {
+  :root {
+    --file-tree-indent-per-level: 3px;
+  }
+}
+
+/* 모바일 (767px 이하) - 2px */
+@media (max-width: 767px) {
+  :root {
+    --file-tree-indent-per-level: 2px;
   }
 }
