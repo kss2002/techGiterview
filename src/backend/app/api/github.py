@@ -7,6 +7,7 @@ GitHub API Integration Router
 import asyncio
 import aiohttp
 import uuid
+import time
 from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, HttpUrl
@@ -134,6 +135,53 @@ class GitHubClient:
                 if response.status != 200:
                     return {}
                 return await response.json()
+    
+    async def get_repository_tree(self, owner: str, repo: str, tree_sha: str = "HEAD", recursive: bool = True) -> Dict[str, Any]:
+        """GitHub Tree API로 저장소 트리 구조 조회"""
+        url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{tree_sha}"
+        if recursive:
+            url += "?recursive=1"
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=self.headers) as response:
+                if response.status != 200:
+                    raise HTTPException(status_code=response.status, detail=f"Tree API error: {response.status}")
+                return await response.json()
+    
+    async def get_complete_repository_tree(self, owner: str, repo: str) -> List[Dict[str, Any]]:
+        """완전한 저장소 트리 구조 조회 (truncation 처리)"""
+        print(f"[TREE_API] Fetching complete tree for {owner}/{repo}")
+        
+        # 1차: 루트 트리 가져오기
+        root_tree = await self.get_repository_tree(owner, repo, "HEAD", recursive=True)
+        all_items = root_tree["tree"]
+        
+        if not root_tree.get("truncated", False):
+            print(f"[TREE_API] Complete tree fetched: {len(all_items)} items")
+            return all_items
+        
+        print(f"[TREE_API] Tree truncated, fetching sub-trees...")
+        
+        # 2차: truncated된 경우 -> 주요 디렉토리별로 추가 요청
+        processed_dirs = set()
+        additional_items = []
+        
+        for item in all_items:
+            if item["type"] == "tree" and item["path"] not in processed_dirs:
+                try:
+                    sub_tree = await self.get_repository_tree(owner, repo, item["sha"], recursive=True)
+                    # 중복 제거하면서 추가
+                    for sub_item in sub_tree["tree"]:
+                        if not any(existing["path"] == sub_item["path"] for existing in all_items + additional_items):
+                            additional_items.append(sub_item)
+                    processed_dirs.add(item["path"])
+                    print(f"[TREE_API] Fetched sub-tree {item['path']}: {len(sub_tree['tree'])} items")
+                except Exception as e:
+                    print(f"[TREE_API] Warning: Failed to fetch sub-tree {item['path']}: {e}")
+        
+        final_items = all_items + additional_items
+        print(f"[TREE_API] Complete tree assembled: {len(final_items)} items")
+        return final_items
 
 
 class RepositoryAnalyzer:
@@ -264,7 +312,134 @@ class RepositoryAnalyzer:
         return key_files
     
     async def get_all_files(self, owner: str, repo: str, max_depth: int = 3, max_files: int = 500) -> List[FileTreeNode]:
-        """재귀적으로 모든 파일을 트리 구조로 가져오기"""
+        """Tree API로 모든 파일을 트리 구조로 가져오기 (최적화됨)"""
+        
+        try:
+            print(f"[GET_ALL_FILES] Starting Tree API fetch for {owner}/{repo}")
+            start_time = time.time()
+            
+            # Tree API로 전체 구조 한 번에 가져오기
+            tree_items = await self.github_client.get_complete_repository_tree(owner, repo)
+            
+            api_time = time.time() - start_time
+            print(f"[GET_ALL_FILES] Tree API completed in {api_time:.2f}s, got {len(tree_items)} items")
+            
+            # Tree API 응답을 FileTreeNode 구조로 변환
+            file_tree = self._build_file_tree_from_tree_api(tree_items, max_depth, max_files)
+            
+            total_time = time.time() - start_time
+            print(f"[GET_ALL_FILES] Tree processing completed in {total_time:.2f}s, built {len(file_tree)} nodes")
+            
+            return file_tree
+            
+        except Exception as e:
+            print(f"[GET_ALL_FILES] Error in get_all_files: {e}")
+            # Fallback to original method
+            print(f"[GET_ALL_FILES] Falling back to Contents API...")
+            return await self._get_all_files_fallback(owner, repo, max_depth, max_files)
+    
+    def _build_file_tree_from_tree_api(self, tree_items: List[Dict], max_depth: int, max_files: int) -> List[FileTreeNode]:
+        """Tree API 응답을 FileTreeNode 구조로 변환"""
+        
+        # 경로별로 정리
+        paths_by_depth = {}
+        file_count = 0
+        
+        for item in tree_items:
+            if file_count >= max_files:
+                break
+                
+            path = item["path"]
+            depth = path.count("/")
+            
+            if depth > max_depth:
+                continue
+                
+            # 불필요한 파일/폴더 필터링
+            name = path.split("/")[-1]
+            if self._should_exclude_file_or_dir(name, path):
+                continue
+                
+            if depth not in paths_by_depth:
+                paths_by_depth[depth] = []
+                
+            paths_by_depth[depth].append({
+                "name": name,
+                "path": path,
+                "type": "dir" if item["type"] == "tree" else "file",
+                "size": item.get("size"),
+                "depth": depth
+            })
+            file_count += 1
+        
+        # 트리 구조 구축
+        return self._build_nested_tree_structure(paths_by_depth, max_depth)
+    
+    def _should_exclude_file_or_dir(self, name: str, path: str) -> bool:
+        """파일/디렉토리 제외 여부 판단"""
+        
+        # 숨김 폴더 제외 (특정 예외 제외)
+        if name.startswith('.') and name not in ['.github', '.vscode']:
+            return True
+        
+        # 불필요한 폴더 제외
+        if name in ['node_modules', 'venv', '__pycache__', 'target', 'build', 'dist']:
+            return True
+        
+        # 바이너리 파일 제외
+        if any(name.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.pdf', '.zip', '.tar', '.gz']):
+            return True
+        
+        return False
+    
+    def _build_nested_tree_structure(self, paths_by_depth: Dict, max_depth: int) -> List[FileTreeNode]:
+        """깊이별 경로를 중첩된 트리 구조로 변환"""
+        
+        if 0 not in paths_by_depth:
+            return []
+        
+        # 루트 레벨 노드들부터 시작
+        root_nodes = []
+        
+        for item in sorted(paths_by_depth[0], key=lambda x: (x["type"] == "file", x["name"].lower())):
+            node = FileTreeNode(
+                name=item["name"],
+                path=item["path"],
+                type=item["type"],
+                size=item["size"],
+                children=self._build_children_nodes(item["path"], paths_by_depth, 1, max_depth) if item["type"] == "dir" else None
+            )
+            root_nodes.append(node)
+        
+        return root_nodes
+    
+    def _build_children_nodes(self, parent_path: str, paths_by_depth: Dict, current_depth: int, max_depth: int) -> List[FileTreeNode]:
+        """자식 노드들 재귀적 구축"""
+        
+        if current_depth > max_depth or current_depth not in paths_by_depth:
+            return []
+        
+        children = []
+        
+        for item in paths_by_depth[current_depth]:
+            if item["path"].startswith(parent_path + "/"):
+                # 직접 자식인지 확인 (중간 디렉토리 없이)
+                relative_path = item["path"][len(parent_path) + 1:]
+                if "/" not in relative_path:  # 직접 자식
+                    node = FileTreeNode(
+                        name=item["name"],
+                        path=item["path"],
+                        type=item["type"],
+                        size=item["size"],
+                        children=self._build_children_nodes(item["path"], paths_by_depth, current_depth + 1, max_depth) if item["type"] == "dir" else None
+                    )
+                    children.append(node)
+        
+        return sorted(children, key=lambda x: (x.type == "file", x.name.lower()))
+    
+    async def _get_all_files_fallback(self, owner: str, repo: str, max_depth: int, max_files: int) -> List[FileTreeNode]:
+        """기존 Contents API 방식 (fallback용)"""
+        print(f"[FALLBACK] Using Contents API for {owner}/{repo}")
         
         async def fetch_directory_recursive(path: str = "", current_depth: int = 0) -> List[FileTreeNode]:
             if current_depth >= max_depth:
@@ -323,13 +498,13 @@ class RepositoryAnalyzer:
                 return nodes
                 
             except Exception as e:
-                print(f"Error fetching directory {path}: {e}")
+                print(f"[FALLBACK] Error fetching directory {path}: {e}")
                 return []
         
         try:
             return await fetch_directory_recursive()
         except Exception as e:
-            print(f"Error in get_all_files: {e}")
+            print(f"[FALLBACK] Error in fallback method: {e}")
             return []
     
     def generate_summary(self, repo_info: RepositoryInfo, tech_stack: Dict[str, float]) -> str:
