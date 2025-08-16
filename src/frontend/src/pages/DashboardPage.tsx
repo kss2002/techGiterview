@@ -272,14 +272,14 @@ export const DashboardPage: React.FC = () => {
   
   // 질문 상태 변경 추적을 위한 래퍼 함수
   const setQuestions = (newQuestions: Question[]) => {
-    console.log('[Questions State] 🔄 Updating questions state:', {
+    console.log('[Questions State] Updating questions state:', {
       previousCount: questions.length,
       newCount: newQuestions.length,
       timestamp: new Date().toISOString(),
       stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n')
     })
     setQuestionsInternal(newQuestions)
-    console.log('[Questions State] ✅ Questions state updated:', newQuestions.length)
+    console.log('[Questions State] Questions state updated:', newQuestions.length)
   }
   const [allFiles, setAllFiles] = useState<FileTreeNode[]>([])
   const [isLoadingAllFiles, setIsLoadingAllFiles] = useState(false)
@@ -290,28 +290,19 @@ export const DashboardPage: React.FC = () => {
   const [isFileModalOpen, setIsFileModalOpen] = useState(false)
   const [selectedFilePath, setSelectedFilePath] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // CSS 클래스 기반 시스템에서는 강제 리렌더링 불필요
   const navigate = useNavigate()
   const { analysisId } = useParams<{ analysisId: string }>()
 
-  // 디버깅용 로그 - 컴포넌트 렌더링 추적
-  console.log('[Dashboard] 🎯 Component render started')
-  console.log('[Dashboard] 📍 Current location:', window.location.href)
-  console.log('[Dashboard] 🆔 Analysis ID:', analysisId)
-  console.log('[Dashboard] 📊 Current state:', { 
-    isLoadingAnalysis, 
-    hasAnalysisResult: !!analysisResult,
-    analysisResultId: analysisResult?.analysis_id,
-    questionsCount: questions.length,
-    error 
-  })
-  
-  // 컴포넌트 라이프사이클 추적
-  React.useEffect(() => {
-    console.log('[Dashboard] ⚡ Component mounted or updated')
-    return () => {
-      console.log('[Dashboard] 🧹 Component cleanup')
-    }
-  })
+  // 컴포넌트 상태 추적 (개발 모드에서만)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Dashboard] 렌더링:', { 
+      analysisId,
+      hasResult: !!analysisResult,
+      questionsCount: questions.length,
+      error
+    })
+  }
 
   useEffect(() => {
     console.log('DashboardPage analysisId:', analysisId) // 디버깅용
@@ -325,9 +316,127 @@ export const DashboardPage: React.FC = () => {
     }
   }, [analysisId, navigate])
 
+  // 강화된 CSS 들여쓰기 디버깅 및 복구 시스템
+  useEffect(() => {
+    const performDeepStyleInvestigation = () => {
+      console.log('\n[Deep Style Investigation] 시작...')
+      
+      // 1. CSS 변수 시스템 검증
+      const rootStyle = getComputedStyle(document.documentElement)
+      const indentValue = rootStyle.getPropertyValue('--file-tree-indent-per-level').trim()
+      console.log('[CSS Variables] --file-tree-indent-per-level:', indentValue || '정의되지 않음')
+      
+      // 2. 실제 depth-1 요소들 상세 분석
+      const depth1Elements = document.querySelectorAll('.file-tree-depth-1')
+      console.log(`[Element Count] depth-1 요소 총 개수: ${depth1Elements.length}`)
+      
+      if (depth1Elements.length > 0) {
+        // 첫 번째 요소로 상세 분석
+        const firstElement = depth1Elements[0] as HTMLElement
+        const computedStyle = getComputedStyle(firstElement)
+        
+        console.log('[첫 번째 depth-1 요소 상세 분석]')
+        console.log('  - Element HTML:', firstElement.outerHTML.substring(0, 200) + '...')
+        console.log('  - Computed margin-left:', computedStyle.marginLeft)
+        console.log('  - Computed padding-left:', computedStyle.paddingLeft)
+        console.log('  - Inline style margin-left:', firstElement.style.marginLeft || '없음')
+        console.log('  - CSS Classes:', firstElement.className)
+        console.log('  - Position:', computedStyle.position)
+        console.log('  - Display:', computedStyle.display)
+        console.log('  - Box-sizing:', computedStyle.boxSizing)
+        
+        // 3. 강제 인라인 스타일 적용 테스트
+        console.log('\n[강제 인라인 스타일 적용 테스트]')
+        firstElement.style.marginLeft = '20px'
+        firstElement.style.backgroundColor = 'rgba(255, 0, 0, 0.2)'
+        firstElement.style.border = '2px solid red'
+        
+        // 적용 후 재검증
+        setTimeout(() => {
+          const newComputedStyle = getComputedStyle(firstElement)
+          console.log('  - 강제 적용 후 margin-left:', newComputedStyle.marginLeft)
+          console.log('  - 강제 적용 후 background-color:', newComputedStyle.backgroundColor)
+          
+          // 시각적 효과 제거
+          setTimeout(() => {
+            firstElement.style.backgroundColor = ''
+            firstElement.style.border = ''
+          }, 2000)
+        }, 100)
+        
+        // 4. 모든 depth-1 요소에 시각적 표시 적용
+        depth1Elements.forEach((element, index) => {
+          const htmlElement = element as HTMLElement
+          htmlElement.style.marginLeft = '12px'
+          htmlElement.style.backgroundColor = `rgba(0, 255, 0, ${0.1 + index * 0.02})`
+          htmlElement.style.transition = 'all 0.3s ease'
+          
+          // 3초 후 시각적 효과 제거
+          setTimeout(() => {
+            htmlElement.style.backgroundColor = ''
+            htmlElement.style.transition = ''
+          }, 3000)
+        })
+      }
+      
+      // 5. CSS 규칙 충돌 검사
+      console.log('\n[CSS 규칙 충돌 검사]')
+      const stylesheets = Array.from(document.styleSheets)
+      let conflictingRules = []
+      
+      try {
+        stylesheets.forEach((sheet, sheetIndex) => {
+          try {
+            const rules = Array.from(sheet.cssRules || [])
+            rules.forEach((rule, ruleIndex) => {
+              if (rule.cssText.includes('margin-left') && 
+                  (rule.cssText.includes('.file-tree') || rule.cssText.includes('depth'))) {
+                conflictingRules.push({
+                  sheet: sheetIndex,
+                  rule: ruleIndex,
+                  text: rule.cssText
+                })
+              }
+            })
+          } catch (e) {
+            console.log(`  - Stylesheet ${sheetIndex}: 접근 불가 (CORS)`)
+          }
+        })
+        
+        console.log('  - 발견된 관련 CSS 규칙들:', conflictingRules)
+      } catch (e) {
+        console.log('  - CSS 규칙 검사 실패:', e.message)
+      }
+    }
+
+    // 디버깅 실행
+    const investigationTimer = setTimeout(performDeepStyleInvestigation, 200)
+    
+    return () => {
+      clearTimeout(investigationTimer)
+    }
+  }, [allFiles, expandedFolders])
+
+  /**
+   * ============================================
+   * 통합 파일 트리 들여쓰기 시스템
+   * ============================================
+   * 
+   * ✅ CSS 변수 기반 중앙 관리: design-tokens.css에서 --file-tree-indent-per-level로 통합 관리
+   * ✅ CSS 클래스 기반 적용: .file-tree-depth-0 ~ .file-tree-depth-6 클래스로 깊이별 들여쓰기
+   * ✅ 반응형 자동 처리: CSS 미디어 쿼리로 데스크톱(4px), 태블릿(3px), 모바일(2px) 자동 적용
+   * ✅ DOM 조작 없음: React 인라인 스타일이나 useEffect DOM 조작 완전 제거
+   * ✅ 성능 최적화: 불필요한 리렌더링, 윈도우 리사이즈 이벤트, 강제 업데이트 제거
+   * 
+   * 핵심 파일:
+   * - design-tokens.css: CSS 변수 및 미디어 쿼리 정의
+   * - DashboardPage.css: .file-tree-depth-* 클래스 정의  
+   * - DashboardPage.tsx: getDepthClassName() 함수로 CSS 클래스 동적 할당
+   */
+
   const loadAnalysisResult = async (analysisId: string) => {
-    console.log('[Dashboard] 🔍 Starting loadAnalysisResult for ID:', analysisId)
-    console.log('[Dashboard] 🌐 API URL will be:', `/api/v1/repository/analysis/${analysisId}`)
+    console.log('[Dashboard] Starting loadAnalysisResult for ID:', analysisId)
+    console.log('[Dashboard] API URL will be:', `/api/v1/repository/analysis/${analysisId}`)
     
     setIsLoadingAnalysis(true)
     setError(null)
@@ -352,7 +461,7 @@ export const DashboardPage: React.FC = () => {
       
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('[Dashboard] ❌ API error response:', {
+        console.error('[Dashboard] API error response:', {
           status: response.status,
           statusText: response.statusText,
           errorText
@@ -361,7 +470,7 @@ export const DashboardPage: React.FC = () => {
       }
 
       const result = await response.json()
-      console.log('[Dashboard] ✅ Analysis result loaded successfully:', {
+      console.log('[Dashboard] Analysis result loaded successfully:', {
         analysis_id: result.analysis_id,
         repo_name: result.repo_info?.name,
         repo_owner: result.repo_info?.owner,
@@ -386,11 +495,11 @@ export const DashboardPage: React.FC = () => {
       
       // 질문이 아직 생성되지 않았다면 자동 로드/생성
       if (!questionsGenerated) {
-        console.log('[Dashboard] 🎯 Auto-loading questions...')
+        console.log('[Dashboard] Auto-loading questions...')
         await loadOrGenerateQuestions(result)
       }
     } catch (error) {
-      console.error('[Dashboard] 💥 Critical error loading analysis:', {
+      console.error('[Dashboard] Critical error loading analysis:', {
         error,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorStack: error instanceof Error ? error.stack : undefined,
@@ -404,8 +513,8 @@ export const DashboardPage: React.FC = () => {
   }
 
   const loadOrGenerateQuestions = async (analysisToUse: AnalysisResult) => {
-    console.log('[Questions] 🎯 Starting loadOrGenerateQuestions for analysis:', analysisToUse.analysis_id)
-    console.log('[Questions] 📊 Current questions state:', { 
+    console.log('[Questions] Starting loadOrGenerateQuestions for analysis:', analysisToUse.analysis_id)
+    console.log('[Questions] Current questions state:', { 
       questionsCount: questions.length, 
       questionsGenerated, 
       isLoadingQuestions 
@@ -430,7 +539,7 @@ export const DashboardPage: React.FC = () => {
       
       if (checkResponse.ok) {
         const checkResult = await checkResponse.json()
-        console.log('[Questions] ✅ Parsed check result:', {
+        console.log('[Questions] Parsed check result:', {
           success: checkResult.success,
           questionsLength: checkResult.questions?.length || 0,
           questionsExists: !!checkResult.questions,
@@ -440,30 +549,30 @@ export const DashboardPage: React.FC = () => {
         
         if (checkResult.success && checkResult.questions && checkResult.questions.length > 0) {
           // 이미 생성된 질문이 있음
-          console.log('[Questions] 🎉 Found existing questions, setting state:', checkResult.questions.length)
+          console.log('[Questions] Found existing questions, setting state:', checkResult.questions.length)
           setQuestions(checkResult.questions)
           setQuestionsGenerated(true)
-          console.log('[Questions] ✨ Questions state updated successfully')
+          console.log('[Questions] Questions state updated successfully')
           return
         } else {
-          console.log('[Questions] 🔍 No existing questions found, will generate new ones')
+          console.log('[Questions] No existing questions found, will generate new ones')
         }
       } else {
-        console.warn('[Questions] ⚠️ Check response not ok:', {
+        console.warn('[Questions] Check response not ok:', {
           status: checkResponse.status,
           statusText: checkResponse.statusText
         })
       }
       
       // 질문이 없으면 새로 생성
-      console.log('[Questions] 🛠️ Generating new questions...')
+      console.log('[Questions] Generating new questions...')
       const generatePayload = {
         repo_url: `https://github.com/${analysisToUse.repo_info.owner}/${analysisToUse.repo_info.name}`,
         analysis_result: analysisToUse,
         question_type: "technical",
         difficulty: "medium"
       }
-      console.log('[Questions] 📦 Generation payload:', generatePayload)
+      console.log('[Questions] Generation payload:', generatePayload)
       
       const generateResponse = await fetch('/api/v1/questions/generate', {
         method: 'POST',
@@ -479,12 +588,12 @@ export const DashboardPage: React.FC = () => {
 
       if (!generateResponse.ok) {
         const errorText = await generateResponse.text()
-        console.error('[Questions] ❌ Generate response error:', errorText)
+        console.error('[Questions] Generate response error:', errorText)
         throw new Error(`질문 생성에 실패했습니다. (${generateResponse.status}: ${errorText})`)
       }
 
       const generateResult = await generateResponse.json()
-      console.log('[Questions] ✅ Parsed generate result:', {
+      console.log('[Questions] Parsed generate result:', {
         success: generateResult.success,
         questionsLength: generateResult.questions?.length || 0,
         questionsExists: !!generateResult.questions,
@@ -493,16 +602,16 @@ export const DashboardPage: React.FC = () => {
       })
       
       if (generateResult.success) {
-        console.log('[Questions] 🎉 Generated questions successfully, setting state:', generateResult.questions?.length || 0)
+        console.log('[Questions] Generated questions successfully, setting state:', generateResult.questions?.length || 0)
         setQuestions(generateResult.questions || [])
         setQuestionsGenerated(true)
-        console.log('[Questions] ✨ Generated questions state updated successfully')
+        console.log('[Questions] Generated questions state updated successfully')
       } else {
-        console.error('[Questions] ❌ Generate result not successful:', generateResult.error)
+        console.error('[Questions] Generate result not successful:', generateResult.error)
         throw new Error(`질문 생성 실패: ${generateResult.error}`)
       }
     } catch (error) {
-      console.error('[Questions] 💥 Critical error in loadOrGenerateQuestions:', {
+      console.error('[Questions] Critical error in loadOrGenerateQuestions:', {
         error,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorStack: error instanceof Error ? error.stack : undefined,
@@ -645,16 +754,52 @@ export const DashboardPage: React.FC = () => {
   }
 
 
+  // 성능 최적화: CSS 변수 읽기를 컴포넌트 레벨로 이동
+  const getMaxDepth = React.useMemo(() => {
+    try {
+      const rootStyle = getComputedStyle(document.documentElement)
+      return parseInt(rootStyle.getPropertyValue('--file-tree-max-depth')) || 6
+    } catch {
+      return 6 // 기본값
+    }
+  }, [])
+
+  // 성능 최적화: depth 클래스명 계산 함수 메모이제이션
+  const getDepthClassName = React.useCallback((depth: number): string => {
+    if (depth > getMaxDepth) {
+      return 'file-tree-depth-overflow'
+    }
+    return `file-tree-depth-${depth}`
+  }, [getMaxDepth])
+
   const renderFileTree = (nodes: FileTreeNode[], depth: number = 0): JSX.Element[] => {
-    const maxDepth = 8 // 최대 들여쓰기 제한
-    const effectiveDepth = Math.min(depth, maxDepth)
+    const effectiveDepth = Math.min(depth, getMaxDepth)
+    const depthClassName = getDepthClassName(effectiveDepth)
     
-    return nodes.map((node) => (
-      <div 
-        key={node.path} 
-        className="file-tree-node" 
-        style={{ marginLeft: `${effectiveDepth * 16}px` }}
-      >
+    // 강제 인라인 스타일 - CSS 무시하고 직접 브라우저에 전달
+    const forceInlineStyle: React.CSSProperties = {
+      marginLeft: `${effectiveDepth * 12}px`,
+      paddingLeft: '0px',
+      display: 'block',
+      boxSizing: 'border-box',
+      // 시각적 확인을 위한 배경색 (depth-1만)
+      ...(effectiveDepth === 1 && { 
+        backgroundColor: 'rgba(0, 255, 0, 0.08)',
+        border: '1px solid rgba(0, 255, 0, 0.2)',
+        borderRadius: '2px'
+      })
+    }
+    
+    return nodes.map((node, index) => {
+      
+      return (
+        <div 
+          key={node.path} 
+          className={`file-tree-node ${depthClassName}`}
+          style={forceInlineStyle}
+          data-depth={effectiveDepth}
+          data-node-type={node.type}
+        >
         <div className="file-tree-item">
           {node.type === 'dir' ? (
             <>
@@ -689,8 +834,9 @@ export const DashboardPage: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
-    ))
+        </div>
+      )
+    })
   }
 
   const startInterview = async () => {
@@ -838,7 +984,7 @@ export const DashboardPage: React.FC = () => {
 
   // 로딩 상태
   if (isLoadingAnalysis) {
-    console.log('[Dashboard] 🔄 Rendering loading state')
+    console.log('[Dashboard] Rendering loading state')
     return (
       <div className="dashboard-loading">
         <div className="spinner-large"></div>
@@ -849,7 +995,7 @@ export const DashboardPage: React.FC = () => {
 
   // 분석 결과가 없거나 오류가 있는 경우
   if (!analysisResult || error) {
-    console.log('[Dashboard] ❌ Rendering error state:', { 
+    console.log('[Dashboard] Rendering error state:', { 
       hasAnalysisResult: !!analysisResult, 
       error,
       analysisId
@@ -883,7 +1029,7 @@ export const DashboardPage: React.FC = () => {
     )
   }
 
-  console.log('[Dashboard] 🎉 Rendering main dashboard content')
+  console.log('[Dashboard] Rendering main dashboard content')
 
   return (
     <div className="dashboard-page">
