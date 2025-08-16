@@ -170,25 +170,36 @@ body {
   border-radius: var(--radius-xl);
 }
 
-/* 진행률 스테퍼 - 극도로 미니멀한 외곽선 디자인 */
+/* 진행률 스테퍼 - 강화된 가시성과 사용성 */
 .progress-stepper {
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-1) var(--spacing-3);
-  background: transparent;
-  border-radius: var(--radius-lg);
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-6);
+  background: var(--white);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: var(--spacing-3) 0;
 }
 
 .step {
-  width: 5px;
-  height: 5px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: all var(--transition-normal);
   position: relative;
-  background: transparent;
-  border: 1px solid var(--gray-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border: 2px solid var(--gray-300);
+  background: var(--white);
+  color: var(--gray-500);
 }
 
 /* 진행률 표시기 툴팁 - 브랜드 컬러 적용 */
@@ -231,25 +242,44 @@ body {
 }
 
 .step.completed {
-  background: transparent;
-  border: 1px solid var(--brand-green-500);
-  width: 6px;
-  height: 6px;
+  background: var(--primary-600);
+  border: 2px solid var(--primary-600);
+  color: var(--white);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+.step.completed::after {
+  content: '✓';
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--white);
 }
 
 .step.current {
-  background: var(--brand-navy-600);
-  border: 1px solid var(--brand-navy-600);
-  width: 6px;
-  height: 6px;
-  animation: subtle-pulse 2s ease-in-out infinite;
+  background: var(--primary-100);
+  border: 2px solid var(--primary-400);
+  color: var(--primary-700);
+  transform: scale(1.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25);
+  }
 }
 
 .step:hover:not(.current):not(.completed) {
-  background: transparent;
-  border: 1px solid var(--brand-navy-400);
-  width: 6px;
-  height: 6px;
+  background: var(--gray-100);
+  border: 2px solid var(--gray-400);
+  color: var(--gray-700);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 진행률 표시기 애니메이션 개선 */
@@ -395,16 +425,19 @@ body {
   51%, 100% { opacity: 0.3; }
 }
 
-/* 메인 콘텐츠 영역 */
+/* 메인 콘텐츠 영역 - 높이 매칭 최적화 */
 .interview-content {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 420px;
+  grid-template-rows: 1fr;
+  align-items: end;
   gap: var(--space-8);
   padding: var(--space-8);
   max-width: 1600px;
   margin: 0 auto;
   width: 100%;
+  min-height: calc(100vh - 140px);
 }
 
 /* 질문 컨테이너 */
@@ -412,6 +445,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
+  overflow-y: auto;
+  height: 100%;
 }
 
 .current-question {
@@ -437,6 +472,7 @@ body {
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-4);
+  min-height: 80px;
 }
 
 .question-meta {
@@ -766,7 +802,7 @@ body {
   line-height: 1.6;
 }
 
-/* 답변 입력 영역 */
+/* 답변 입력 영역 - 질문 영역과 높이 완전 매칭 */
 .answer-input-area {
   background: var(--white);
   border-radius: var(--radius-2xl);
@@ -774,15 +810,119 @@ body {
   border: 1px solid var(--gray-200);
   display: flex;
   flex-direction: column;
-  height: fit-content;
-  position: sticky;
-  top: calc(var(--space-20) + 80px);
+  height: 100%;
+  overflow: hidden;
 }
 
 .input-header {
-  padding: var(--space-6) var(--space-6) var(--space-4);
+  padding: var(--space-6);
   border-bottom: 1px solid var(--gray-200);
   background: var(--gray-100);
+  min-height: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  transition: min-height 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+/* answer-item이 존재할 때 input-header 높이 동적 조정 */
+.interview-content:has(.answer-item) .input-header {
+  min-height: auto;
+  padding: var(--space-6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  /* CSS 기반 높이 매칭 지원 */
+  position: relative;
+}
+
+/* answer-item이 여러 개 있을 때 마지막 아이템 기준으로 정렬 */
+.interview-content:has(.answer-item:last-of-type) .input-header {
+  /* JavaScript에서 계산된 높이가 우선되지만, CSS 폴백도 제공 */
+  min-height: max(120px, var(--dynamic-height, auto));
+}
+
+/* :has() 미지원 브라우저를 위한 폴백 */
+.interview-content.has-answers .input-header {
+  min-height: auto;
+  padding: var(--space-6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+/* 정확한 높이 매칭을 위한 JavaScript 연동 클래스 */
+.input-header.height-matched {
+  min-height: var(--matched-height, auto);
+  padding-top: var(--matched-padding-top, var(--space-6));
+  padding-bottom: var(--matched-padding-bottom, var(--space-6));
+  transition: all 0.3s ease-out;
+}
+
+/* 높이 매칭 중 시각적 피드백 */
+.input-header.height-matching {
+  border-left: 3px solid var(--brand-navy-400);
+  background: linear-gradient(135deg, var(--gray-100) 0%, var(--brand-navy-50) 100%);
+}
+
+.input-header.height-matching::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand-navy-400), var(--brand-navy-600), var(--brand-navy-400));
+  background-size: 200% 100%;
+  animation: height-sync-progress 0.5s ease-out;
+}
+
+@keyframes height-sync-progress {
+  0% {
+    background-position: 200% 0;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    background-position: -200% 0;
+    opacity: 0.8;
+  }
+}
+
+/* 높이 조정 중 시각적 피드백 */
+.input-header.adjusting {
+  background: linear-gradient(135deg, var(--gray-100) 0%, var(--gray-50) 100%);
+  border-left: 3px solid var(--brand-navy-300);
+}
+
+.input-header.adjusting::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand-navy-400), var(--brand-navy-600), var(--brand-navy-400));
+  background-size: 200% 100%;
+  animation: height-adjustment-progress 0.3s ease-out;
+}
+
+@keyframes height-adjustment-progress {
+  0% {
+    background-position: 200% 0;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    background-position: -200% 0;
+    opacity: 0;
+  }
 }
 
 .input-header h3 {
@@ -815,10 +955,28 @@ body {
   font-weight: 600;
 }
 
-/* 입력 컨테이너 */
+/* 입력 컨테이너 - 상단 정렬 및 자연스러운 입력 */
 .input-container {
   padding: var(--space-6);
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.input-container .form-textarea {
+  flex: 1;
+  min-height: 200px;
+  resize: none;
+  overflow-y: auto;
+  vertical-align: top;
+  padding: var(--spacing-4);
+  line-height: 1.6;
+  
+  /* 텍스트 입력이 상단부터 시작되도록 */
+  text-align: left;
+  box-sizing: border-box;
 }
 
 /* 답변 입력창은 이제 .form-input.form-textarea 표준 컴포넌트 사용 */
@@ -1122,21 +1280,44 @@ body {
     grid-template-columns: 1fr 380px;
     gap: var(--space-6);
   }
+}
+
+/* 중간 크기 화면 - 태블릿 가로/작은 데스크톱 */
+@media (max-width: 1400px) and (min-width: 1201px) {
+  .input-header {
+    min-height: auto;
+  }
   
-  .answer-input-area {
-    position: static;
+  /* answer-item이 없을 때만 최소 높이 설정 */
+  .interview-content:not(:has(.answer-item)) .input-header,
+  .interview-content:not(.has-answers) .input-header {
+    min-height: 60px;
+    justify-content: center;
   }
 }
 
 @media (max-width: 1200px) {
   .interview-content {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
     gap: var(--space-6);
+    min-height: auto;
+  }
+  
+  .question-container {
+    height: auto;
+    overflow-y: visible;
   }
   
   .answer-input-area {
     order: -1;
-    position: static;
+    height: auto;
+    min-height: 500px;
+  }
+  
+  .input-container .form-textarea {
+    min-height: 250px;
+    resize: vertical;
   }
 }
 
@@ -1144,6 +1325,27 @@ body {
   .interview-content {
     padding: var(--space-4);
     gap: var(--space-4);
+    min-height: auto;
+  }
+  
+  .answer-input-area {
+    min-height: 400px;
+  }
+  
+  .input-container .form-textarea {
+    min-height: 200px;
+  }
+  
+  .input-header {
+    min-height: auto;
+    padding: var(--space-4);
+  }
+  
+  /* answer-item이 없을 때만 최소 높이 설정 */
+  .interview-content:not(:has(.answer-item)) .input-header,
+  .interview-content:not(.has-answers) .input-header {
+    min-height: 50px;
+    justify-content: center;
   }
   
   .interview-header {
@@ -1169,22 +1371,23 @@ body {
     gap: var(--spacing-2);
     flex-wrap: wrap;
     justify-content: center;
-    padding: var(--spacing-2);
+    padding: var(--spacing-3) var(--spacing-4);
   }
   
   .step {
-    width: 6px;
-    height: 6px;
+    width: 26px;
+    height: 26px;
+    font-size: var(--text-xs);
   }
   
   .step.completed {
-    width: 7px;
-    height: 7px;
+    width: 28px;
+    height: 28px;
   }
   
   .step.current {
-    width: 7px;
-    height: 7px;
+    width: 28px;
+    height: 28px;
   }
   
   .header-right {
@@ -1203,6 +1406,7 @@ body {
     gap: var(--space-3);
     padding: var(--space-4);
     align-items: stretch;
+    min-height: 70px;
   }
   
   .question-meta {
@@ -1314,25 +1518,52 @@ body {
 @media (max-width: 480px) {
   .interview-content {
     padding: var(--space-3);
+    min-height: auto;
   }
   
   .interview-header {
     padding: var(--space-3);
   }
   
+  .answer-input-area {
+    min-height: 350px;
+  }
+  
+  .input-container .form-textarea {
+    min-height: 150px;
+  }
+  
+  .question-header {
+    min-height: 60px;
+    padding: var(--space-3);
+  }
+  
+  .input-header {
+    min-height: auto;
+    padding: var(--space-3);
+  }
+  
+  /* answer-item이 없을 때만 최소 높이 설정 */
+  .interview-content:not(:has(.answer-item)) .input-header,
+  .interview-content:not(.has-answers) .input-header {
+    min-height: 40px;
+    justify-content: center;
+  }
+  
   .step {
-    width: 6px;
-    height: 6px;
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
   }
   
   .step.completed {
-    width: 7px;
-    height: 7px;
+    width: 24px;
+    height: 24px;
   }
   
   .step.current {
-    width: 7px;
-    height: 7px;
+    width: 24px;
+    height: 24px;
   }
   
   .category-name {
@@ -1390,6 +1621,7 @@ body {
   /* 진행률 표시기 간격 최적화 */
   .progress-stepper {
     gap: var(--spacing-1);
+    padding: var(--spacing-2) var(--spacing-3);
   }
 }
 
