@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -54,6 +54,7 @@ import {
   Lightbulb
 } from 'lucide-react'
 import { AnswerFeedback } from '../components/AnswerFeedback'
+import { debugLog } from '../utils/debugUtils'
 import './InterviewPage.css'
 
 interface Question {
@@ -162,6 +163,11 @@ export const InterviewPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const questionContainerRef = useRef<HTMLDivElement>(null)
+  const inputHeaderRef = useRef<HTMLDivElement>(null)
+  const previousHeightRef = useRef<number | null>(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // WebSocket 연결
   useEffect(() => {
@@ -294,22 +300,265 @@ export const InterviewPage: React.FC = () => {
     }
   }, [currentAnswer, interviewId, questions, currentQuestionIndex])
 
-  // 질문 변경 시 답변 로드
+  // 질문 변경 시 답변 로드 및 textarea 상단 스크롤
   useEffect(() => {
     const currentQ = questions[currentQuestionIndex]
     if (currentQ && interviewId) {
       const savedKey = `interview_${interviewId}_${currentQ.id}`
       const saved = localStorage.getItem(savedKey)
       setCurrentAnswer(saved || '')
+      
+      // 질문 변경 시 높이 기준점 초기화
+      previousHeightRef.current = null
+      debugLog.debug('height', '질문 변경 - 높이 기준점 초기화')
+      
+      // 답변 로드 후 textarea 상단으로 스크롤
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.scrollTop = 0
+        }
+      }, 100)
     }
   }, [currentQuestionIndex, interviewId, questions])
+
+  // 답변 초기화 시 textarea 상단 스크롤
+  useEffect(() => {
+    if (currentAnswer === '' && textareaRef.current) {
+      textareaRef.current.scrollTop = 0
+    }
+  }, [currentAnswer])
+
+  // 안정화된 높이 계산 함수 - 무한 루프 방지 및 디바운싱 적용
+  const updateInputHeaderHeight = useCallback(() => {
+    if (!questionContainerRef.current || !inputHeaderRef.current) return
+    
+    // 디바운싱 적용 - 100ms 내 연속 호출 방지
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    
+    debounceTimerRef.current = setTimeout(() => {
+      try {
+        const questionContainer = questionContainerRef.current
+        const inputHeader = inputHeaderRef.current
+        
+        if (!questionContainer || !inputHeader) return
+        
+        // 질문 헤더와 콘텐츠 영역 요소 찾기
+        const questionHeader = questionContainer.querySelector('.question-header')
+        const questionContent = questionContainer.querySelector('.question-content')
+        const currentQuestion = questionContainer.querySelector('.current-question')
+        const answerHistory = questionContainer.querySelector('.answer-history')
+        
+        if (!questionHeader || !currentQuestion) return
+        
+        // 안정화 임계값 정의
+        const SCROLL_THRESHOLD = 2          // 2px 이하 스크롤 차이 무시
+        const HEIGHT_CHANGE_THRESHOLD = 10  // 10px 이하 높이 변화 무시
+        
+        // question-container의 실제 상태 측정
+        const questionContainerRect = questionContainer.getBoundingClientRect()
+        const questionContainerHeight = questionContainerRect.height
+        const questionContainerScrollHeight = questionContainer.scrollHeight
+        
+        // 안정화된 스크롤 감지 - 미세한 차이 무시
+        const contentOverflow = questionContainerScrollHeight - questionContainerHeight
+        const hasScrollableContent = contentOverflow > SCROLL_THRESHOLD
+        
+        // 뷰포트 정보
+        const viewportHeight = window.innerHeight
+        
+        let targetHeight
+        
+        // 첫 번째 답변인지 확인
+        const isFirstAnswer = previousHeightRef.current === null
+        
+        // 통일된 높이 계산 알고리즘
+        if (!answerHistory || answerHistory.querySelectorAll('.answer-item').length === 0) {
+          // 답변이 없는 경우: question-header 높이를 기준
+          const questionHeaderRect = questionHeader.getBoundingClientRect()
+          targetHeight = questionHeaderRect.height
+          
+          debugLog.debug('height', '답변 없음 - question-header 기준', { 
+            targetHeight: targetHeight.toFixed(2),
+            questionHeaderHeight: questionHeaderRect.height.toFixed(2)
+          })
+        } else {
+          // 답변이 있는 경우: 마지막 answer-item의 상대적 위치 기준
+          const answerItems = answerHistory.querySelectorAll('.answer-item')
+          const lastAnswer = answerItems[answerItems.length - 1]
+          const questionContainerRect = questionContainer.getBoundingClientRect()
+          const lastAnswerRect = lastAnswer.getBoundingClientRect()
+          const questionHeaderRect = questionHeader.getBoundingClientRect()
+          
+          // answer-item의 컨테이너 내 상대적 시작 위치 계산
+          const relativeTop = lastAnswerRect.top - questionContainerRect.top
+          
+          // input-container가 answer-item과 같은 시작 위치에 오도록 높이 설정
+          // 기본 패딩 고려 (var(--space-6) = 24px)
+          const headerPadding = 24
+          const minBaseHeight = questionHeaderRect.height
+          const calculatedHeight = Math.max(relativeTop + headerPadding, minBaseHeight)
+          
+          // 뷰포트 제한 적용
+          if (calculatedHeight > viewportHeight * 0.9) {
+            targetHeight = viewportHeight * 0.85  // 85%로 제한
+          } else {
+            targetHeight = calculatedHeight
+          }
+          
+          debugLog.debug('height', '답변 있음 - 통일된 위치 기반 계산', {
+            answerCount: answerItems.length,
+            isFirstAnswer,
+            questionContainerTop: questionContainerRect.top.toFixed(2),
+            lastAnswerTop: lastAnswerRect.top.toFixed(2),
+            relativeTop: relativeTop.toFixed(2),
+            headerPadding,
+            minBaseHeight: minBaseHeight.toFixed(2),
+            calculatedHeight: calculatedHeight.toFixed(2),
+            viewportLimit: (viewportHeight * 0.9).toFixed(2),
+            finalTargetHeight: targetHeight.toFixed(2),
+            contentOverflow: contentOverflow.toFixed(2),
+            hasScrollableContent,
+            note: '통일된 알고리즘 적용'
+          })
+        }
+        
+        // 최소 높이 적용
+        const minHeight = 80
+        const candidateHeight = Math.max(minHeight, targetHeight)
+        
+        // 첫 번째 답변인지 확인하여 특별 처리
+        const previousHeight = previousHeightRef.current
+        
+        if (isFirstAnswer) {
+          // 첫 번째 답변: 무조건 적용하고 기준점 설정
+          const finalHeight = candidateHeight
+          
+          debugLog.debug('height', '첫 번째 답변 - 기준점 설정', {
+            previousHeight: 'null (첫 번째)',
+            candidateHeight: candidateHeight.toFixed(2),
+            finalHeight: finalHeight.toFixed(2),
+            applied: true,
+            method: 'question-header 기준점 설정',
+            heightSource: answerHistory ? '답변 기반 계산' : 'question-header 직접 사용'
+          })
+          
+          // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정
+          inputHeader.style.transition = 'min-height 0.3s ease-out'
+          inputHeader.style.minHeight = `${finalHeight}px`
+          inputHeader.style.setProperty('--dynamic-height', `${finalHeight}px`)
+          
+          // 높이 조정 중 시각적 피드백
+          inputHeader.classList.add('adjusting')
+          setTimeout(() => {
+            inputHeader.classList.remove('adjusting')
+          }, 300)
+          
+          // 이전 높이 업데이트 (기준점 설정)
+          previousHeightRef.current = finalHeight
+        } else {
+          // 두 번째 답변 이후: 기존 로직 사용
+          const heightDifference = Math.abs(candidateHeight - (previousHeight || 0))
+          
+          if (heightDifference > HEIGHT_CHANGE_THRESHOLD || previousHeight === null) {
+            const finalHeight = candidateHeight
+            
+            debugLog.debug('height', '높이 변화 감지 - 임계값 초과', {
+              previousHeight: previousHeight?.toFixed(2) || 'null',
+              candidateHeight: candidateHeight.toFixed(2),
+              heightDifference: heightDifference.toFixed(2),
+              threshold: HEIGHT_CHANGE_THRESHOLD,
+              finalHeight: finalHeight.toFixed(2),
+              applied: true,
+              method: '상대적 위치 기반 조정',
+              calculation: '통일된 알고리즘 적용됨'
+            })
+            
+            // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정
+            inputHeader.style.transition = 'min-height 0.3s ease-out'
+            inputHeader.style.minHeight = `${finalHeight}px`
+            inputHeader.style.setProperty('--dynamic-height', `${finalHeight}px`)
+            
+            // 높이 조정 중 시각적 피드백
+            inputHeader.classList.add('adjusting')
+            setTimeout(() => {
+              inputHeader.classList.remove('adjusting')
+            }, 300)
+            
+            // 이전 높이 업데이트
+            previousHeightRef.current = finalHeight
+          } else {
+            debugLog.debug('height', '높이 변화 무시 - 임계값 미달', {
+              previousHeight: previousHeight?.toFixed(2) || 'null',
+              candidateHeight: candidateHeight.toFixed(2),
+              heightDifference: heightDifference.toFixed(2),
+              threshold: HEIGHT_CHANGE_THRESHOLD,
+              applied: false,
+              reason: '변화량이 임계값보다 작음'
+            })
+          }
+        }
+        
+      } catch (error) {
+        console.warn('[HEIGHT] 높이 계산 중 오류:', error)
+      }
+    }, 100) // 100ms 디바운스
+    
+  }, [])
+
+  // 동적 높이 조정 - 메시지, 질문 변경 시
+  useEffect(() => {
+    // DOM이 업데이트된 후 높이 계산
+    const timeoutId = setTimeout(() => {
+      updateInputHeaderHeight()
+    }, 100)
+    
+    return () => clearTimeout(timeoutId)
+  }, [messages, currentQuestionIndex, updateInputHeaderHeight])
+
+  // ResizeObserver로 실시간 높이 변화 감지 - 최적화된 관찰
+  useEffect(() => {
+    if (!questionContainerRef.current) return
+    
+    const resizeObserver = new ResizeObserver(() => {
+      updateInputHeaderHeight()
+    })
+    
+    const questionContainer = questionContainerRef.current
+    resizeObserver.observe(questionContainer)
+    
+    // 답변 히스토리 영역도 관찰
+    const answerHistory = questionContainer.querySelector('.answer-history')
+    if (answerHistory) {
+      resizeObserver.observe(answerHistory as Element)
+    }
+    
+    return () => {
+      resizeObserver.disconnect()
+      // 디바운스 타이머 정리
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+        debounceTimerRef.current = null
+      }
+    }
+  }, [updateInputHeaderHeight])
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
 
   // 세션 히스토리 로딩 (답변, 피드백, 대화 포함)
   const loadSessionHistory = async (questionsList: Question[], sessionData: any) => {
     if (!interviewId) return
 
     try {
-      console.log('[HISTORY] 세션 히스토리 로딩 시작');
+      debugLog.info('history', '세션 히스토리 로딩 시작');
       const response = await fetch(`/api/v1/interview/session/${interviewId}/data`)
       
       if (!response.ok) {
@@ -325,7 +574,7 @@ export const InterviewPage: React.FC = () => {
       }
       
       const { data } = await response.json()
-      console.log('[HISTORY] 세션 데이터 로드 완료:', data)
+      debugLog.info('history', '세션 데이터 로드 완료', { sessionData: data })
       
       // 답변 히스토리를 메시지로 변환
       const historyMessages: Message[] = []
@@ -431,12 +680,12 @@ export const InterviewPage: React.FC = () => {
   }
 
   const loadInterview = async () => {
-    console.log('[LOAD] loadInterview 함수 시작');
+    debugLog.info('interview', 'loadInterview 함수 시작');
     
     setLoadingStates({ session: true, questions: true })
     
     try {
-      console.log('[API] 면접 세션 및 질문 데이터 로딩 시작');
+      debugLog.info('api', '면접 세션 및 질문 데이터 로딩 시작');
       // 병렬 API 호출로 성능 개선
       const [sessionResponse, questionsResponse] = await Promise.all([
         fetch(`/api/v1/interview/session/${interviewId}`),
@@ -878,6 +1127,13 @@ export const InterviewPage: React.FC = () => {
         // 성공적으로 처리된 경우에만 답변 입력창 초기화
         console.log('[CLEAR] 답변 입력창 초기화');
         setCurrentAnswer('');
+        
+        // 답변 제출 후 textarea 상단으로 스크롤
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.scrollTop = 0;
+          }
+        }, 100);
       } else {
         console.log('[ERROR] API 호출은 성공했지만 result.success가 false');
         throw new Error(result.message || '답변 처리에 실패했습니다.');
@@ -1250,7 +1506,7 @@ export const InterviewPage: React.FC = () => {
       {/* 메인 컨텐츠 */}
       <div className="interview-content">
         {/* 질문 영역 */}
-        <div className="question-container">
+        <div className="question-container" ref={questionContainerRef}>
           {currentQuestion && (
             <div className="current-question">
               <div className="question-header">
@@ -1349,14 +1605,20 @@ export const InterviewPage: React.FC = () => {
                           <span className="feedback-label">AI 피드백</span>
                           <span className="feedback-score">
                             {(() => {
-                              console.log('[RENDER] 피드백 스코어 렌더링:', {
-                                messageId: message.id,
-                                feedbackExists: !!message.feedback,
-                                overallScore: message.feedback?.overall_score,
-                                fallbackScore: message.feedback?.score,
-                                fullFeedback: message.feedback
-                              });
-                              return message.feedback?.overall_score || message.feedback?.score || 0;
+                              const score = message.feedback?.overall_score || message.feedback?.score || 0;
+                              
+                              // 개발 환경에서만 중요한 변경사항 로깅
+                              if (import.meta.env.DEV && message.feedback && !message.feedback._logged) {
+                                console.log('[DEBUG] 피드백 처리됨:', {
+                                  messageId: message.id,
+                                  score,
+                                  timestamp: new Date().toISOString()
+                                });
+                                // 중복 로그 방지 플래그
+                                message.feedback._logged = true;
+                              }
+                              
+                              return score;
                             })()}/10
                           </span>
                         </div>
@@ -1433,7 +1695,7 @@ export const InterviewPage: React.FC = () => {
         {/* 답변 입력 영역 */}
         {interview.status === 'active' && currentQuestion && (
           <div className="answer-input-area">
-            <div className="input-header">
+            <div className="input-header" ref={inputHeaderRef}>
               <h3>{conversationMode ? '질문 입력 (대화 모드)' : '답변 입력'}</h3>
               <div className="input-help">
                 {conversationMode ? (
@@ -1460,6 +1722,7 @@ export const InterviewPage: React.FC = () => {
             
             <div className="input-container">
               <textarea
+                ref={textareaRef}
                 value={currentAnswer}
                 onChange={(e) => {
                   console.log('[INPUT] onChange 이벤트 발생 - 새 값:', e.target.value);
@@ -1470,6 +1733,12 @@ export const InterviewPage: React.FC = () => {
                 placeholder={conversationMode ? "궁금한 점을 질문해보세요..." : "답변을 입력하세요... (구체적인 예시와 함께 설명해주세요)"}
                 className="form-input form-textarea"
                 rows={8}
+                onFocus={() => {
+                  // 포커스 시 상단으로 스크롤
+                  if (textareaRef.current) {
+                    textareaRef.current.scrollTop = 0;
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey && (e.ctrlKey || e.metaKey)) {
                     console.log('[KEY] Ctrl+Enter 키보드 단축키로 답변 제출 시도');
