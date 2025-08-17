@@ -130,7 +130,7 @@ export const FileDetailModal: React.FC<FileDetailModalProps> = ({
               </div>
             </div>
             <button className="close-button" onClick={onClose} aria-label="모달 닫기">
-              ✕
+              X
             </button>
           </div>
         </div>

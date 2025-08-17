@@ -323,7 +323,6 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
       {/* 헤더 */}
       <div className="dashboard-header">
         <h2>
-          📊
           고도화된 분석 대시보드
         </h2>
         <div className="performance-indicators">
@@ -365,7 +364,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
               <div className="repo-stats">
                 <div className="stat-card">
                   <div className="stat-icon">
-                    ⭐
+                    STAR
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{dashboardData.repository_overview.stars.toLocaleString()}</div>
@@ -374,7 +373,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">
-                    🌳
+                    TREE
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{dashboardData.repository_overview.forks.toLocaleString()}</div>
@@ -383,7 +382,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">
-                    💾
+                    DISK
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{(dashboardData.repository_overview.size / 1024).toFixed(1)}MB</div>
@@ -417,7 +416,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 {Object.entries(dashboardData.file_type_distribution).map(([type, count]) => (
                   <div key={type} className="file-type-card">
                     <div className="file-type-icon">
-                      📄
+                      FILE
                     </div>
                     <div className="file-type-name">{type}</div>
                     <div className="file-type-count">{count}</div>
@@ -688,7 +687,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="advanced-stat-card">
                   <div className="stat-icon">
-                    🎯
+                    TARGET
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{advancedAnalysis.analysis_summary.hotspot_files}</div>
@@ -697,7 +696,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                 </div>
                 <div className="advanced-stat-card">
                   <div className="stat-icon">
-                    🌐
+                    GLOBE
                   </div>
                   <div className="stat-info">
                     <div className="stat-value">{advancedAnalysis.dependency_graph.node_count}</div>
@@ -709,7 +708,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
 
             {/* 파일 메트릭 상세 분석 */}
             <div className="file-metrics-section">
-              <h3>▲ 파일별 상세 메트릭</h3>
+              <h3>ARROW 파일별 상세 메트릭</h3>
               <div className="metrics-grid">
                 {Object.entries(advancedAnalysis.file_metrics)
                   .sort(([,a], [,b]) => b.importance_score - a.importance_score)
@@ -849,7 +848,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
             {/* 변경 이력 핫스팟 분석 */}
             <div className="churn-hotspots-section">
               <h3>
-                📈
+                CHART
                 변경 이력 핫스팟 분석
               </h3>
               <div className="hotspots-advanced-grid">
@@ -885,7 +884,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                       </div>
                       <div className="hotspot-metric">
                         <span className="metric-icon">
-                          👥
+                          PEOPLE
                         </span>
                         <span className="metric-label">개발자 수</span>
                         <span className="metric-value">{hotspot.authors_count}</span>
@@ -898,7 +897,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
 
             {/* 개발자 기여도 상세 분석 */}
             <div className="author-contribution-section">
-              <h3>👥 개발자 기여도 상세 분석</h3>
+              <h3>PEOPLE 개발자 기여도 상세 분석</h3>
               <div className="authors-advanced-grid">
                 {Object.entries(advancedAnalysis.churn_analysis.author_statistics)
                   .sort(([,a], [,b]) => b.commits - a.commits)
@@ -906,7 +905,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
                   .map(([author, stats]) => (
                     <div key={author} className="author-card-advanced">
                       <div className="author-info-advanced">
-                        <div className="author-avatar">👤</div>
+                        <div className="author-avatar">USER</div>
                         <div className="author-name">{author}</div>
                       </div>
                       <div className="author-metrics-advanced">

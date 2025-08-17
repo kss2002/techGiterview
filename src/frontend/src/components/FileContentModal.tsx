@@ -127,8 +127,8 @@ export const FileContentModal: React.FC<FileContentModalProps> = ({
       'html': '▣',
       'json': '▦',
       'md': '▧',
-      'yml': '⚙',
-      'yaml': '⚙',
+      'yml': 'YML',
+      'yaml': 'YAML',
       'xml': '▤',
       'txt': '▦'
     }
@@ -152,7 +152,7 @@ export const FileContentModal: React.FC<FileContentModalProps> = ({
                   {formatFileSize(fileContent.size)} • {fileContent.extension || 'no extension'}
                   {fileContent.source && (
                     <span className={`source-badge ${fileContent.source === 'cache' ? 'cached' : 'live'}`}>
-                      {fileContent.source === 'cache' ? '⚡ 캐시됨' : '🌐 실시간'}
+                      {fileContent.source === 'cache' ? 'CACHED' : 'LIVE'}
                     </span>
                   )}
                 </p>
@@ -160,7 +160,7 @@ export const FileContentModal: React.FC<FileContentModalProps> = ({
             </div>
           </div>
           <button className="file-modal-close" onClick={onClose}>
-            ✕
+            X
           </button>
         </div>
 
@@ -188,7 +188,7 @@ export const FileContentModal: React.FC<FileContentModalProps> = ({
               <div className="file-modal-code">
                 {fileContent.size > 500000 && ( // 500KB 이상인 경우 경고
                   <div className="large-file-warning">
-                    <div className="warning-icon">⚠️</div>
+                    <div className="warning-icon">WARNING</div>
                     <p>
                       대용량 파일입니다 ({formatFileSize(fileContent.size)}). 
                       렌더링에 시간이 걸릴 수 있습니다.

@@ -34,18 +34,18 @@ interface CriticalFilesPreviewProps {
 const getFileIcon = (filePath: string): React.ReactNode => {
   // filePath가 없는 경우 기본 아이콘 반환
   if (!filePath) {
-    return <>📄</>
+    return <>FILE</>
   }
   
   const extension = filePath.split('.').pop()?.toLowerCase()
   const fileName = filePath.split('/').pop()?.toLowerCase() || ''
   
   // 특수 파일명 처리
-  if (fileName === 'dockerfile' || fileName.startsWith('dockerfile')) return <>🐳</>
-  if (fileName === '.gitignore') return <>🚫</>
-  if (fileName.startsWith('readme')) return <>📖</>
-  if (fileName === 'package.json') return <>📦</>
-  if (fileName === 'package-lock.json' || fileName === 'yarn.lock') return <>🔒</>
+  if (fileName === 'dockerfile' || fileName.startsWith('dockerfile')) return <>DOCKER</>
+  if (fileName === '.gitignore') return <>GIT</>
+  if (fileName.startsWith('readme')) return <>README</>
+  if (fileName === 'package.json') return <>PKG</>
+  if (fileName === 'package-lock.json' || fileName === 'yarn.lock') return <>LOCK</>
   
   // 확장자별 아이콘 매핑
   switch (extension) {
@@ -54,39 +54,39 @@ const getFileIcon = (filePath: string): React.ReactNode => {
     case 'jsx':
     case 'ts':
     case 'tsx':
-      return <>🟨</>
+      return <>JS</>
     // Python
     case 'py':
     case 'pyw':
     case 'pyx':
-      return <>🐍</>
+      return <>PY</>
     // Java/Kotlin
     case 'java':
     case 'kt':
     case 'scala':
-      return <>☕</>
+      return <>JAVA</>
     // Web
     case 'html':
     case 'css':
     case 'scss':
     case 'sass':
-      return <>🎨</>
+      return <>WEB</>
     // Config files
     case 'json':
     case 'yaml':
     case 'yml':
     case 'toml':
-      return <>⚙️</>
+      return <>CFG</>
     // Others
     case 'md':
     case 'txt':
-      return <>📝</>
+      return <>TXT</>
     case 'sql':
-      return <>🗄️</>
+      return <>SQL</>
     case 'dockerfile':
-      return <>🐳</>
+      return <>DOCKER</>
     default:
-      return <>📄</>
+      return <>FILE</>
   }
 }
 
@@ -145,7 +145,7 @@ export const CriticalFilesPreview: React.FC<CriticalFilesPreviewProps> = ({
       <div className="preview-header">
         <div className="header-content">
           <h3 className="section-title">
-            🎯
+            TARGET
             핵심 분석 파일
           </h3>
           <span className="file-count">
