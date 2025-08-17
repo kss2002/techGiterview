@@ -43,7 +43,14 @@ import {
 } from 'lucide-react'
 import { FileContentModal } from '../components/FileContentModal'
 import { CriticalFilesPreview } from '../components/CriticalFilesPreview'
-import './DashboardPage.css'
+import './DashboardPage-CLEAN.css'
+
+// TypeScript 타입 확장
+declare global {
+  interface Window {
+    cssDebugObserver?: MutationObserver
+  }
+}
 
 interface RepositoryInfo {
   name: string
@@ -186,50 +193,50 @@ const getFileIcon = (filePath: string): React.ReactNode => {
   
   // 특수 파일명 먼저 처리
   if (fileName === 'dockerfile' || fileName.startsWith('dockerfile')) {
-    return <Monitor className="w-4 h-4 text-blue-600" />
+    return <Monitor className="file-icon file-icon-monitor" />
   }
   if (fileName === '.gitignore') {
-    return <Github className="w-4 h-4 text-orange-600" />
+    return <Github className="file-icon file-icon-github" />
   }
   if (fileName.startsWith('readme')) {
-    return <BookOpen className="w-4 h-4 text-blue-700" />
+    return <BookOpen className="file-icon file-icon-book" />
   }
   if (fileName === 'license' || fileName.startsWith('license')) {
-    return <Shield className="w-4 h-4 text-green-600" />
+    return <Shield className="file-icon file-icon-shield" />
   }
   if (fileName === 'package.json') {
-    return <Settings className="w-4 h-4 text-red-600" />
+    return <Settings className="file-icon file-icon-settings" />
   }
   if (fileName === 'package-lock.json' || fileName === 'yarn.lock') {
-    return <Archive className="w-4 h-4 text-gray-600" />
+    return <Archive className="file-icon file-icon-archive" />
   }
   
   // 확장자별 처리
   switch (extension) {
     case 'js':
     case 'jsx':
-      return <FileCode className="w-4 h-4 text-yellow-500" />
+      return <FileCode className="file-icon file-icon-javascript" />
     case 'ts':
     case 'tsx':
-      return <FileCode className="w-4 h-4 text-blue-600" />
+      return <FileCode className="file-icon file-icon-typescript" />
     case 'vue':
-      return <FileCode className="w-4 h-4 text-green-500" />
+      return <FileCode className="file-icon file-icon-vue" />
     case 'py':
     case 'pyw':
     case 'pyx':
-      return <Cpu className="w-4 h-4 text-blue-500" />
+      return <Cpu className="file-icon file-icon-python" />
     case 'java':
     case 'kt':
     case 'scala':
-      return <Cpu className="w-4 h-4 text-orange-600" />
+      return <Cpu className="file-icon file-icon-java" />
     case 'html':
     case 'htm':
-      return <Globe className="w-4 h-4 text-orange-500" />
+      return <Globe className="file-icon file-icon-html" />
     case 'css':
     case 'scss':
     case 'sass':
     case 'less':
-      return <Palette className="w-4 h-4 text-blue-500" />
+      return <Palette className="file-icon file-icon-css" />
     case 'json':
     case 'yaml':
     case 'yml':
@@ -237,29 +244,29 @@ const getFileIcon = (filePath: string): React.ReactNode => {
     case 'ini':
     case 'conf':
     case 'config':
-      return <Settings className="w-4 h-4 text-gray-600" />
+      return <Settings className="file-icon file-icon-config" />
     case 'md':
-      return <FileText className="w-4 h-4 text-blue-700" />
+      return <FileText className="file-icon file-icon-markdown" />
     case 'txt':
-      return <FileText className="w-4 h-4 text-gray-600" />
+      return <FileText className="file-icon file-icon-text" />
     case 'pdf':
-      return <File className="w-4 h-4 text-red-600" />
+      return <File className="file-icon file-icon-pdf" />
     case 'sql':
     case 'db':
     case 'sqlite':
-      return <Database className="w-4 h-4 text-blue-600" />
+      return <Database className="file-icon file-icon-database" />
     case 'png':
     case 'jpg':
     case 'jpeg':
     case 'gif':
     case 'svg':
-      return <Image className="w-4 h-4 text-green-500" />
+      return <Image className="file-icon file-icon-image" />
     case 'zip':
     case 'tar':
     case 'gz':
-      return <Archive className="w-4 h-4 text-gray-600" />
+      return <Archive className="file-icon file-icon-archive" />
     default:
-      return <File className="w-4 h-4 text-gray-500" />
+      return <File className="file-icon file-icon-default" />
   }
 }
 
@@ -304,6 +311,96 @@ export const DashboardPage: React.FC = () => {
     })
   }
 
+  // CSS 강제 적용 - 캐시 문제 해결
+  useEffect(() => {
+    const forceFileTreeAlignment = () => {
+      console.log('[CSS Force] 파일 트리 정렬 강제 적용 시작')
+      
+      // 모든 파일 트리 관련 요소에 강제 스타일 적용
+      const fileTreeContent = document.querySelector('.file-tree-content')
+      const fileTreeItems = document.querySelectorAll('.file-tree-item')
+      const folderChildren = document.querySelectorAll('.folder-children')
+      
+      if (fileTreeContent) {
+        const contentEl = fileTreeContent as HTMLElement
+        contentEl.style.setProperty('text-align', 'left', 'important')
+        contentEl.style.setProperty('display', 'block', 'important')
+        console.log('[CSS Force] .file-tree-content 정렬 강제 적용 완료')
+      }
+      
+      fileTreeItems.forEach((item, index) => {
+        const itemEl = item as HTMLElement
+        itemEl.style.setProperty('display', 'flex', 'important')
+        itemEl.style.setProperty('justify-content', 'flex-start', 'important')
+        itemEl.style.setProperty('align-items', 'center', 'important')
+        itemEl.style.setProperty('text-align', 'left', 'important')
+        // 들여쓰기 완전 제거
+        itemEl.style.setProperty('padding-left', '0', 'important')
+        itemEl.style.setProperty('margin-left', '0', 'important')
+      })
+      
+      folderChildren.forEach((child, index) => {
+        const childEl = child as HTMLElement
+        childEl.style.setProperty('display', 'block', 'important')
+        childEl.style.setProperty('text-align', 'left', 'important')
+        childEl.style.setProperty('width', '100%', 'important')
+        // 들여쓰기 완전 제거
+        childEl.style.setProperty('padding-left', '0', 'important')
+        childEl.style.setProperty('margin-left', '0', 'important')
+      })
+      
+      // 모든 파일 트리 노드의 들여쓰기 강제 제거
+      const allNodes = document.querySelectorAll('.file-tree-node, .file-tree-node-simple')
+      allNodes.forEach((node) => {
+        const nodeEl = node as HTMLElement
+        nodeEl.style.setProperty('padding-left', '0', 'important')
+        nodeEl.style.setProperty('margin-left', '0', 'important')
+        nodeEl.style.setProperty('text-align', 'left', 'important')
+      })
+      
+      console.log('[CSS Force] 파일 트리 정렬 강제 적용 완료:', {
+        fileTreeContent: !!fileTreeContent,
+        fileTreeItems: fileTreeItems.length,
+        folderChildren: folderChildren.length
+      })
+    }
+    
+    // 컴포넌트 마운트 시 즉시 적용
+    forceFileTreeAlignment()
+    
+    // DOM 변경 감지하여 지속적으로 적용
+    const observer = new MutationObserver((mutations) => {
+      let shouldReapply = false
+      mutations.forEach(mutation => {
+        if (mutation.type === 'childList' && mutation.target) {
+          const target = mutation.target as Element
+          if (target.classList?.contains('file-tree-content') || 
+              target.closest('.file-tree-content')) {
+            shouldReapply = true
+          }
+        }
+      })
+      
+      if (shouldReapply) {
+        setTimeout(forceFileTreeAlignment, 100)
+      }
+    })
+    
+    const targetNode = document.querySelector('.file-tree-content')
+    if (targetNode) {
+      observer.observe(targetNode, { 
+        childList: true, 
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      })
+    }
+    
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
   useEffect(() => {
     console.log('DashboardPage analysisId:', analysisId) // 디버깅용
     if (analysisId) {
@@ -316,117 +413,21 @@ export const DashboardPage: React.FC = () => {
     }
   }, [analysisId, navigate])
 
-  // 강화된 CSS 들여쓰기 디버깅 및 복구 시스템
+  // 파일 트리 정렬 완료 - 더 이상 복잡한 분석 불필요
   useEffect(() => {
-    const performDeepStyleInvestigation = () => {
-      console.log('\n[Deep Style Investigation] 시작...')
-      
-      // 1. CSS 변수 시스템 검증
-      const rootStyle = getComputedStyle(document.documentElement)
-      const indentValue = rootStyle.getPropertyValue('--file-tree-indent-per-level').trim()
-      console.log('[CSS Variables] --file-tree-indent-per-level:', indentValue || '정의되지 않음')
-      
-      // 2. 실제 depth-1 요소들 상세 분석
-      const depth1Elements = document.querySelectorAll('.file-tree-depth-1')
-      console.log(`[Element Count] depth-1 요소 총 개수: ${depth1Elements.length}`)
-      
-      if (depth1Elements.length > 0) {
-        // 첫 번째 요소로 상세 분석
-        const firstElement = depth1Elements[0] as HTMLElement
-        const computedStyle = getComputedStyle(firstElement)
-        
-        console.log('[첫 번째 depth-1 요소 상세 분석]')
-        console.log('  - Element HTML:', firstElement.outerHTML.substring(0, 200) + '...')
-        console.log('  - Computed margin-left:', computedStyle.marginLeft)
-        console.log('  - Computed padding-left:', computedStyle.paddingLeft)
-        console.log('  - Inline style margin-left:', firstElement.style.marginLeft || '없음')
-        console.log('  - CSS Classes:', firstElement.className)
-        console.log('  - Position:', computedStyle.position)
-        console.log('  - Display:', computedStyle.display)
-        console.log('  - Box-sizing:', computedStyle.boxSizing)
-        
-        // 3. 강제 인라인 스타일 적용 테스트
-        console.log('\n[강제 인라인 스타일 적용 테스트]')
-        firstElement.style.marginLeft = '20px'
-        firstElement.style.backgroundColor = 'rgba(255, 0, 0, 0.2)'
-        firstElement.style.border = '2px solid red'
-        
-        // 적용 후 재검증
-        setTimeout(() => {
-          const newComputedStyle = getComputedStyle(firstElement)
-          console.log('  - 강제 적용 후 margin-left:', newComputedStyle.marginLeft)
-          console.log('  - 강제 적용 후 background-color:', newComputedStyle.backgroundColor)
-          
-          // 시각적 효과 제거
-          setTimeout(() => {
-            firstElement.style.backgroundColor = ''
-            firstElement.style.border = ''
-          }, 2000)
-        }, 100)
-        
-        // 4. 모든 depth-1 요소에 시각적 표시 적용
-        depth1Elements.forEach((element, index) => {
-          const htmlElement = element as HTMLElement
-          htmlElement.style.marginLeft = '12px'
-          htmlElement.style.backgroundColor = `rgba(0, 255, 0, ${0.1 + index * 0.02})`
-          htmlElement.style.transition = 'all 0.3s ease'
-          
-          // 3초 후 시각적 효과 제거
-          setTimeout(() => {
-            htmlElement.style.backgroundColor = ''
-            htmlElement.style.transition = ''
-          }, 3000)
-        })
-      }
-      
-      // 5. CSS 규칙 충돌 검사
-      console.log('\n[CSS 규칙 충돌 검사]')
-      const stylesheets = Array.from(document.styleSheets)
-      let conflictingRules = []
-      
-      try {
-        stylesheets.forEach((sheet, sheetIndex) => {
-          try {
-            const rules = Array.from(sheet.cssRules || [])
-            rules.forEach((rule, ruleIndex) => {
-              if (rule.cssText.includes('margin-left') && 
-                  (rule.cssText.includes('.file-tree') || rule.cssText.includes('depth'))) {
-                conflictingRules.push({
-                  sheet: sheetIndex,
-                  rule: ruleIndex,
-                  text: rule.cssText
-                })
-              }
-            })
-          } catch (e) {
-            console.log(`  - Stylesheet ${sheetIndex}: 접근 불가 (CORS)`)
-          }
-        })
-        
-        console.log('  - 발견된 관련 CSS 규칙들:', conflictingRules)
-      } catch (e) {
-        console.log('  - CSS 규칙 검사 실패:', e.message)
-      }
-    }
-
-    // 디버깅 실행
-    const investigationTimer = setTimeout(performDeepStyleInvestigation, 200)
-    
-    return () => {
-      clearTimeout(investigationTimer)
-    }
-  }, [allFiles, expandedFolders])
+    console.log("✅ 파일 트리 정렬 시스템이 성공적으로 단순화되었습니다.")
+  }, [])
 
   /**
    * ============================================
    * 통합 파일 트리 들여쓰기 시스템
    * ============================================
    * 
-   * ✅ CSS 변수 기반 중앙 관리: design-tokens.css에서 --file-tree-indent-per-level로 통합 관리
-   * ✅ CSS 클래스 기반 적용: .file-tree-depth-0 ~ .file-tree-depth-6 클래스로 깊이별 들여쓰기
-   * ✅ 반응형 자동 처리: CSS 미디어 쿼리로 데스크톱(4px), 태블릿(3px), 모바일(2px) 자동 적용
-   * ✅ DOM 조작 없음: React 인라인 스타일이나 useEffect DOM 조작 완전 제거
-   * ✅ 성능 최적화: 불필요한 리렌더링, 윈도우 리사이즈 이벤트, 강제 업데이트 제거
+   * CSS 변수 기반 중앙 관리: design-tokens.css에서 --file-tree-indent-per-level로 통합 관리
+   * CSS 클래스 기반 적용: .file-tree-depth-0 ~ .file-tree-depth-6 클래스로 깊이별 들여쓰기
+   * 반응형 자동 처리: CSS 미디어 쿼리로 데스크톱(4px), 태블릿(3px), 모바일(2px) 자동 적용
+   * DOM 조작 없음: React 인라인 스타일이나 useEffect DOM 조작 완전 제거
+   * 성능 최적화: 불필요한 리렌더링, 윈도우 리사이즈 이벤트, 강제 업데이트 제거
    * 
    * 핵심 파일:
    * - design-tokens.css: CSS 변수 및 미디어 쿼리 정의
@@ -754,87 +755,82 @@ export const DashboardPage: React.FC = () => {
   }
 
 
-  // 성능 최적화: CSS 변수 읽기를 컴포넌트 레벨로 이동
-  const getMaxDepth = React.useMemo(() => {
-    try {
-      const rootStyle = getComputedStyle(document.documentElement)
-      return parseInt(rootStyle.getPropertyValue('--file-tree-max-depth')) || 6
-    } catch {
-      return 6 // 기본값
-    }
-  }, [])
-
-  // 성능 최적화: depth 클래스명 계산 함수 메모이제이션
-  const getDepthClassName = React.useCallback((depth: number): string => {
-    if (depth > getMaxDepth) {
-      return 'file-tree-depth-overflow'
-    }
-    return `file-tree-depth-${depth}`
-  }, [getMaxDepth])
+  // 들여쓰기 시스템 완전 제거 - depth 관련 함수들 비활성화
 
   const renderFileTree = (nodes: FileTreeNode[], depth: number = 0): JSX.Element[] => {
-    const effectiveDepth = Math.min(depth, getMaxDepth)
-    const depthClassName = getDepthClassName(effectiveDepth)
-    
-    // 강제 인라인 스타일 - CSS 무시하고 직접 브라우저에 전달
-    const forceInlineStyle: React.CSSProperties = {
-      marginLeft: `${effectiveDepth * 12}px`,
-      paddingLeft: '0px',
-      display: 'block',
-      boxSizing: 'border-box',
-      // 시각적 확인을 위한 배경색 (depth-1만)
-      ...(effectiveDepth === 1 && { 
-        backgroundColor: 'rgba(0, 255, 0, 0.08)',
-        border: '1px solid rgba(0, 255, 0, 0.2)',
-        borderRadius: '2px'
-      })
-    }
+    // 구조 개선된 파일 트리 렌더링 - 올바른 들여쓰기 적용
     
     return nodes.map((node, index) => {
+      const nodeKey = node.path
+      const isExpanded = expandedFolders.has(node.path)
       
       return (
-        <div 
-          key={node.path} 
-          className={`file-tree-node ${depthClassName}`}
-          style={forceInlineStyle}
-          data-depth={effectiveDepth}
-          data-node-type={node.type}
-        >
-        <div className="file-tree-item">
-          {node.type === 'dir' ? (
-            <>
+        <React.Fragment key={nodeKey}>
+          {/* 현재 노드 렌더링 */}
+          <div 
+            className="file-tree-node"
+            style={{
+              paddingLeft: `${depth * 20}px`,
+              textAlign: 'left',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              minHeight: '24px',
+              boxSizing: 'border-box'
+            }}
+          >
+            {node.type === 'dir' ? (
               <button 
                 className="folder-toggle"
                 onClick={() => toggleFolder(node.path)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  textAlign: 'left',
+                  width: '100%',
+                  justifyContent: 'flex-start'
+                }}
               >
-                <ChevronRight className={`w-3 h-3 text-gray-500 transition-transform duration-200 ${expandedFolders.has(node.path) ? 'rotate-90' : ''}`} />
-                <Folder className="w-4 h-4 text-blue-600" />
+                <ChevronRight className={`chevron-icon ${isExpanded ? 'rotated' : ''}`} />
+                <Folder className="folder-icon" />
                 <span className="folder-name">{node.name}</span>
               </button>
+            ) : (
               <div 
-                className={`folder-children ${expandedFolders.has(node.path) ? 'expanded' : 'collapsed'}`}
+                className="file-item-tree"
+                onClick={() => handleFileClick(node)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  textAlign: 'left',
+                  width: '100%',
+                  justifyContent: 'flex-start'
+                }}
               >
-                {expandedFolders.has(node.path) && node.children && 
-                  renderFileTree(node.children, depth + 1)
-                }
+                {getFileIcon(node.name)}
+                <span className={`file-name ${searchTerm && node.name.toLowerCase().includes(searchTerm.toLowerCase()) ? 'highlight' : ''}`}>
+                  {node.name}
+                </span>
+                {node.size && (
+                  <span className="file-size">{(node.size / 1024).toFixed(1)} KB</span>
+                )}
               </div>
-            </>
-          ) : (
-            <div 
-              className="file-item-tree"
-              onClick={() => handleFileClick(node)}
-            >
-              {getFileIcon(node.name)}
-              <span className={`file-name ${searchTerm && node.name.toLowerCase().includes(searchTerm.toLowerCase()) ? 'highlight' : ''}`}>
-                {node.name}
-              </span>
-              {node.size && (
-                <span className="file-size">{(node.size / 1024).toFixed(1)} KB</span>
-              )}
-            </div>
+            )}
+          </div>
+          
+          {/* 하위 폴더가 있고 확장된 경우에만 렌더링 */}
+          {node.type === 'dir' && isExpanded && node.children && (
+            renderFileTree(node.children, depth + 1)
           )}
-        </div>
-        </div>
+        </React.Fragment>
       )
     })
   }
@@ -895,28 +891,28 @@ export const DashboardPage: React.FC = () => {
   }
 
   const getCategoryIcon = (category: string): React.ReactNode => {
-    if (!category) return <Code className="w-4 h-4 text-gray-500" />
+    if (!category) return <Code className="category-icon category-icon-default" />
     switch (category.toLowerCase()) {
       case 'technical': 
-        return <Terminal className="w-4 h-4 text-blue-600" />
+        return <Terminal className="category-icon category-icon-technical" />
       case 'architectural': 
-        return <Monitor className="w-4 h-4 text-purple-600" />
+        return <Monitor className="category-icon category-icon-architectural" />
       case 'scenario': 
-        return <MessageSquare className="w-4 h-4 text-green-600" />
+        return <MessageSquare className="category-icon category-icon-scenario" />
       case 'algorithm': 
-        return <Zap className="w-4 h-4 text-yellow-600" />
+        return <Zap className="category-icon category-icon-algorithm" />
       case 'data-structure': 
-        return <Database className="w-4 h-4 text-indigo-600" />
+        return <Database className="category-icon category-icon-datastructure" />
       case 'system-design': 
-        return <TrendingUp className="w-4 h-4 text-red-600" />
+        return <TrendingUp className="category-icon category-icon-systemdesign" />
       case 'code-review': 
-        return <CheckCircle className="w-4 h-4 text-green-500" />
+        return <CheckCircle className="category-icon category-icon-codereview" />
       case 'best-practices': 
-        return <Star className="w-4 h-4 text-yellow-500" />
+        return <Star className="category-icon category-icon-bestpractices" />
       case 'debugging': 
-        return <AlertTriangle className="w-4 h-4 text-red-500" />
+        return <AlertTriangle className="category-icon category-icon-debugging" />
       default: 
-        return <Code className="w-4 h-4 text-gray-500" />
+        return <Code className="category-icon category-icon-default" />
     }
   }
 
@@ -1003,7 +999,7 @@ export const DashboardPage: React.FC = () => {
     return (
       <div className="dashboard-error">
         <div className="error-content">
-          <h2>❌ {error ? '오류 발생' : '분석 결과를 찾을 수 없습니다'}</h2>
+          <h2>{error ? '오류 발생' : '분석 결과를 찾을 수 없습니다'}</h2>
           <p>분석 ID: <code>{analysisId}</code></p>
           {error ? (
             <p className="error-message">오류: {error}</p>
@@ -1021,7 +1017,7 @@ export const DashboardPage: React.FC = () => {
               }} 
               className="btn btn-ghost"
             >
-              🔄 다시 시도
+              다시 시도
             </button>
           </div>
         </div>
@@ -1176,7 +1172,15 @@ export const DashboardPage: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                      <div className="file-tree-content">
+                      <div 
+                        className="file-tree-content"
+                        style={{
+                          textAlign: 'left',
+                          display: 'block',
+                          width: '100%',
+                          boxSizing: 'border-box'
+                        }}
+                      >
                         {renderFileTree(searchTerm ? filteredFiles : allFiles)}
                       </div>
                     </>

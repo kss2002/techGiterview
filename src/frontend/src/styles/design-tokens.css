@@ -1,5 +1,6 @@
 /**
  * TechGiterview 통합 디자인 토큰 시스템
+ * CACHE_BUSTER: 20250817-120000-UNIQUE-FORCE-RELOAD
  * 
  * 모든 색상, 간격, 타이포그래피, 그림자 등의 디자인 요소를 중앙에서 관리합니다.
  * 이 파일은 프로젝트 전체에서 일관된 디자인을 보장하기 위한 Single Source of Truth입니다.
@@ -62,7 +63,7 @@
   --primary-900: var(--brand-navy-900);
   --primary-950: var(--brand-navy-950);
   
-  /* 테스트용 - CSS 변경 감지 완료 ✅ */
+  /* 테스트용 - CSS 변경 감지 완료 */
 
   /* Secondary Colors - 브랜드 그린을 Secondary로 매핑 */
   --secondary-50: var(--brand-green-50);
@@ -403,7 +404,7 @@
   --code-line-height: 1.5;
 
   /* File Tree Indentation System - 통합 들여쓰기 시스템 */
-  --file-tree-indent-per-level: 4px;   /* 기본 들여쓰기 (데스크톱) */
+  --file-tree-indent-per-level: 16px;  /* 데스크톱: 16px 들여쓰기로 계층 구조 표시 */
   --file-tree-max-depth: 6;            /* 최대 깊이 제한 */
   
   /* 파일 트리 기타 설정 */
@@ -419,14 +420,14 @@
 /* 태블릿: 768px 이상 1024px 미만 */
 @media (min-width: 768px) and (max-width: 1023px) {
   :root {
-    --file-tree-indent-per-level: 3px;
+    --file-tree-indent-per-level: 12px;  /* 태블릿: 12px 들여쓰기 */
   }
 }
 
 /* 모바일: 768px 미만 */
 @media (max-width: 767px) {
   :root {
-    --file-tree-indent-per-level: 2px;
+    --file-tree-indent-per-level: 8px;   /* 모바일: 8px 들여쓰기 */
   }
 }
 
@@ -483,19 +484,19 @@
 
 /* 기본값을 데스크톱으로 설정 - 미디어 쿼리 밖에서 정의 */
 :root {
-  --file-tree-indent-per-level: 4px; /* 기본 데스크톱 값 */
+  --file-tree-indent-per-level: 16px; /* 데스크톱: 16px 들여쓰기로 계층 구조 표시 */
 }
 
-/* 태블릿 (768px ~ 1023px) - 3px */
+/* 태블릿 (768px ~ 1023px) - 12px */
 @media (max-width: 1023px) and (min-width: 768px) {
   :root {
-    --file-tree-indent-per-level: 3px;
+    --file-tree-indent-per-level: 12px;  /* 태블릿: 12px 들여쓰기 */
   }
 }
 
-/* 모바일 (767px 이하) - 2px */
+/* 모바일 (767px 이하) - 8px */
 @media (max-width: 767px) {
   :root {
-    --file-tree-indent-per-level: 2px;
+    --file-tree-indent-per-level: 8px;   /* 모바일: 8px 들여쓰기 */
   }
 }
