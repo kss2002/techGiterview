@@ -425,28 +425,51 @@ body {
   51%, 100% { opacity: 0.3; }
 }
 
-/* 메인 콘텐츠 영역 - 높이 매칭 최적화 */
+/* 메인 콘텐츠 영역 - Fixed 레이아웃 최적화 */
 .interview-content {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 420px;
-  grid-template-rows: 1fr;
-  align-items: end;
-  gap: var(--space-8);
+  display: flex;
+  flex-direction: column;
   padding: var(--space-8);
   max-width: 1600px;
   margin: 0 auto;
   width: 100%;
-  min-height: calc(100vh - 140px);
+  height: calc(100vh - 140px);
+  overflow: visible;
+  position: relative;
 }
 
-/* 질문 컨테이너 */
+/* 질문 컨테이너 - 스크롤 가능 영역 */
 .question-container {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
   overflow-y: auto;
-  height: 100%;
+  flex: 1;
+  padding-right: var(--space-4);
+  padding-bottom: 300px; /* 최적화된 입력창 높이에 맞게 조정 */
+  /* 스크롤바 커스터마이징 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-400) var(--gray-100);
+}
+
+/* 웹킷 기반 브라우저용 스크롤바 */
+.question-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.question-container::-webkit-scrollbar-track {
+  background: var(--gray-100);
+  border-radius: var(--radius-md);
+}
+
+.question-container::-webkit-scrollbar-thumb {
+  background: var(--gray-400);
+  border-radius: var(--radius-md);
+}
+
+.question-container::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-500);
 }
 
 .current-question {
@@ -802,20 +825,39 @@ body {
   line-height: 1.6;
 }
 
-/* 답변 입력 영역 - 질문 영역과 높이 완전 매칭 */
+/* 답변 입력 영역 - 하단 Fixed 고정 */
 .answer-input-area {
-  background: var(--white);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-lg);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -2px rgba(0, 0, 0, 0.1);
   border: 1px solid var(--gray-200);
+  border-bottom: none;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  padding: 0;
+  z-index: 50;
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - var(--space-16));
+  max-width: 1600px;
+  /* 애니메이션 효과 */
+  transition: all var(--transition-normal);
+  backdrop-filter: blur(12px);
+  min-height: auto;
+  max-height: 35vh;
   overflow: hidden;
 }
 
+/* 스티키 상태에서 호버 효과 */
+.answer-input-area:hover {
+  box-shadow: 0 -6px 12px -2px rgba(0, 0, 0, 0.15), 0 -4px 8px -4px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.98);
+}
+
 .input-header {
-  padding: var(--space-6);
+  padding: var(--space-4);
   border-bottom: 1px solid var(--gray-200);
   background: var(--gray-100);
   min-height: auto;
@@ -955,28 +997,48 @@ body {
   font-weight: 600;
 }
 
-/* 입력 컨테이너 - 상단 정렬 및 자연스러운 입력 */
+/* 입력 컨테이너 - 최적화된 레이아웃 */
 .input-container {
-  padding: var(--space-6);
-  flex: 1;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   overflow: hidden;
+  max-height: calc(35vh - 100px);
 }
 
 .input-container .form-textarea {
-  flex: 1;
-  min-height: 200px;
+  min-height: 120px;
+  max-height: calc(35vh - 160px);
   resize: none;
   overflow-y: auto;
   vertical-align: top;
   padding: var(--spacing-4);
   line-height: 1.6;
-  
-  /* 텍스트 입력이 상단부터 시작되도록 */
   text-align: left;
   box-sizing: border-box;
+  /* 스크롤바 스타일링 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-400) var(--gray-100);
+}
+
+/* 텍스트 영역 스크롤바 커스터마이징 */
+.input-container .form-textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.input-container .form-textarea::-webkit-scrollbar-track {
+  background: var(--gray-100);
+  border-radius: var(--radius-sm);
+}
+
+.input-container .form-textarea::-webkit-scrollbar-thumb {
+  background: var(--gray-400);
+  border-radius: var(--radius-sm);
+}
+
+.input-container .form-textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-500);
 }
 
 /* 답변 입력창은 이제 .form-input.form-textarea 표준 컴포넌트 사용 */
@@ -1274,11 +1336,28 @@ body {
   }
 }
 
-/* 반응형 디자인 */
+/* 반응형 디자인 - Fixed 레이아웃 최적화 */
 @media (max-width: 1400px) {
   .interview-content {
-    grid-template-columns: 1fr 380px;
-    gap: var(--space-6);
+    padding: var(--space-6);
+  }
+  
+  .question-container {
+    padding-bottom: 280px; /* 작아진 입력창에 맞게 조정 */
+  }
+  
+  .answer-input-area {
+    max-height: 32vh; /* 더 작게 조정 */
+    width: calc(100% - var(--space-12));
+  }
+  
+  .input-container {
+    max-height: calc(32vh - 100px);
+  }
+  
+  .input-container .form-textarea {
+    max-height: calc(32vh - 160px);
+    min-height: 110px;
   }
 }
 
@@ -1298,54 +1377,73 @@ body {
 
 @media (max-width: 1200px) {
   .interview-content {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    gap: var(--space-6);
-    min-height: auto;
+    padding: var(--space-6);
+    height: calc(100vh - 120px);
   }
   
   .question-container {
-    height: auto;
-    overflow-y: visible;
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 320px; /* 태블릿 입력창 크기에 맞게 조정 */
   }
   
   .answer-input-area {
-    order: -1;
-    height: auto;
-    min-height: 500px;
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - var(--space-8));
+    max-width: 1200px;
+    max-height: 40vh; /* 더 작게 조정 */
+  }
+  
+  .input-container {
+    max-height: calc(40vh - 100px);
   }
   
   .input-container .form-textarea {
-    min-height: 250px;
-    resize: vertical;
+    min-height: 120px;
+    max-height: calc(40vh - 160px);
+    resize: none;
   }
 }
 
 @media (max-width: 768px) {
   .interview-content {
     padding: var(--space-4);
-    gap: var(--space-4);
-    min-height: auto;
+    height: calc(100vh - 180px);
+  }
+  
+  .question-container {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 280px; /* 모바일 입력창에 맞게 조정 */
+    padding-right: var(--space-2);
   }
   
   .answer-input-area {
-    min-height: 400px;
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - var(--space-4));
+    max-width: 100%;
+    max-height: 38vh; /* 더 작게 조정 */
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   }
   
-  .input-container .form-textarea {
-    min-height: 200px;
-  }
-  
-  .input-header {
-    min-height: auto;
+  .input-container {
+    max-height: calc(38vh - 90px);
     padding: var(--space-4);
   }
   
-  /* answer-item이 없을 때만 최소 높이 설정 */
-  .interview-content:not(:has(.answer-item)) .input-header,
-  .interview-content:not(.has-answers) .input-header {
-    min-height: 50px;
-    justify-content: center;
+  .input-container .form-textarea {
+    min-height: 100px;
+    max-height: calc(38vh - 150px);
+  }
+  
+  .input-header {
+    padding: var(--space-4);
   }
   
   .interview-header {
@@ -1518,19 +1616,40 @@ body {
 @media (max-width: 480px) {
   .interview-content {
     padding: var(--space-3);
-    min-height: auto;
+    height: calc(100vh - 160px);
   }
   
   .interview-header {
     padding: var(--space-3);
   }
   
+  .question-container {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 240px; /* 소형 모바일 입력창에 맞게 조정 */
+    padding-right: var(--space-1);
+  }
+  
   .answer-input-area {
-    min-height: 350px;
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - var(--space-2));
+    max-width: 100%;
+    max-height: 35vh; /* 더 작게 조정 */
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  
+  .input-container {
+    max-height: calc(35vh - 80px);
+    padding: var(--space-3);
   }
   
   .input-container .form-textarea {
-    min-height: 150px;
+    min-height: 90px;
+    max-height: calc(35vh - 140px);
+    font-size: 16px; /* iOS 줌 방지 */
   }
   
   .question-header {
@@ -1539,15 +1658,7 @@ body {
   }
   
   .input-header {
-    min-height: auto;
     padding: var(--space-3);
-  }
-  
-  /* answer-item이 없을 때만 최소 높이 설정 */
-  .interview-content:not(:has(.answer-item)) .input-header,
-  .interview-content:not(.has-answers) .input-header {
-    min-height: 40px;
-    justify-content: center;
   }
   
   .step {
@@ -1638,6 +1749,48 @@ body {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* 가상 키보드 대응 - 모바일 최적화 */
+@media (max-width: 768px) {
+  /* 가상 키보드가 나타날 때 뷰포트 높이 변화 대응 */
+  .interview-page {
+    min-height: 100vh;
+    min-height: 100dvh; /* 동적 뷰포트 높이 */
+  }
+  
+  .interview-content {
+    height: calc(100vh - 180px);
+    height: calc(100dvh - 180px); /* 동적 뷰포트 높이 */
+  }
+  
+  /* 키보드 포커스 시 입력창 조정 */
+  .input-container .form-textarea:focus {
+    min-height: 80px;
+    max-height: calc(30vh - 100px);
+  }
+  
+  /* 가상 키보드로 인한 레이아웃 시프트 방지 */
+  .answer-input-area {
+    transform: translateZ(0); /* GPU 가속 */
+    will-change: transform;
+  }
+}
+
+/* iOS Safari 전용 가상 키보드 대응 */
+@supports (-webkit-appearance: none) {
+  @media (max-width: 768px) {
+    .input-container .form-textarea {
+      /* iOS 줌 방지를 위한 최소 폰트 크기 */
+      font-size: max(16px, 1rem);
+    }
+    
+    /* iOS 가상 키보드 시 뷰포트 변화 대응 */
+    .interview-content {
+      height: calc(100vh - 180px);
+      min-height: calc(100vh - 180px);
+    }
+  }
 }
 
 /* 접근성 개선 */

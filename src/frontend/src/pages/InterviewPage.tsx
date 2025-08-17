@@ -770,8 +770,15 @@ export const InterviewPage: React.FC = () => {
       const sessionData = sessionResult.data
       const questionsData = questionsResult.data.questions
       
+      // 중복 제거를 위한 고유 질문 필터링
+      const uniqueQuestionsData = questionsData.filter((question: any, index: number, array: any[]) => 
+        array.findIndex(q => q.id === question.id) === index
+      );
+      
+      console.log('[DEDUP] 원본 질문 수:', questionsData.length, '중복 제거 후:', uniqueQuestionsData.length);
+      
       // 질문 데이터 형식 변환 (context 객체를 문자열로 변환)
-      const transformedQuestions = questionsData.map((q: any) => ({
+      const transformedQuestions = uniqueQuestionsData.map((q: any) => ({
         id: q.id,
         question: q.question,
         category: q.category,
