@@ -64,6 +64,50 @@
 
 /* 분석 입력 섹션은 이제 표준 .container + .card 컴포넌트 사용 */
 
+/* ============================================
+   URL 입력 그룹 - 가로 레이아웃
+   ============================================ */
+
+/* URL 입력 그룹 메인 컨테이너 */
+.url-input-group {
+  display: flex;
+  gap: var(--spacing-4);
+  align-items: stretch;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* 입력 필드 - flex로 확장 */
+.url-input-group .form-input {
+  flex: 1;
+  min-width: 0; /* flex shrink 허용 */
+  height: auto;
+  border-radius: var(--radius-xl) 0 0 var(--radius-xl); /* 왼쪽만 둥글게 */
+}
+
+/* 버튼 - 고정 크기 유지 */
+.url-input-group .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-width: 140px;
+  align-self: stretch; /* 입력 필드와 높이 맞춤 */
+  border-radius: 0 var(--radius-xl) var(--radius-xl) 0; /* 오른쪽만 둥글게 */
+  margin-left: -1px; /* 경계선 겹침 제거 */
+}
+
+/* 연결된 입력 필드와 버튼 스타일 */
+.url-input-group .form-input:focus {
+  z-index: 2;
+  position: relative;
+}
+
+.url-input-group .btn:hover,
+.url-input-group .btn:focus {
+  z-index: 1;
+  position: relative;
+}
+
 /* URL 입력 필드만의 특별한 스타일 오버라이드 */
 .form-input.form-input-lg {
   font-family: var(--font-mono);
@@ -177,6 +221,34 @@
    반응형 디자인
    ============================================ */
 
-/* 반응형 스타일은 이제 표준 컴포넌트에서 처리됩니다 */
+/* ============================================
+   반응형 디자인 - URL 입력 그룹
+   ============================================ */
 
-/* 모든 반응형 스타일은 표준 컴포넌트에서 처리됩니다 */
+/* 태블릿 이하에서 세로 배치 */
+@media (max-width: 768px) {
+  .url-input-group {
+    flex-direction: column;
+    gap: var(--spacing-3);
+    max-width: 100%;
+  }
+  
+  /* 모바일에서 원래 둥근 모서리로 복원 */
+  .url-input-group .form-input {
+    border-radius: var(--radius-xl);
+  }
+  
+  .url-input-group .btn {
+    border-radius: var(--radius-xl);
+    margin-left: 0;
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+/* 매우 작은 화면에서 추가 최적화 */
+@media (max-width: 480px) {
+  .url-input-group {
+    gap: var(--spacing-2);
+  }
+}
