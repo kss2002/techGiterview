@@ -769,32 +769,12 @@ export const DashboardPage: React.FC = () => {
           {/* 현재 노드 렌더링 */}
           <div 
             className="file-tree-node"
-            style={{
-              paddingLeft: `${depth * 20}px`,
-              textAlign: 'left',
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              minHeight: '24px',
-              boxSizing: 'border-box'
-            }}
+            style={{paddingLeft: `${depth * 20}px`}}
           >
             {node.type === 'dir' ? (
               <button 
                 className="folder-toggle"
                 onClick={() => toggleFolder(node.path)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  cursor: 'pointer',
-                  padding: '2px 4px',
-                  textAlign: 'left',
-                  width: '100%',
-                  justifyContent: 'flex-start'
-                }}
               >
                 <ChevronRight className={`chevron-icon ${isExpanded ? 'rotated' : ''}`} />
                 <Folder className="folder-icon" />
@@ -804,16 +784,6 @@ export const DashboardPage: React.FC = () => {
               <div 
                 className="file-item-tree"
                 onClick={() => handleFileClick(node)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  cursor: 'pointer',
-                  padding: '2px 4px',
-                  textAlign: 'left',
-                  width: '100%',
-                  justifyContent: 'flex-start'
-                }}
               >
                 {getFileIcon(node.name)}
                 <span className={`file-name ${searchTerm && node.name.toLowerCase().includes(searchTerm.toLowerCase()) ? 'highlight' : ''}`}>
@@ -1052,17 +1022,17 @@ export const DashboardPage: React.FC = () => {
                 <p className="repo-description">{analysisResult.repo_info.description}</p>
                 <div className="repo-stats">
                   <div className="stat">
-                    <Star className="w-6 h-6 text-yellow-500 mb-1" />
+                    <Star className="section-icon" />
                     <span className="stat-value">{analysisResult.repo_info.stars.toLocaleString()}</span>
                     <span className="stat-label">Stars</span>
                   </div>
                   <div className="stat">
-                    <GitFork className="w-6 h-6 text-blue-500 mb-1" />
+                    <GitFork className="section-icon" />
                     <span className="stat-value">{analysisResult.repo_info.forks.toLocaleString()}</span>
                     <span className="stat-label">Forks</span>
                   </div>
                   <div className="stat">
-                    <Code className="w-6 h-6 text-purple-500 mb-1" />
+                    <Code className="section-icon" />
                     <span className="stat-value">{analysisResult.repo_info.language}</span>
                     <span className="stat-label">Language</span>
                   </div>
@@ -1081,7 +1051,7 @@ export const DashboardPage: React.FC = () => {
                 {analysisResult.recommendations.length > 0 ? (
                   analysisResult.recommendations.map((recommendation, index) => (
                     <div key={index} className="recommendation-item">
-                      <ArrowRight className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <ArrowRight className="section-icon" />
                       <span className="recommendation-text">{recommendation}</span>
                     </div>
                   ))
@@ -1154,33 +1124,27 @@ export const DashboardPage: React.FC = () => {
                         </div>
                         <div className="file-tree-controls">
                           <div className="relative">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <Search className="section-icon" style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', zIndex: 10}} />
                             <input
                               type="text"
                               placeholder="파일 검색..."
                               value={searchTerm}
                               onChange={(e) => handleSearch(e.target.value)}
-                              className="form-input form-input-sm pl-10"
+                              className="form-input form-input-sm"
+                              style={{paddingLeft: 'var(--spacing-10)'}}
                             />
                           </div>
                           <button 
-                            className="btn btn-ghost btn-sm flex items-center gap-1"
+                            className="btn btn-ghost btn-sm"
                             onClick={() => setExpandedFolders(new Set())}
+                            style={{display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)'}}
                           >
-                            <Minus className="w-3 h-3" />
+                            <Minus className="section-icon" style={{width: '0.75rem', height: '0.75rem'}} />
                             모두 접기
                           </button>
                         </div>
                       </div>
-                      <div 
-                        className="file-tree-content"
-                        style={{
-                          textAlign: 'left',
-                          display: 'block',
-                          width: '100%',
-                          boxSizing: 'border-box'
-                        }}
-                      >
+                      <div className="file-tree-content">
                         {renderFileTree(searchTerm ? filteredFiles : allFiles)}
                       </div>
                     </>
@@ -1211,11 +1175,12 @@ export const DashboardPage: React.FC = () => {
                 {isLoadingQuestions ? '생성 중...' : '질문 재생성'}
               </button>
               <button 
-                className="btn btn-primary btn-lg flex items-center gap-2 justify-center"
+                className="btn btn-primary btn-lg"
                 onClick={startInterview}
                 disabled={questions.length === 0 || isLoadingQuestions}
+                style={{display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', justifyContent: 'center'}}
               >
-                <Play className="w-4 h-4" />
+                <Play className="section-icon" style={{width: '1rem', height: '1rem'}} />
                 {isLoadingQuestions ? '준비 중...' : '모의면접 시작'}
               </button>
             </div>
@@ -1314,11 +1279,6 @@ export const DashboardPage: React.FC = () => {
                     <div className="question-text">
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
-                        components={{
-                          p: ({ children }) => <p style={{ margin: '0 0 12px 0' }}>{children}</p>,
-                          code: ({ children }) => <code style={{ background: '#f1f5f9', padding: '2px 4px', borderRadius: '3px', fontSize: '0.9em' }}>{children}</code>,
-                          pre: ({ children }) => <pre style={{ background: '#f8fafc', padding: '12px', borderRadius: '6px', overflow: 'auto', border: '1px solid #e2e8f0' }}>{children}</pre>
-                        }}
                       >
                         {question.question}
                       </ReactMarkdown>
@@ -1328,7 +1288,10 @@ export const DashboardPage: React.FC = () => {
                     {question.source_file && (
                       <div className="question-source-file">
                         {getFileIcon(question.source_file)}
-                        <span className="source-file-text"><FileText className="w-4 h-4 inline mr-2" />기반 파일: {question.source_file}</span>
+                        <span className="source-file-text">
+                          <FileText className="section-icon" style={{width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)'}} />
+                          기반 파일: {question.source_file}
+                        </span>
                         {question.importance && (
                           <span className={`importance-badge ${question.importance}`}>
                             {question.importance === 'high' ? '[CORE] 핵심' : '[SUB] 보조'}
@@ -1338,16 +1301,25 @@ export const DashboardPage: React.FC = () => {
                     )}
                     
                     {question.context && (
-                      <p className="question-context"><Info className="w-4 h-4 inline mr-2" /> {question.context}</p>
+                      <p className="question-context">
+                        <Info className="section-icon" style={{width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)'}} /> 
+                        {question.context}
+                      </p>
                     )}
                     {question.technology && (
-                      <p className="question-tech"><Tag className="w-4 h-4 inline mr-2" /> 기술: {question.technology}</p>
+                      <p className="question-tech">
+                        <Tag className="section-icon" style={{width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)'}} /> 
+                        기술: {question.technology}
+                      </p>
                     )}
                     {question.code_snippet && (
                       <div className="question-code">
                         <div className="code-header">
                           {getFileIcon(question.code_snippet.file_path)}
-                          <span className="code-file-path"><File className="w-4 h-4 inline mr-1" /> {question.code_snippet.file_path}</span>
+                          <span className="code-file-path">
+                            <File className="section-icon" style={{width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-1)'}} /> 
+                            {question.code_snippet.file_path}
+                          </span>
                           {question.code_snippet.has_real_content === false && (
                             <span className="content-status warning">
                               [WARN] 내용 없음 ({question.code_snippet.content_unavailable_reason})
