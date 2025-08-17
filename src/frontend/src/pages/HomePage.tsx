@@ -168,7 +168,7 @@ export const HomePage: React.FC = () => {
           <div className="card">
             <div className="card-body">
               <h3 className="heading-4 flex items-center gap-sm">
-              🤖 AI 모델 선택
+              AI 모델 선택
             </h3>
             {providers.length > 0 ? (
               <div className="grid grid-auto-fit gap-md">
@@ -244,7 +244,7 @@ export const HomePage: React.FC = () => {
                     분석 중...
                   </>
                 ) : (
-                  '🚀 분석 시작'
+                  '분석 시작'
                 )}
               </button>
             </div>
@@ -253,7 +253,7 @@ export const HomePage: React.FC = () => {
           <div className="card">
             <div className="card-body text-center">
               <p className="text-body">
-              💡 샘플 저장소로 체험해보기:
+              샘플 저장소로 체험해보기:
             </p>
               <div className="flex flex-wrap justify-center gap-sm">
               {sampleRepos.map((repo, index) => (
@@ -280,7 +280,7 @@ export const HomePage: React.FC = () => {
           <div className="card hover-lift-sm animate-fade-in text-center">
             <div className="card-body">
               <div className="text-5xl mb-4">
-                📊
+                CHART
               </div>
               <h3 className="heading-3">저장소 분석</h3>
               <p className="text-body">GitHub 저장소의 코드 구조, 기술 스택, 복잡도를 자동으로 분석합니다.</p>
@@ -290,7 +290,7 @@ export const HomePage: React.FC = () => {
           <div className="card hover-lift-sm animate-fade-in text-center">
             <div className="card-body">
               <div className="text-5xl mb-4">
-                🤖
+                AI
               </div>
               <h3 className="heading-3">AI 질문 생성</h3>
               <p className="text-body">분석 결과를 바탕으로 맞춤형 기술면접 질문을 자동으로 생성합니다.</p>
@@ -300,7 +300,7 @@ export const HomePage: React.FC = () => {
           <div className="card hover-lift-sm animate-fade-in text-center">
             <div className="card-body">
               <div className="text-5xl mb-4">
-                💬
+                CHAT
               </div>
               <h3 className="heading-3">실시간 모의면접</h3>
               <p className="text-body">WebSocket 기반으로 실제 면접과 같은 환경에서 연습할 수 있습니다.</p>
@@ -310,7 +310,7 @@ export const HomePage: React.FC = () => {
           <div className="card hover-lift-sm animate-fade-in text-center">
             <div className="card-body">
               <div className="text-5xl mb-4">
-                📈
+                CHART
               </div>
               <h3 className="heading-3">상세 리포트</h3>
               <p className="text-body">답변에 대한 AI 평가와 개선 제안을 통해 실력을 향상시킬 수 있습니다.</p>
@@ -392,7 +392,7 @@ export const HomePage: React.FC = () => {
                   rel="noopener noreferrer"
                   className="footer-link"
                 >
-                  🐙 GitHub Repository
+                  GitHub Repository
                 </a>
                 <a
                   href="https://buymeacoffee.com/oursophy"
@@ -400,7 +400,7 @@ export const HomePage: React.FC = () => {
                   rel="noopener noreferrer"
                   className="footer-link"
                 >
-                  ☕ Buy Me a Coffee
+                  Buy Me a Coffee
                 </a>
               </div>
             </div>
@@ -408,10 +408,10 @@ export const HomePage: React.FC = () => {
             <div className="footer-section">
               <h4>연락처</h4>
               <ul>
-                <li>📧 hong112424@naver.com</li>
-                <li>🐛 GitHub Issues</li>
-                <li>💬 Discord Community</li>
-                <li>📚 Documentation</li>
+                <li>EMAIL hong112424@naver.com</li>
+                <li>BUG GitHub Issues</li>
+                <li>CHAT Discord Community</li>
+                <li>DOCS Documentation</li>
               </ul>
             </div>
           </div>

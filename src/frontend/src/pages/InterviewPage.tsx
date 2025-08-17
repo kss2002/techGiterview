@@ -706,7 +706,7 @@ export const InterviewPage: React.FC = () => {
           setMessages([{
             id: 'session-not-found',
             type: 'system',
-            content: '⚠️ 면접 세션을 찾을 수 없습니다. 세션이 만료되었거나 시스템이 업데이트되었을 수 있습니다. 새로운 면접을 시작해주세요.',
+            content: '면접 세션을 찾을 수 없습니다. 세션이 만료되었거나 시스템이 업데이트되었을 수 있습니다. 새로운 면접을 시작해주세요.',
             timestamp: new Date()
           }])
           
@@ -729,7 +729,7 @@ export const InterviewPage: React.FC = () => {
           setMessages([{
             id: 'questions-not-found',
             type: 'system',
-            content: '⚠️ 면접 질문을 찾을 수 없습니다. 분석 데이터가 손실되었거나 시스템이 업데이트되었을 수 있습니다.',
+            content: '면접 질문을 찾을 수 없습니다. 분석 데이터가 손실되었거나 시스템이 업데이트되었을 수 있습니다.',
             timestamp: new Date()
           }])
           
@@ -818,7 +818,7 @@ export const InterviewPage: React.FC = () => {
         welcomeMessages.push({
           id: 'session-restored',
           type: 'system', 
-          content: `✅ 이전 면접 세션이 복원되었습니다. (${historyResult.answeredCount}/${transformedQuestions.length} 질문 완료)`,
+          content: `이전 면접 세션이 복원되었습니다. (${historyResult.answeredCount}/${transformedQuestions.length} 질문 완료)`,
           timestamp: new Date()
         })
         
@@ -849,7 +849,7 @@ export const InterviewPage: React.FC = () => {
           welcomeMessages.push({
             id: 'all-completed',
             type: 'system',
-            content: '🎉 모든 질문이 완료되었습니다! 면접을 종료하거나 답변을 검토해보세요.',
+            content: '모든 질문이 완료되었습니다! 면접을 종료하거나 답변을 검토해보세요.',
             timestamp: new Date()
           })
         }
@@ -858,7 +858,7 @@ export const InterviewPage: React.FC = () => {
         welcomeMessages.push({
           id: 'welcome',
           type: 'system',
-          content: '🎤 모의면접을 시작합니다! 편안하게 답변해주세요.',
+          content: '모의면접을 시작합니다! 편안하게 답변해주세요.',
           timestamp: new Date()
         })
         
@@ -866,7 +866,7 @@ export const InterviewPage: React.FC = () => {
           welcomeMessages.push({
             id: 'interview-info',
             type: 'system',
-            content: `📋 총 ${transformedQuestions.length}개의 질문이 준비되었습니다.`,
+            content: `총 ${transformedQuestions.length}개의 질문이 준비되었습니다.`,
             timestamp: new Date()
           })
           
@@ -895,7 +895,7 @@ export const InterviewPage: React.FC = () => {
       setMessages([{
         id: 'load-error',
         type: 'system',
-        content: `❌ ${errorMessage}`,
+        content: `ERROR: ${errorMessage}`,
         timestamp: new Date()
       }])
       
@@ -1080,7 +1080,7 @@ export const InterviewPage: React.FC = () => {
           setMessages(prev => [...prev, {
             id: 'completed',
             type: 'system',
-            content: '🎉 모든 질문이 완료되었습니다! 수고하셨습니다. 결과를 확인해보세요.',
+            content: '모든 질문이 완료되었습니다! 수고하셨습니다. 결과를 확인해보세요.',
             timestamp: new Date()
           }])
         } else {
@@ -1092,7 +1092,7 @@ export const InterviewPage: React.FC = () => {
             let guidanceMessage = ''
             
             if (score >= 8.0) {
-              guidanceMessage = '✨ 훌륭한 답변입니다! 다음 질문으로 자동 진행됩니다.'
+              guidanceMessage = '훌륭한 답변입니다! 다음 질문으로 자동 진행됩니다.'
               
               // 높은 점수면 자동으로 다음 질문
               setTimeout(async () => {
@@ -1100,9 +1100,9 @@ export const InterviewPage: React.FC = () => {
               }, 2500);
               
             } else if (score >= 6.0) {
-              guidanceMessage = '👍 좋은 답변입니다. 추가 질문이 있으면 언제든 물어보세요. "다음 질문"을 입력하면 계속 진행할 수 있습니다.'
+              guidanceMessage = '좋은 답변입니다. 추가 질문이 있으면 언제든 물어보세요. "다음 질문"을 입력하면 계속 진행할 수 있습니다.'
             } else {
-              guidanceMessage = '💡 답변에 대해 더 자세히 알아보고 싶다면 추가 질문을 해보세요. 준비가 되면 "다음 질문"을 입력하세요.'
+              guidanceMessage = '답변에 대해 더 자세히 알아보고 싶다면 추가 질문을 해보세요. 준비가 되면 "다음 질문"을 입력하세요.'
             }
             
             if (guidanceMessage) {
@@ -1118,7 +1118,7 @@ export const InterviewPage: React.FC = () => {
             setMessages(prev => [...prev, {
               id: `next-guidance-${Date.now()}`,
               type: 'system',
-              content: '📝 답변이 저장되었습니다. "다음 질문"을 입력하여 계속 진행하거나, 이 문제에 대해 더 질문해보세요.',
+              content: 'NOTE 답변이 저장되었습니다. "다음 질문"을 입력하여 계속 진행하거나, 이 문제에 대해 더 질문해보세요.',
               timestamp: new Date()
             }])
           }
@@ -1147,7 +1147,7 @@ export const InterviewPage: React.FC = () => {
       setMessages(prev => [...prev, {
         id: `error-${Date.now()}`,
         type: 'system',
-        content: `❌ ${errorMessage}. 잠시 후 다시 시도해주세요.`,
+        content: `ERROR: ${errorMessage}. 잠시 후 다시 시도해주세요.`,
         timestamp: new Date()
       }]);
       
