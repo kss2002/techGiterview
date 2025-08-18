@@ -444,16 +444,15 @@ export const InterviewPage: React.FC = () => {
             heightSource: answerHistory ? '답변 기반 계산' : 'question-header 직접 사용'
           })
           
-          // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정
-          inputHeader.style.transition = 'min-height 0.3s ease-out'
+          // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정 (애니메이션 제거)
           inputHeader.style.minHeight = `${finalHeight}px`
           inputHeader.style.setProperty('--dynamic-height', `${finalHeight}px`)
           
-          // 높이 조정 중 시각적 피드백
+          // 높이 조정 중 시각적 피드백 (즉시 제거)
           inputHeader.classList.add('adjusting')
           setTimeout(() => {
             inputHeader.classList.remove('adjusting')
-          }, 300)
+          }, 0)
           
           // 이전 높이 업데이트 (기준점 설정)
           previousHeightRef.current = finalHeight
@@ -475,16 +474,15 @@ export const InterviewPage: React.FC = () => {
               calculation: '통일된 알고리즘 적용됨'
             })
             
-            // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정
-            inputHeader.style.transition = 'min-height 0.3s ease-out'
+            // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정 (애니메이션 제거)
             inputHeader.style.minHeight = `${finalHeight}px`
             inputHeader.style.setProperty('--dynamic-height', `${finalHeight}px`)
             
-            // 높이 조정 중 시각적 피드백
+            // 높이 조정 중 시각적 피드백 (즉시 제거)
             inputHeader.classList.add('adjusting')
             setTimeout(() => {
               inputHeader.classList.remove('adjusting')
-            }, 300)
+            }, 0)
             
             // 이전 높이 업데이트
             previousHeightRef.current = finalHeight
@@ -507,42 +505,42 @@ export const InterviewPage: React.FC = () => {
     
   }, [])
 
-  // 동적 높이 조정 - 메시지, 질문 변경 시
-  useEffect(() => {
-    // DOM이 업데이트된 후 높이 계산
-    const timeoutId = setTimeout(() => {
-      updateInputHeaderHeight()
-    }, 100)
+  // 동적 높이 조정 - 메시지, 질문 변경 시 (비활성화)
+  // useEffect(() => {
+  //   // DOM이 업데이트된 후 높이 계산
+  //   const timeoutId = setTimeout(() => {
+  //     updateInputHeaderHeight()
+  //   }, 100)
     
-    return () => clearTimeout(timeoutId)
-  }, [messages, currentQuestionIndex, updateInputHeaderHeight])
+  //   return () => clearTimeout(timeoutId)
+  // }, [messages, currentQuestionIndex, updateInputHeaderHeight])
 
-  // ResizeObserver로 실시간 높이 변화 감지 - 최적화된 관찰
-  useEffect(() => {
-    if (!questionContainerRef.current) return
+  // ResizeObserver로 실시간 높이 변화 감지 - 최적화된 관찰 (비활성화)
+  // useEffect(() => {
+  //   if (!questionContainerRef.current) return
     
-    const resizeObserver = new ResizeObserver(() => {
-      updateInputHeaderHeight()
-    })
+  //   const resizeObserver = new ResizeObserver(() => {
+  //     updateInputHeaderHeight()
+  //   })
     
-    const questionContainer = questionContainerRef.current
-    resizeObserver.observe(questionContainer)
+  //   const questionContainer = questionContainerRef.current
+  //   resizeObserver.observe(questionContainer)
     
-    // 답변 히스토리 영역도 관찰
-    const answerHistory = questionContainer.querySelector('.answer-history')
-    if (answerHistory) {
-      resizeObserver.observe(answerHistory as Element)
-    }
+  //   // 답변 히스토리 영역도 관찰
+  //   const answerHistory = questionContainer.querySelector('.answer-history')
+  //   if (answerHistory) {
+  //     resizeObserver.observe(answerHistory as Element)
+  //   }
     
-    return () => {
-      resizeObserver.disconnect()
-      // 디바운스 타이머 정리
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-        debounceTimerRef.current = null
-      }
-    }
-  }, [updateInputHeaderHeight])
+  //   return () => {
+  //     resizeObserver.disconnect()
+  //     // 디바운스 타이머 정리
+  //     if (debounceTimerRef.current) {
+  //       clearTimeout(debounceTimerRef.current)
+  //       debounceTimerRef.current = null
+  //     }
+  //   }
+  // }, [updateInputHeaderHeight])
 
   // 컴포넌트 언마운트 시 타이머 정리
   useEffect(() => {
