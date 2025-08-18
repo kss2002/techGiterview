@@ -842,8 +842,6 @@ body {
   transform: translateX(-50%);
   width: calc(100% - var(--space-16));
   max-width: 1600px;
-  /* 애니메이션 효과 */
-  transition: all var(--transition-normal);
   backdrop-filter: blur(12px);
   min-height: auto;
   max-height: 35vh;
@@ -860,112 +858,30 @@ body {
   padding: var(--space-4);
   border-bottom: 1px solid var(--gray-200);
   background: var(--gray-100);
-  min-height: auto;
+  /* 고정 높이 설정 - 동적 변화 완전 차단 */
+  height: 80px !important;
+  min-height: 80px !important;
+  max-height: 80px !important;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  transition: min-height 0.3s ease-out;
-  position: relative;
   overflow: hidden;
+  /* 모든 높이 변화 애니메이션 제거 */
+  transition: none !important;
 }
 
-/* answer-item이 존재할 때 input-header 높이 동적 조정 */
-.interview-content:has(.answer-item) .input-header {
-  min-height: auto;
-  padding: var(--space-6);
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  /* CSS 기반 높이 매칭 지원 */
-  position: relative;
-}
-
-/* answer-item이 여러 개 있을 때 마지막 아이템 기준으로 정렬 */
-.interview-content:has(.answer-item:last-of-type) .input-header {
-  /* JavaScript에서 계산된 높이가 우선되지만, CSS 폴백도 제공 */
-  min-height: max(120px, var(--dynamic-height, auto));
-}
-
-/* :has() 미지원 브라우저를 위한 폴백 */
-.interview-content.has-answers .input-header {
-  min-height: auto;
-  padding: var(--space-6);
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-}
-
-/* 정확한 높이 매칭을 위한 JavaScript 연동 클래스 */
-.input-header.height-matched {
-  min-height: var(--matched-height, auto);
-  padding-top: var(--matched-padding-top, var(--space-6));
-  padding-bottom: var(--matched-padding-bottom, var(--space-6));
-  transition: all 0.3s ease-out;
-}
-
-/* 높이 매칭 중 시각적 피드백 */
-.input-header.height-matching {
-  border-left: 3px solid var(--brand-navy-400);
-  background: linear-gradient(135deg, var(--gray-100) 0%, var(--brand-navy-50) 100%);
-}
-
-.input-header.height-matching::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, var(--brand-navy-400), var(--brand-navy-600), var(--brand-navy-400));
-  background-size: 200% 100%;
-  animation: height-sync-progress 0.5s ease-out;
-}
-
-@keyframes height-sync-progress {
-  0% {
-    background-position: 200% 0;
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    background-position: -200% 0;
-    opacity: 0.8;
-  }
-}
-
-/* 높이 조정 중 시각적 피드백 */
+/* 모든 동적 높이 조정 관련 CSS 규칙 비활성화 */
+/* 
+.interview-content:has(.answer-item) .input-header,
+.interview-content:has(.answer-item:last-of-type) .input-header,
+.interview-content.has-answers .input-header,
+.input-header.height-matched,
+.input-header.height-matching,
 .input-header.adjusting {
-  background: linear-gradient(135deg, var(--gray-100) 0%, var(--gray-50) 100%);
-  border-left: 3px solid var(--brand-navy-300);
+  - 모든 동적 높이 조정 규칙이 고정 높이 설정으로 인해 무효화됨
+  - 80px 고정 높이가 모든 규칙을 오버라이드함
 }
-
-.input-header.adjusting::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, var(--brand-navy-400), var(--brand-navy-600), var(--brand-navy-400));
-  background-size: 200% 100%;
-  animation: height-adjustment-progress 0.3s ease-out;
-}
-
-@keyframes height-adjustment-progress {
-  0% {
-    background-position: 200% 0;
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    background-position: -200% 0;
-    opacity: 0;
-  }
-}
+*/
 
 .input-header h3 {
   font-size: 1.25rem;
@@ -1098,12 +1014,10 @@ body {
   border-color: var(--error-500);
   color: var(--error-700);
   background: var(--error-50);
-  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
 .clear-btn:active:not(:disabled) {
-  transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1111,12 +1025,10 @@ body {
   border-color: var(--brand-green-500);
   color: var(--brand-green-700);
   background: var(--brand-green-50);
-  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
 .save-btn:active:not(:disabled) {
-  transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1127,7 +1039,6 @@ body {
   color: var(--gray-300);
   border-color: var(--gray-200);
   background: var(--gray-100);
-  transform: none;
   box-shadow: none;
   position: relative;
 }
@@ -1167,21 +1078,18 @@ body {
 }
 
 .submit-answer-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
   background: linear-gradient(135deg, var(--brand-navy-700) 0%, var(--brand-navy-800) 100%);
   border-color: var(--brand-navy-700);
 }
 
 .submit-answer-btn:active:not(:disabled) {
-  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
 .submit-answer-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  transform: none;
   background: var(--gray-400);
   border-color: var(--gray-400);
   box-shadow: none;
@@ -1205,7 +1113,6 @@ body {
 /* 버튼 호버 상태 강화 - 더 명확한 피드백 */
 
 .submit-answer-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(24, 22, 119, 0.4);
   background: linear-gradient(135deg, var(--brand-navy-700) 0%, var(--brand-navy-800) 100%);
   border-color: var(--brand-navy-700);
@@ -1304,15 +1211,11 @@ body {
 /* 클릭 시 피드백 강화 */
 .clear-btn:active:not(:disabled),
 .save-btn:active:not(:disabled) {
-  transform: translateY(0) scale(0.98);
   box-shadow: var(--shadow-sm);
-  transition: all 0.1s ease-out;
 }
 
 .submit-answer-btn:active:not(:disabled) {
-  transform: translateY(-1px) scale(0.98);
   box-shadow: var(--shadow-md);
-  transition: all 0.1s ease-out;
 }
 
 /* 성공 상태 피드백 */
@@ -1321,19 +1224,6 @@ body {
 .submit-answer-btn.success {
   background: linear-gradient(135deg, var(--brand-green-600) 0%, var(--brand-green-700) 100%);
   border-color: var(--brand-green-600);
-  animation: success-bounce 0.5s ease-out;
-}
-
-@keyframes success-bounce {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
 }
 
 /* 반응형 디자인 - Fixed 레이아웃 최적화 */
