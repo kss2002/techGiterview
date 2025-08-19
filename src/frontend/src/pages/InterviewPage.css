@@ -209,7 +209,7 @@ body {
   bottom: 150%;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, var(--brand-navy-800) 0%, var(--brand-navy-900) 100%);
+  background: var(--brand-navy-800);
   color: white;
   padding: var(--spacing-2) var(--spacing-3);
   border-radius: var(--radius-md);
@@ -585,7 +585,7 @@ body {
 .question-text b {
   color: var(--brand-navy-700);
   font-weight: var(--font-bold);
-  background: linear-gradient(120deg, var(--brand-navy-50) 0%, var(--brand-navy-100) 100%);
+  background: var(--brand-navy-50);
   padding: 0.1em 0.3em;
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--brand-navy-400);
@@ -1060,7 +1060,7 @@ body {
 /* 주요 답변 제출 버튼 - Primary Action */
 .submit-answer-btn {
   padding: var(--spacing-3) var(--spacing-6);
-  background: linear-gradient(135deg, var(--brand-navy-600) 0%, var(--brand-navy-700) 100%);
+  background: var(--brand-navy-600);
   color: white;
   border: 2px solid var(--brand-navy-600);
   border-radius: var(--radius-lg);
@@ -1079,7 +1079,7 @@ body {
 
 .submit-answer-btn:hover:not(:disabled) {
   box-shadow: var(--shadow-lg);
-  background: linear-gradient(135deg, var(--brand-navy-700) 0%, var(--brand-navy-800) 100%);
+  background: var(--brand-navy-700);
   border-color: var(--brand-navy-700);
 }
 
@@ -1114,7 +1114,7 @@ body {
 
 .submit-answer-btn:hover:not(:disabled) {
   box-shadow: 0 8px 25px rgba(24, 22, 119, 0.4);
-  background: linear-gradient(135deg, var(--brand-navy-700) 0%, var(--brand-navy-800) 100%);
+  background: var(--brand-navy-700);
   border-color: var(--brand-navy-700);
 }
 
@@ -1222,7 +1222,7 @@ body {
 .clear-btn.success,
 .save-btn.success,
 .submit-answer-btn.success {
-  background: linear-gradient(135deg, var(--brand-green-600) 0%, var(--brand-green-700) 100%);
+  background: var(--brand-green-600);
   border-color: var(--brand-green-600);
 }
 
@@ -1838,6 +1838,39 @@ pre code {
   padding: 0;
   border: none;
   border-radius: 0;
+}
+
+/* Markdown 요소 스타일 */
+.markdown-paragraph {
+  margin: 0 0 20px 0;
+  line-height: 1.8;
+}
+
+.markdown-code {
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: var(--code-padding-block) var(--code-padding-inline);
+  border-radius: var(--code-radius);
+  font-size: var(--code-font-size);
+  font-family: var(--font-mono);
+  border: 1px solid var(--code-border);
+  line-height: var(--code-line-height);
+  word-break: break-word;
+}
+
+.markdown-pre {
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: var(--code-block-padding);
+  border-radius: var(--radius-lg);
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--code-font-size);
+  line-height: var(--code-line-height);
+  border: 1px solid var(--code-border);
+  margin: 16px 0;
+  white-space: pre;
+  overflow-x: auto;
 }
 
 /* Markdown 코드 블록 스타일 - 인라인 스타일 오버라이드 */

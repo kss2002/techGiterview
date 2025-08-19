@@ -45,7 +45,7 @@
   padding: var(--spacing-10) var(--spacing-10) var(--spacing-6);
   text-align: center;
   border-bottom: 1px solid var(--brand-navy-200);
-  background: linear-gradient(135deg, var(--brand-navy-50) 0%, white 100%);
+  background: var(--brand-navy-50);
   border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
 }
 
@@ -254,7 +254,7 @@
 }
 
 .error-message {
-  background: linear-gradient(135deg, var(--error-50) 0%, var(--error-100) 100%);
+  background: var(--error-50);
   border: 1px solid var(--error-300);
   border-radius: var(--radius-xl);
   padding: var(--spacing-4) var(--spacing-5);
@@ -281,7 +281,7 @@
 }
 
 .submit-button {
-  background: linear-gradient(135deg, var(--brand-navy-600) 0%, var(--brand-navy-700) 100%);
+  background: var(--brand-navy-600);
   color: white;
   border: 2px solid var(--brand-navy-600);
   padding: var(--spacing-4) var(--spacing-10);
@@ -314,7 +314,7 @@
 }
 
 .submit-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--brand-navy-700) 0%, var(--brand-navy-800) 100%);
+  background: var(--brand-navy-700);
   transform: translateY(-3px) scale(1.02);
   box-shadow: var(--shadow-xl);
 }
@@ -329,7 +329,7 @@
 }
 
 .submit-button:disabled {
-  background: linear-gradient(135deg, var(--gray-400) 0%, var(--gray-300) 100%);
+  background: var(--gray-400);
   color: var(--gray-600);
   border: 2px solid var(--gray-300);
   cursor: not-allowed;
@@ -358,7 +358,7 @@
 }
 
 .security-notice {
-  background: linear-gradient(135deg, var(--brand-green-50) 0%, var(--gray-50) 100%);
+  background: var(--brand-green-50);
   border-top: 1px solid var(--brand-navy-200);
   padding: var(--spacing-8) var(--spacing-10);
   display: flex;
