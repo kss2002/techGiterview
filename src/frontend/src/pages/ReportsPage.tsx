@@ -75,18 +75,28 @@ export const ReportsPage: React.FC = () => {
 
   const loadReports = async () => {
     try {
+      console.log('[REPORTS] API 요청 시작: /api/v1/reports/list')
       const response = await fetch('/api/v1/reports/list')
       
+      console.log('[REPORTS] API 응답 상태:', response.status)
+      
       if (!response.ok) {
-        throw new Error('리포트 목록을 불러올 수 없습니다.')
+        throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`)
       }
 
       const result = await response.json()
+      console.log('[REPORTS] API 응답 데이터:', result)
+      
       if (result.success) {
         setReports(result.data.reports)
+        console.log('[REPORTS] 리포트 데이터 설정 완료:', result.data.reports.length, '개')
+      } else {
+        throw new Error(result.message || '리포트 데이터를 처리할 수 없습니다.')
       }
     } catch (error) {
       console.error('Error loading reports:', error)
+      // 사용자에게 에러 상태 표시
+      setReports([])
     } finally {
       setIsLoading(false)
     }

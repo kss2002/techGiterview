@@ -227,7 +227,8 @@ export const InterviewPage: React.FC = () => {
       timerRef.current = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            finishInterview()
+            // 타이머 콜백에서 무거운 작업 방지 - 다음 틱에서 실행
+            setTimeout(() => finishInterview(), 0)
             return 0
           }
           return prev - 1
