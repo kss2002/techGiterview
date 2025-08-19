@@ -163,91 +163,94 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* AI 모델 선택 섹션 */}
+          {/* AI 모델 선택 및 분석 시작 통합 섹션 */}
           <div className="card">
             <div className="card-body">
               <h3 className="heading-4 flex items-center gap-sm">
-              AI 모델 선택
-            </h3>
-            {providers.length > 0 ? (
-              <div className="grid grid-auto-fit gap-md">
-                {providers.map((provider) => (
-                  <label
-                    key={provider.id}
-                    className={`card hover-lift-sm cursor-pointer transition-fast ${selectedAI === provider.id ? 'border-primary-500 bg-primary-50' : ''} ${provider.recommended ? 'border-brand-green-300' : ''}`}
-                  >
-                    <input
-                      type="radio"
-                      name="aiProvider"
-                      value={provider.id}
-                      checked={selectedAI === provider.id}
-                      onChange={(e) => setSelectedAI(e.target.value)}
-                      className="form-radio sr-only"
-                    />
-                    <div className="card-body">
-                      <div className="heading-4 flex items-center justify-between">
-                        {provider.name}
-                        {provider.recommended && <span className="badge badge-success">추천</span>}
+                AI 모델 선택 및 분석 시작
+              </h3>
+              
+              {/* AI 모델 선택 */}
+              {providers.length > 0 ? (
+                <div className="grid grid-auto-fit gap-md" style={{marginBottom: '1.5rem'}}>
+                  {providers.map((provider) => (
+                    <label
+                      key={provider.id}
+                      className={`card hover-lift-sm cursor-pointer transition-fast ${selectedAI === provider.id ? 'border-primary-500 bg-primary-50' : ''} ${provider.recommended ? 'border-brand-green-300' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="aiProvider"
+                        value={provider.id}
+                        checked={selectedAI === provider.id}
+                        onChange={(e) => setSelectedAI(e.target.value)}
+                        className="form-radio sr-only"
+                      />
+                      <div className="card-body">
+                        <div className="heading-4 flex items-center justify-between">
+                          {provider.name}
+                          {provider.recommended && <span className="badge badge-success">추천</span>}
+                        </div>
+                        <div className="text-body-sm text-muted">{provider.model}</div>
+                        <div className={`text-body-sm ${provider.status === 'ready' ? 'text-success' : 'text-muted'}`}>
+                          {provider.status === 'ready' ? '● 사용 가능' : '○ 설정됨'}
+                        </div>
                       </div>
-                      <div className="text-body-sm text-muted">{provider.model}</div>
-                      <div className={`text-body-sm ${provider.status === 'ready' ? 'text-success' : 'text-muted'}`}>
-                        {provider.status === 'ready' ? '● 사용 가능' : '○ 설정됨'}
-                      </div>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="no-providers" style={{marginBottom: '1.5rem'}}>
+                  {isLoading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <div className="spinner" style={{ width: '16px', height: '16px' }}></div>
+                      <span>AI 모델을 불러오는 중...</span>
                     </div>
+                  ) : (
+                    '사용 가능한 AI 모델이 없습니다.'
+                  )}
+                </div>
+              )}
+              
+              {/* 분석 시작 폼 */}
+              <form onSubmit={handleSubmit} className="input-form" role="form" aria-label="저장소 분석 요청">
+                <div className="url-input-group">
+                  <label htmlFor="repo-url-input" className="sr-only">
+                    GitHub 저장소 URL
                   </label>
-                ))}
-              </div>
-            ) : (
-              <div className="no-providers">
-                {isLoading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <div className="spinner" style={{ width: '16px', height: '16px' }}></div>
-                    <span>AI 모델을 불러오는 중...</span>
+                  <input
+                    id="repo-url-input"
+                    type="url"
+                    value={repoUrl}
+                    onChange={(e) => setRepoUrl(e.target.value)}
+                    placeholder="GitHub 저장소 URL을 입력하세요 (예: https://github.com/facebook/react)"
+                    className="form-input form-input-lg focus-ring transition-fast"
+                    required
+                    disabled={isAnalyzing}
+                    aria-describedby="url-help"
+                  />
+                  <div id="url-help" className="sr-only">
+                    분석하고 싶은 GitHub 저장소의 전체 URL을 입력해주세요. 예: https://github.com/facebook/react
                   </div>
-                ) : (
-                  '사용 가능한 AI 모델이 없습니다.'
-                )}
-              </div>
-            )}
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary btn-xl hover-lift active-scale focus-ring"
+                    disabled={isAnalyzing || !repoUrl.trim() || !selectedAI}
+                    aria-label={isAnalyzing ? "저장소 분석 중..." : "저장소 분석 시작"}
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <span className="spinner"></span>
+                        분석 중...
+                      </>
+                    ) : (
+                      '분석 시작'
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
-
-          <form onSubmit={handleSubmit} className="input-form" role="form" aria-label="저장소 분석 요청">
-            <div className="url-input-group">
-              <label htmlFor="repo-url-input" className="sr-only">
-                GitHub 저장소 URL
-              </label>
-              <input
-                id="repo-url-input"
-                type="url"
-                value={repoUrl}
-                onChange={(e) => setRepoUrl(e.target.value)}
-                placeholder="GitHub 저장소 URL을 입력하세요 (예: https://github.com/facebook/react)"
-                className="form-input form-input-lg focus-ring transition-fast"
-                required
-                disabled={isAnalyzing}
-                aria-describedby="url-help"
-              />
-              <div id="url-help" className="sr-only">
-                분석하고 싶은 GitHub 저장소의 전체 URL을 입력해주세요. 예: https://github.com/facebook/react
-              </div>
-              <button 
-                type="submit" 
-                className="btn btn-primary btn-xl hover-lift active-scale focus-ring"
-                disabled={isAnalyzing || !repoUrl.trim() || !selectedAI}
-                aria-label={isAnalyzing ? "저장소 분석 중..." : "저장소 분석 시작"}
-              >
-                {isAnalyzing ? (
-                  <>
-                    <span className="spinner"></span>
-                    분석 중...
-                  </>
-                ) : (
-                  '분석 시작'
-                )}
-              </button>
-            </div>
-          </form>
 
           <div className="card">
             <div className="card-body text-center">

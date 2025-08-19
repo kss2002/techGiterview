@@ -12,10 +12,20 @@
 
 .home-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--brand-navy-50) 0%, var(--brand-green-50) 50%, var(--brand-lime-50) 100%);
-  color: var(--gray-800);
+  background: var(--color-background-alt);
+  color: var(--color-text-secondary);
   font-family: var(--font-sans);
   overflow-x: hidden;
+}
+
+/* 홈페이지 섹션 간 마진 조정 */
+.home-page .section + .section {
+  margin-top: 0.5rem;
+}
+
+/* 카드 간 마진 조정 */
+.home-page .container .card + .card {
+  margin-top: 0.5rem;
 }
 
 /* Hero 섹션은 이제 .section + .container + 표준 타이포그래피 컴포넌트 사용 */
@@ -53,21 +63,21 @@
 }
 
 .status-badge.local {
-  background-color: var(--brand-navy-50);
-  color: var(--brand-navy-700);
-  border-color: var(--brand-navy-200);
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
+  border-color: var(--color-info);
 }
 
 .status-badge.error {
-  background-color: var(--error-50);
-  color: var(--error-700);
-  border-color: var(--error-200);
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .status-badge.online {
-  background-color: var(--brand-green-50);
-  color: var(--brand-green-700);
-  border-color: var(--brand-green-200);
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+  border-color: var(--color-success);
 }
 
 /* 분석 입력 섹션은 이제 표준 .container + .card 컴포넌트 사용 */
@@ -79,11 +89,13 @@
 /* URL 입력 그룹 메인 컨테이너 */
 .url-input-group {
   display: flex;
-  gap: var(--spacing-4);
+  gap: 0; /* gap을 0으로 설정하여 완전히 붙임 */
   align-items: stretch;
   width: 100%;
-  max-width: 800px;
   margin: 0 auto;
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-xl);
+  overflow: hidden; /* 자식 요소의 border-radius 제어 */
 }
 
 /* 입력 필드 - flex로 확장 */
@@ -91,7 +103,9 @@
   flex: 1;
   min-width: 0; /* flex shrink 허용 */
   height: auto;
-  border-radius: var(--radius-xl) 0 0 var(--radius-xl); /* 왼쪽만 둥글게 */
+  border-radius: 0; /* 모든 radius 제거 */
+  border-right: none; /* 오른쪽 테두리 제거하여 버튼과 완전히 붙임 */
+  box-shadow: none; /* 개별 그림자 제거 */
 }
 
 /* 버튼 - 고정 크기 유지 */
@@ -100,8 +114,9 @@
   white-space: nowrap;
   min-width: 140px;
   align-self: stretch; /* 입력 필드와 높이 맞춤 */
-  border-radius: 0 var(--radius-xl) var(--radius-xl) 0; /* 오른쪽만 둥글게 */
-  margin-left: -1px; /* 경계선 겹침 제거 */
+  border-radius: 0; /* 모든 radius 제거 */
+  margin-left: 0; /* margin 제거 */
+  box-shadow: none; /* 개별 그림자 제거 */
 }
 
 /* 연결된 입력 필드와 버튼 스타일 */
@@ -237,17 +252,21 @@
 @media (max-width: 768px) {
   .url-input-group {
     flex-direction: column;
-    gap: var(--spacing-3);
+    gap: 0; /* 모바일에서도 gap 0 유지 */
     max-width: 100%;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
   }
   
-  /* 모바일에서 원래 둥근 모서리로 복원 */
+  /* 모바일에서도 붙은 상태 유지 */
   .url-input-group .form-input {
-    border-radius: var(--radius-xl);
+    border-radius: 0;
+    border-right: 1px solid var(--gray-300); /* 모바일에서는 오른쪽 테두리 복원 */
+    border-bottom: none; /* 아래쪽 테두리 제거하여 버튼과 붙임 */
   }
   
   .url-input-group .btn {
-    border-radius: var(--radius-xl);
+    border-radius: 0;
     margin-left: 0;
     width: 100%;
     min-width: auto;
