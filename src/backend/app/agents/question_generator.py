@@ -908,10 +908,14 @@ class QuestionGenerator:
                 # Gemini API 호출 (재시도 및 fallback 메커니즘 포함)
                 try:
                     ai_response = await self._call_ai_with_retry(ai_service.generate_analysis, prompt, max_retries=3)
-                    ai_question = ai_response["content"].strip() if ai_response else ""
                     
-                    if not ai_question:  # AI 응답이 비어있는 경우
-                        raise Exception("AI 응답이 비어있음")
+                    # AI 응답 안전성 검증
+                    if ai_response and isinstance(ai_response, dict) and "content" in ai_response and ai_response["content"]:
+                        ai_question = ai_response["content"].strip()
+                        if not ai_question:  # 빈 응답인 경우
+                            raise Exception("AI 응답이 비어있음")
+                    else:
+                        raise Exception("AI 응답이 None이거나 형식이 올바르지 않음")
                         
                 except Exception as ai_error:
                     print(f"[QUESTION_GEN] AI 질문 생성 실패, fallback 사용: {ai_error}")
@@ -1033,10 +1037,14 @@ class QuestionGenerator:
                 # Gemini API 호출 (재시도 및 fallback 메커니즘 포함)
                 try:
                     ai_response = await self._call_ai_with_retry(ai_service.generate_analysis, prompt, max_retries=3)
-                    ai_question = ai_response["content"].strip() if ai_response else ""
                     
-                    if not ai_question:  # AI 응답이 비어있는 경우
-                        raise Exception("AI 응답이 비어있음")
+                    # AI 응답 안전성 검증
+                    if ai_response and isinstance(ai_response, dict) and "content" in ai_response and ai_response["content"]:
+                        ai_question = ai_response["content"].strip()
+                        if not ai_question:  # 빈 응답인 경우
+                            raise Exception("AI 응답이 비어있음")
+                    else:
+                        raise Exception("AI 응답이 None이거나 형식이 올바르지 않음")
                         
                 except Exception as ai_error:
                     print(f"[QUESTION_GEN] AI 질문 생성 실패, fallback 사용: {ai_error}")
@@ -1123,10 +1131,14 @@ class QuestionGenerator:
                 # Gemini API 호출 (재시도 및 fallback 메커니즘 포함)
                 try:
                     ai_response = await self._call_ai_with_retry(ai_service.generate_analysis, prompt, max_retries=3)
-                    ai_question = ai_response["content"].strip() if ai_response else ""
                     
-                    if not ai_question:  # AI 응답이 비어있는 경우
-                        raise Exception("AI 응답이 비어있음")
+                    # AI 응답 안전성 검증
+                    if ai_response and isinstance(ai_response, dict) and "content" in ai_response and ai_response["content"]:
+                        ai_question = ai_response["content"].strip()
+                        if not ai_question:  # 빈 응답인 경우
+                            raise Exception("AI 응답이 비어있음")
+                    else:
+                        raise Exception("AI 응답이 None이거나 형식이 올바르지 않음")
                         
                 except Exception as ai_error:
                     print(f"[QUESTION_GEN] AI 질문 생성 실패, fallback 사용: {ai_error}")
@@ -1249,10 +1261,19 @@ class QuestionGenerator:
                 provider=AIProvider.GEMINI_FLASH,
                 api_keys=self.api_keys
             )
-            ai_question = ai_response["content"].strip()
-            print(f"[QUESTION_GEN] Gemini 질문 생성 성공: {ai_question[:100]}...")
+            
+            # AI 응답 null 체크 및 fallback 처리
+            if ai_response and "content" in ai_response and ai_response["content"]:
+                ai_question = ai_response["content"].strip()
+                if ai_question:  # 빈 응답이 아닌 경우
+                    print(f"[QUESTION_GEN] Gemini 코드분석 질문 생성 성공: {ai_question[:100]}...")
+                else:
+                    raise ValueError("AI 응답이 비어있음")
+            else:
+                raise ValueError("AI 응답이 None이거나 content가 없음")
+                
         except Exception as e:
-            print(f"[QUESTION_GEN] Gemini 질문 생성 실패: {e}")
+            print(f"[QUESTION_GEN] Gemini 코드분석 질문 생성 실패: {e}, fallback 질문 사용")
             # Fallback 질문 생성
             ai_question = self._generate_fallback_code_question(snippet, state)
         
@@ -1301,8 +1322,23 @@ class QuestionGenerator:
         
         print(f"[QUESTION_GEN] ========== 기술 스택 질문 생성: {tech} ==========\n파일 컨텍스트 길이: {len(file_context)} 문자")
         
-        ai_response = await ai_service.generate_analysis(prompt, api_keys=self.api_keys)
-        ai_question = ai_response["content"].strip()
+        try:
+            ai_response = await ai_service.generate_analysis(prompt, api_keys=self.api_keys)
+            
+            # AI 응답 null 체크 및 fallback 처리
+            if ai_response and "content" in ai_response and ai_response["content"]:
+                ai_question = ai_response["content"].strip()
+                if ai_question:  # 빈 응답이 아닌 경우
+                    print(f"[QUESTION_GEN] {tech} 기술스택 질문 생성 성공")
+                else:
+                    raise ValueError("AI 응답이 비어있음")
+            else:
+                raise ValueError("AI 응답이 None이거나 content가 없음")
+                
+        except Exception as e:
+            print(f"[QUESTION_GEN] Gemini 질문 생성 실패: {e}, fallback 질문 사용")
+            # Fallback 질문 생성
+            ai_question = f"이 프로젝트에서 {tech} 기술을 사용한 이유와 구현 방식에 대해 설명해주세요. 특히 다른 기술 대비 장점과 프로젝트에 적합한 이유를 중심으로 답변해주세요."
         
         return {
             "id": f"tech_stack_{random.randint(1000, 9999)}",
@@ -1378,8 +1414,23 @@ class QuestionGenerator:
         
         print(f"[QUESTION_GEN] ========== 아키텍처 질문 생성 ==========\n컨텍스트: {architecture_context}")
         
-        ai_response = await ai_service.generate_analysis(prompt, api_keys=self.api_keys)
-        ai_question = ai_response["content"].strip()
+        try:
+            ai_response = await ai_service.generate_analysis(prompt, api_keys=self.api_keys)
+            
+            # AI 응답 null 체크 및 fallback 처리
+            if ai_response and "content" in ai_response and ai_response["content"]:
+                ai_question = ai_response["content"].strip()
+                if ai_question:  # 빈 응답이 아닌 경우
+                    print(f"[QUESTION_GEN] 아키텍처 질문 생성 성공")
+                else:
+                    raise ValueError("AI 응답이 비어있음")
+            else:
+                raise ValueError("AI 응답이 None이거나 content가 없음")
+                
+        except Exception as e:
+            print(f"[QUESTION_GEN] Gemini 아키텍처 질문 생성 실패: {e}, fallback 질문 사용")
+            # Fallback 질문 생성
+            ai_question = "이 프로젝트의 전체적인 아키텍처 설계와 주요 구성 요소들의 역할에 대해 설명해주세요. 특히 확장성과 유지보수성을 고려한 설계 결정이 있다면 함께 설명해주세요."
         
         return {
             "id": f"architecture_{random.randint(1000, 9999)}",
