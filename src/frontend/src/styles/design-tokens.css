@@ -153,6 +153,51 @@
   --accent-900: var(--brand-lime-900);
   --accent-950: var(--brand-lime-950);
 
+  /* ============================================
+     통일된 컬러 시스템 (Unified Color System)
+     ============================================ */
+  
+  /* 🎯 핵심 색상 팔레트 (Core Color Palette) */
+  --color-primary: var(--brand-navy-600);        /* #181677 - 주요 UI 요소 */
+  --color-primary-light: var(--brand-navy-500);  /* 밝은 primary */
+  --color-primary-dark: var(--brand-navy-700);   /* 진한 primary */
+  
+  --color-secondary: var(--brand-green-600);     /* #1B5410 - 성공, 확인 */
+  --color-secondary-light: var(--brand-green-500);
+  --color-secondary-dark: var(--brand-green-700);
+  
+  --color-accent: #3498db;                       /* 선명한 블루 - 강조, 링크 */
+  --color-accent-light: #5dade2;                 /* 밝은 accent */
+  --color-accent-dark: #2980b9;                  /* 진한 accent */
+  
+  /* 🎨 배경 색상 */
+  --color-background: var(--white);              /* 기본 배경 */
+  --color-background-alt: var(--gray-50);        /* 대체 배경 */
+  --color-background-dark: var(--brand-navy-800); /* 다크 배경 (헤더용) */
+  --color-background-card: var(--white);         /* 카드 배경 */
+  
+  /* 📝 텍스트 색상 계층 */
+  --color-text-primary: var(--gray-900);         /* #111827 - 제목, 중요 텍스트 */
+  --color-text-secondary: var(--gray-700);       /* #374151 - 본문 텍스트 */
+  --color-text-muted: var(--gray-500);           /* #6b7280 - 부가 정보 */
+  --color-text-on-dark: var(--white);            /* 다크 배경 위 텍스트 */
+  --color-text-on-dark-muted: rgba(255,255,255,0.7); /* 다크 배경 위 연한 텍스트 */
+  
+  /* 🚦 상태 색상 (Status Colors) - 단색 */
+  --color-success: #16a34a;                      /* 성공 */
+  --color-success-bg: rgba(22, 163, 74, 0.1);    /* 성공 배경 */
+  --color-warning: #d97706;                      /* 경고 */  
+  --color-warning-bg: rgba(217, 119, 6, 0.1);    /* 경고 배경 */
+  --color-error: #dc2626;                        /* 오류 */
+  --color-error-bg: rgba(220, 38, 38, 0.1);      /* 오류 배경 */
+  --color-info: #0284c7;                         /* 정보 */
+  --color-info-bg: rgba(2, 132, 199, 0.1);       /* 정보 배경 */
+  
+  /* 🔲 보더 색상 */
+  --color-border: var(--gray-200);               /* 기본 보더 */
+  --color-border-light: var(--gray-100);         /* 연한 보더 */
+  --color-border-dark: var(--gray-300);          /* 진한 보더 */
+
   /* File Importance Colors - 브랜드 컬러 기반 파스텔 그라데이션 */
   --importance-critical: var(--brand-navy-600);
   --importance-critical-bg: var(--brand-navy-50);
