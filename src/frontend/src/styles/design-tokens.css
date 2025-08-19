@@ -192,6 +192,32 @@
   --color-error-bg: rgba(220, 38, 38, 0.1);      /* 오류 배경 */
   --color-info: #0284c7;                         /* 정보 */
   --color-info-bg: rgba(2, 132, 199, 0.1);       /* 정보 배경 */
+
+  /* 언어별 색상 토큰 (GitHub 표준 색상) */
+  --lang-javascript: #f7df1e;
+  --lang-typescript: #3178c6;
+  --lang-python: #3776ab;
+  --lang-java: #ed8b00;
+  --lang-cpp: #00599c;
+  --lang-go: #00add8;
+  --lang-rust: #000000;
+  --lang-php: #777bb4;
+  --lang-ruby: #cc342d;
+  --lang-swift: #fa7343;
+  --lang-kotlin: #a97bff;
+  --lang-dart: #0175c2;
+  --lang-html: #e34f26;
+  --lang-css: #1572b6;
+  --lang-scss: #cf649a;
+  --lang-vue: #4fc08d;
+  --lang-react: #61dafb;
+  --lang-angular: #dd0031;
+
+  /* 점수별 색상 토큰 */
+  --score-excellent: var(--success-600);    /* 8.0+ - #16a34a */
+  --score-good: var(--warning-500);         /* 6.0+ - #f59e0b */
+  --score-fair: var(--warning-600);         /* 4.0+ - #d97706 */
+  --score-poor: var(--error-600);           /* 4.0- - #dc2626 */
   
   /* 🔲 보더 색상 */
   --color-border: var(--gray-200);               /* 기본 보더 */
