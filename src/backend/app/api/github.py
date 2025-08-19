@@ -11,7 +11,7 @@ import time
 from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, HttpUrl
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.core.config import settings
 # from app.core.database import get_db
@@ -233,7 +233,7 @@ class RepositoryAnalyzer:
         
         return parts[0], parts[1]
     
-    async def analyze_tech_stack(self, owner: str, repo: str, languages: Dict[str, int]) -> Dict[str, float]:
+    def analyze_tech_stack(self, key_files: List[FileInfo], languages: Dict[str, int]) -> Dict[str, float]:
         """기술 스택 분석"""
         tech_scores = {}
         total_bytes = sum(languages.values()) if languages else 1
@@ -245,21 +245,27 @@ class RepositoryAnalyzer:
         
         # 파일 기반 기술 스택 검출
         try:
-            contents = await self.github_client.get_repository_contents(owner, repo)
-            file_names = [item["name"] for item in contents if item["type"] == "file"]
+            file_names = [f.path.split('/')[-1] for f in key_files]
+            file_contents = {f.path: f.content for f in key_files if f.content}
             
             for tech, patterns in self.tech_stack_patterns.items():
                 score = 0
                 for pattern in patterns:
+                    # 파일명 검사
                     if any(pattern.lower() in file_name.lower() for file_name in file_names):
                         score += 0.1
                     
-                    # package.json 내용 확인
-                    if pattern == "package.json" and "package.json" in file_names:
-                        package_content = await self.github_client.get_file_content(owner, repo, "package.json")
-                        if package_content:
+                    # 파일 내용 검사
+                    for file_path, content in file_contents.items():
+                        if content and pattern.lower() in content.lower():
+                            score += 0.1
+                    
+                    # package.json 특별 처리
+                    if pattern == "package.json":
+                        package_file = next((f for f in key_files if f.path.endswith("package.json")), None)
+                        if package_file and package_file.content:
                             for other_pattern in patterns[1:]:  # 첫 번째는 파일명이므로 제외
-                                if other_pattern.lower() in package_content.lower():
+                                if other_pattern.lower() in package_file.content.lower():
                                     score += 0.2
                 
                 if score > 0:
@@ -271,15 +277,16 @@ class RepositoryAnalyzer:
         return tech_scores
     
     async def get_key_files(self, owner: str, repo: str) -> List[FileInfo]:
-        """주요 파일 추출"""
+        """주요 파일 추출 - 최소 6개 이상 확보"""
         key_files = []
+        target_file_count = 8  # 최소 6개 이상, 목표 8개
         
         try:
+            # 1단계: 루트 레벨 중요 파일들 수집
             contents = await self.github_client.get_repository_contents(owner, repo)
             
             for item in contents:
                 if item["type"] == "file" and item["name"] in self.important_files:
-                    # 모든 파일의 내용을 가져오기 (크기 제한 없음)
                     file_content = await self.github_client.get_file_content(owner, repo, item["path"])
                     
                     key_files.append(FileInfo(
@@ -289,12 +296,32 @@ class RepositoryAnalyzer:
                         content=file_content
                     ))
             
-            # src 폴더의 중요 파일들도 확인
-            try:
-                src_contents = await self.github_client.get_repository_contents(owner, repo, "src")
-                for item in src_contents[:5]:  # 최대 5개까지만
-                    if item["type"] == "file" and any(ext in item["name"] for ext in [".py", ".js", ".ts", ".go", ".java"]):
-                        # 모든 파일의 내용을 가져오기 (크기 제한 없음)
+            print(f"[KEY_FILES] 루트 레벨에서 {len(key_files)}개 파일 수집")
+            
+            # 2단계: src, lib, app 폴더에서 추가 파일 수집
+            important_dirs = ["src", "lib", "app", "components", "pages", "api", "utils", "services"]
+            
+            for dir_name in important_dirs:
+                if len(key_files) >= target_file_count:
+                    break
+                    
+                try:
+                    dir_contents = await self.github_client.get_repository_contents(owner, repo, dir_name)
+                    # 파일 중요도 순으로 정렬
+                    files_to_add = []
+                    
+                    for item in dir_contents:
+                        if item["type"] == "file":
+                            # 파일 확장자와 이름으로 중요도 판단
+                            importance_score = self._calculate_file_importance(item["name"], item["path"])
+                            files_to_add.append((item, importance_score))
+                    
+                    # 중요도 순으로 정렬
+                    files_to_add.sort(key=lambda x: x[1], reverse=True)
+                    
+                    # 상위 파일들 추가 (남은 목표 개수만큼)
+                    remaining_count = target_file_count - len(key_files)
+                    for item, _ in files_to_add[:remaining_count]:
                         file_content = await self.github_client.get_file_content(owner, repo, item["path"])
                         
                         key_files.append(FileInfo(
@@ -303,13 +330,80 @@ class RepositoryAnalyzer:
                             size=item["size"],
                             content=file_content
                         ))
-            except:
-                pass
+                        
+                        if len(key_files) >= target_file_count:
+                            break
+                            
+                    print(f"[KEY_FILES] {dir_name} 폴더에서 {len(files_to_add)}개 파일 발견, {len(key_files) - len(key_files)}개 추가")
+                    
+                except Exception as dir_error:
+                    print(f"[KEY_FILES] {dir_name} 폴더 접근 실패: {dir_error}")
+                    continue
+            
+            # 3단계: 최소 개수 미달 시 추가 파일 수집
+            if len(key_files) < 6:
+                print(f"[KEY_FILES] 파일 수 부족 ({len(key_files)}개), 추가 수집 진행")
                 
+                # 루트의 모든 파일에서 중요도 기준으로 추가 선택
+                for item in contents:
+                    if len(key_files) >= target_file_count:
+                        break
+                        
+                    if item["type"] == "file" and item["name"] not in [f.path for f in key_files]:
+                        # 이미 추가되지 않은 파일 중 중요한 파일들 추가
+                        importance = self._calculate_file_importance(item["name"], item["path"])
+                        if importance > 0.3:  # 중요도 임계값
+                            try:
+                                file_content = await self.github_client.get_file_content(owner, repo, item["path"])
+                                key_files.append(FileInfo(
+                                    path=item["path"],
+                                    type=item["type"],
+                                    size=item["size"],
+                                    content=file_content
+                                ))
+                            except:
+                                continue
+                                
         except Exception as e:
-            print(f"Key files extraction error: {e}")
+            print(f"[KEY_FILES] 파일 추출 오류: {e}")
         
+        print(f"[KEY_FILES] 최종 수집된 파일 수: {len(key_files)}개")
         return key_files
+    
+    def _calculate_file_importance(self, filename: str, filepath: str) -> float:
+        """파일 중요도 계산"""
+        importance = 0.0
+        
+        # 파일명 기반 중요도
+        important_names = {
+            "main": 0.9, "app": 0.8, "index": 0.8, "config": 0.7,
+            "server": 0.7, "client": 0.6, "router": 0.6, "route": 0.6,
+            "model": 0.5, "service": 0.5, "controller": 0.5, "component": 0.4
+        }
+        
+        for name, score in important_names.items():
+            if name in filename.lower():
+                importance = max(importance, score)
+        
+        # 확장자 기반 중요도
+        important_extensions = {
+            ".py": 0.6, ".js": 0.6, ".ts": 0.7, ".tsx": 0.7, ".jsx": 0.6,
+            ".java": 0.6, ".go": 0.6, ".rs": 0.6, ".cpp": 0.5, ".c": 0.5,
+            ".json": 0.4, ".yml": 0.4, ".yaml": 0.4, ".toml": 0.4
+        }
+        
+        for ext, score in important_extensions.items():
+            if filename.lower().endswith(ext):
+                importance = max(importance, score)
+        
+        # 경로 기반 중요도 보너스
+        important_paths = ["src/", "lib/", "app/", "core/", "main/"]
+        for path in important_paths:
+            if path in filepath.lower():
+                importance += 0.2
+                break
+        
+        return min(importance, 1.0)
     
     async def get_all_files(self, owner: str, repo: str, max_depth: int = 3, max_files: int = 500) -> List[FileTreeNode]:
         """Tree API로 모든 파일을 트리 구조로 가져오기 (최적화됨)"""
@@ -681,6 +775,40 @@ async def analyze_repository(
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 
+@router.get("/analysis/recent")
+async def get_recent_analyses(limit: int = 5):
+    """최근 분석 결과 요약 조회 (홈페이지용)"""
+    # 간단한 더미 데이터 반환 (개발/테스트용)
+    dummy_analyses = [
+        {
+            "analysis_id": "demo-analysis-1",
+            "repository_name": "vscode",
+            "repository_owner": "microsoft",
+            "primary_language": "TypeScript",
+            "overall_score": 8.5,
+            "created_at": "2025-08-18T20:00:00.000Z",
+            "tech_stack": ["TypeScript", "Node.js", "Electron"],
+            "file_count": 1247
+        },
+        {
+            "analysis_id": "demo-analysis-2",
+            "repository_name": "react",
+            "repository_owner": "facebook",
+            "primary_language": "JavaScript",
+            "overall_score": 7.8,
+            "created_at": "2025-08-17T20:00:00.000Z",
+            "tech_stack": ["JavaScript", "React", "Node.js"],
+            "file_count": 892
+        }
+    ]
+    
+    return {
+        "success": True,
+        "data": dummy_analyses[:limit],
+        "timestamp": "2025-08-18T23:00:00.000Z"
+    }
+
+
 @router.get("/analysis/{analysis_id}", response_model=AnalysisResult)
 async def get_analysis_result(analysis_id: str):
     """분석 결과 조회"""
@@ -862,6 +990,7 @@ async def list_analyses(skip: int = 0, limit: int = 10):
     return analyses_list[skip:skip + limit]
 
 
+
 @router.get("/test")
 async def test_github_connection():
     """GitHub API 연결 테스트"""
@@ -882,6 +1011,133 @@ async def test_github_connection():
             "message": f"GitHub API connection failed: {str(e)}",
             "authenticated": "Authorization" in client.headers
         }
+
+
+@router.post("/analyze-simple", response_model=AnalysisResult)
+async def analyze_repository_simple(request: RepositoryAnalysisRequest):
+    """간단한 저장소 분석 - 캐시 저장 포함"""
+    try:
+        # URL 유효성 검증
+        repo_url_str = str(request.repo_url)
+        if not repo_url_str.startswith("https://github.com/"):
+            raise HTTPException(status_code=400, detail="올바른 GitHub URL이 아닙니다.")
+        
+        # URL에서 소유자와 저장소 이름 추출
+        parts = repo_url_str.replace("https://github.com/", "").split("/")
+        if len(parts) < 2:
+            raise HTTPException(status_code=400, detail="저장소 정보를 추출할 수 없습니다.")
+        
+        owner, repo_name = parts[0], parts[1]
+        analysis_id = str(uuid.uuid4())
+        
+        print(f"[ANALYZE_SIMPLE] ========== 실제 GitHub API 분석 시작 ==========")
+        print(f"[ANALYZE_SIMPLE] 저장소: {owner}/{repo_name}")
+        print(f"[ANALYZE_SIMPLE] 분석 ID: {analysis_id}")
+        
+        # 실제 GitHub API를 사용한 분석
+        github_client = GitHubClient()
+        repo_analyzer = RepositoryAnalyzer()
+        
+        # 1. 저장소 기본 정보 수집
+        repo_info_dict = await github_client.get_repository_info(owner, repo_name)
+        # GitHub API 응답에서 owner는 딕셔너리이므로 login 필드 추출
+        owner_info = repo_info_dict.get("owner", {})
+        owner_name = owner_info.get("login", owner) if isinstance(owner_info, dict) else str(owner_info)
+        
+        repo_info = RepositoryInfo(
+            name=repo_info_dict.get("name", repo_name),
+            owner=owner_name,
+            description=repo_info_dict.get("description", f"{owner_name}/{repo_name} repository") or f"{owner_name}/{repo_name} repository",
+            language=repo_info_dict.get("language") or "Unknown",
+            stars=repo_info_dict.get("stargazers_count", 0),
+            forks=repo_info_dict.get("forks_count", 0),
+            size=repo_info_dict.get("size", 0),
+            topics=repo_info_dict.get("topics", []),
+            default_branch=repo_info_dict.get("default_branch", "main")
+        )
+        
+        # 2. 중요 파일 수집 (최소 6개 이상 확보)
+        key_files = await repo_analyzer.get_key_files(owner, repo_name)
+        print(f"[ANALYZE_SIMPLE] 중요 파일 {len(key_files)}개 수집")
+        
+        # 3. 언어 통계 수집 및 기술 스택 분석
+        languages = await github_client.get_languages(owner, repo_name)
+        tech_stack = repo_analyzer.analyze_tech_stack(key_files, languages)
+        print(f"[ANALYZE_SIMPLE] 기술 스택 {len(tech_stack)}개 식별")
+        
+        # 4. 추천사항 생성
+        recommendations = repo_analyzer.generate_recommendations(tech_stack, key_files)
+        
+        # 5. 복잡도 점수 계산
+        complexity_score = repo_analyzer.calculate_complexity_score(tech_stack, key_files, languages)
+        
+        # 6. 요약 생성
+        summary = repo_analyzer.generate_summary(repo_info, tech_stack)
+        
+        # AnalysisResult 객체 생성
+        analysis_result = AnalysisResult(
+            success=True,
+            analysis_id=analysis_id,
+            repo_info=repo_info,
+            tech_stack=tech_stack,
+            key_files=key_files,
+            summary=summary,
+            recommendations=recommendations,
+            created_at=datetime.now()
+        )
+        
+        print(f"[ANALYZE_SIMPLE] 분석 완료 - 파일: {len(key_files)}개, 기술스택: {len(tech_stack)}개, 복잡도: {complexity_score}")
+        
+        # analysis_cache에 저장하여 대시보드에서 조회 가능하도록 함
+        analysis_cache[analysis_id] = analysis_result
+        
+        print(f"[ANALYZE_SIMPLE] 분석 결과 캐시에 저장: {analysis_id}")
+        print(f"[ANALYZE_SIMPLE] 캐시 크기: {len(analysis_cache)}")
+        
+        return analysis_result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ANALYZE_SIMPLE] 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"분석 중 오류 발생: {str(e)}")
+
+
+@router.get("/dashboard/{analysis_id}")
+async def get_dashboard_data(analysis_id: str):
+    """대시보드 데이터 조회"""
+    try:
+        if analysis_id not in analysis_cache:
+            raise HTTPException(status_code=404, detail="분석 결과를 찾을 수 없습니다.")
+        
+        analysis_result = analysis_cache[analysis_id]
+        
+        print(f"[DASHBOARD] 분석 ID {analysis_id} 조회 - 파일 수: {len(analysis_result.key_files)}개")
+        
+        # AnalysisResult 객체를 딕셔너리로 변환하여 반환
+        return {
+            "success": True,
+            "analysis_id": analysis_result.analysis_id,
+            "repo_info": analysis_result.repo_info.dict() if hasattr(analysis_result.repo_info, 'dict') else analysis_result.repo_info,
+            "tech_stack": analysis_result.tech_stack,
+            "key_files": [
+                {
+                    "path": f.path,
+                    "type": f.type,
+                    "size": f.size,
+                    "content": f.content
+                } for f in analysis_result.key_files
+            ] if analysis_result.key_files else [],
+            "summary": analysis_result.summary,
+            "recommendations": analysis_result.recommendations,
+            "created_at": analysis_result.created_at.isoformat() if hasattr(analysis_result.created_at, 'isoformat') else str(analysis_result.created_at)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DASHBOARD] 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"대시보드 데이터 조회 실패: {str(e)}")
 
 
 @router.get("/debug/cache")

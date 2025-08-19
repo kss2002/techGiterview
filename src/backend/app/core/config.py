@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     
     # Vector Database
     chroma_host: str = "localhost"
-    chroma_port: int = 8001
+    chroma_port: int = 8000  # 8001과 충돌 방지를 위해 8000으로 변경
     
     # Security
     secret_key: str = "default_secret_key_for_development"

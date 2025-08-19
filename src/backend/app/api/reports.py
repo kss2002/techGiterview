@@ -23,7 +23,18 @@ router = APIRouter()
 interview_agent = MockInterviewAgent()
 repo_analyzer = RepositoryAnalyzer()
 question_generator = QuestionGenerator()
-vector_db = VectorDBService()
+# vector_db = VectorDBService()  # 지연 초기화로 변경하여 서버 시작 시 블로킹 방지
+
+# 지연 초기화 함수
+def get_vector_db():
+    """VectorDB 인스턴스를 지연 초기화로 반환"""
+    if not hasattr(get_vector_db, '_instance'):
+        try:
+            get_vector_db._instance = VectorDBService()
+        except Exception as e:
+            print(f"VectorDB 초기화 실패: {e}")
+            get_vector_db._instance = None
+    return get_vector_db._instance
 
 
 @router.post("/repository/analyze")
@@ -55,14 +66,17 @@ async def analyze_repository(
         if store_results:
             try:
                 # 분석 결과 저장
-                analysis_id = await vector_db.store_analysis_result(repo_url, analysis_result)
+                vector_db = get_vector_db()
+                if vector_db:
+                    analysis_id = await vector_db.store_analysis_result(repo_url, analysis_result)
                 analysis_result["analysis_id"] = analysis_id
                 
                 # 코드 스니펫 저장 (중요 파일들)
                 important_files = analysis_result.get("important_files", [])
                 if important_files:
                     # 파일 내용을 가져와서 저장 (실제로는 GitHubClient에서)
-                    stored_snippets = await vector_db.store_code_snippets(repo_url, important_files)
+                    if vector_db:
+                        stored_snippets = await vector_db.store_code_snippets(repo_url, important_files)
                     analysis_result["stored_snippets_count"] = len(stored_snippets)
                 
             except Exception as e:
@@ -398,6 +412,351 @@ async def get_performance_analytics(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/list")
+async def get_reports_list(
+    status_filter: Optional[str] = Query(None, description="상태 필터 (completed, in_progress)")
+):
+    """
+    면접 리포트 목록 조회
+    
+    Args:
+        status_filter: 상태별 필터링 옵션
+    
+    Returns:
+        면접 리포트 목록
+    """
+    try:
+        print(f"[REPORTS_API] 리포트 목록 요청 - 필터: {status_filter}")
+        
+        # 활성 세션에서 리포트 생성
+        active_sessions = interview_agent.active_sessions
+        reports = []
+        
+        print(f"[REPORTS_API] 활성 세션 수: {len(active_sessions)}")
+        
+        # 빈 세션일 때 즉시 응답 (테스트용 더미 데이터 포함)
+        if not active_sessions:
+            # 개발/테스트용 더미 데이터
+            dummy_reports = [
+                {
+                    "id": "demo-interview-1",
+                    "repo_url": "https://github.com/microsoft/vscode",
+                    "repo_name": "vscode",
+                    "completed_at": (datetime.now() - timedelta(hours=2)).isoformat(),
+                    "total_questions": 5,
+                    "answered_questions": 5,
+                    "overall_score": 8.5,
+                    "category_scores": {
+                        "technical_accuracy": 8.2,
+                        "code_quality": 8.8,
+                        "problem_solving": 8.1,
+                        "communication": 8.9
+                    },
+                    "duration_minutes": 45,
+                    "status": "completed"
+                },
+                {
+                    "id": "demo-interview-2", 
+                    "repo_url": "https://github.com/facebook/react",
+                    "repo_name": "react",
+                    "completed_at": (datetime.now() - timedelta(hours=24)).isoformat(),
+                    "total_questions": 7,
+                    "answered_questions": 6,
+                    "overall_score": 7.3,
+                    "category_scores": {
+                        "technical_accuracy": 7.5,
+                        "code_quality": 7.8,
+                        "problem_solving": 6.9,
+                        "communication": 7.0
+                    },
+                    "duration_minutes": 52,
+                    "status": "completed"
+                }
+            ]
+            
+            return {
+                "success": True,
+                "data": {
+                    "reports": dummy_reports,
+                    "total_count": len(dummy_reports),
+                    "filters_applied": {"status": status_filter},
+                    "message": "데모 데이터입니다. 실제 면접을 완료하면 여기에 표시됩니다."
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        for session_id, session in active_sessions.items():
+            # 상태 필터링
+            if status_filter and session.interview_status != status_filter:
+                continue
+                
+            # 저장소 이름 추출
+            repo_name = session.repo_url.split('/')[-1] if session.repo_url else "Unknown"
+            
+            report = {
+                "id": session_id,
+                "repo_url": session.repo_url,
+                "repo_name": repo_name,
+                "completed_at": session.end_time.isoformat() if session.end_time else None,
+                "total_questions": len(session.questions),
+                "answered_questions": len(session.answers),
+                "overall_score": session.total_score,
+                "category_scores": {},
+                "duration_minutes": 0,
+                "status": session.interview_status
+            }
+            
+            # 카테고리별 점수 계산
+            if session.evaluations:
+                criteria_totals = {"technical_accuracy": 0, "code_quality": 0, 
+                                 "problem_solving": 0, "communication": 0}
+                for evaluation in session.evaluations:
+                    criteria_scores = evaluation.get("criteria_scores", {})
+                    for criteria, score in criteria_scores.items():
+                        if criteria in criteria_totals:
+                            criteria_totals[criteria] += score
+                
+                # 평균 계산
+                eval_count = len(session.evaluations)
+                if eval_count > 0:
+                    report["category_scores"] = {
+                        criteria: round(total / eval_count, 2)
+                        for criteria, total in criteria_totals.items()
+                    }
+            
+            # 진행 시간 계산
+            if session.start_time:
+                end_time = session.end_time or datetime.now()
+                duration = end_time - session.start_time
+                report["duration_minutes"] = int(duration.total_seconds() / 60)
+            
+            reports.append(report)
+        
+        # 완료시간 기준 내림차순 정렬
+        reports.sort(key=lambda x: x["completed_at"] or "9999", reverse=True)
+        
+        return {
+            "success": True,
+            "data": {
+                "reports": reports,
+                "total_count": len(reports),
+                "filters_applied": {"status": status_filter}
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{interview_id}/detailed")
+async def get_detailed_report(interview_id: str):
+    """
+    상세 면접 리포트 조회
+    
+    Args:
+        interview_id: 면접 ID
+    
+    Returns:
+        상세 면접 리포트
+    """
+    try:
+        # 세션 조회
+        if interview_id not in interview_agent.active_sessions:
+            raise HTTPException(status_code=404, detail="면접 세션을 찾을 수 없습니다.")
+        
+        session = interview_agent.active_sessions[interview_id]
+        
+        # 기본 리포트 생성
+        report_result = await interview_agent.get_interview_report(interview_id)
+        if not report_result.get("success", False):
+            raise HTTPException(status_code=404, detail="리포트를 생성할 수 없습니다.")
+        
+        # 상세 정보 구성
+        repo_parts = session.repo_url.split('/') if session.repo_url else []
+        repo_info = {
+            "name": repo_parts[-1] if len(repo_parts) > 0 else "Unknown",
+            "owner": repo_parts[-2] if len(repo_parts) > 1 else "Unknown",
+            "description": "GitHub repository analysis",
+            "language": "Multiple"
+        }
+        
+        # 질문별 분석
+        question_analyses = []
+        for i, (question, answer) in enumerate(zip(session.questions, session.answers)):
+            evaluation = session.evaluations[i] if i < len(session.evaluations) else {}
+            
+            analysis = {
+                "question": question.get("content", question.get("question", "질문 없음")),
+                "category": question.get("category", "general"),
+                "difficulty": question.get("difficulty", "medium"),
+                "answer": answer.get("content", answer.get("answer", "")),
+                "score": evaluation.get("overall_score", 0),
+                "feedback": evaluation.get("feedback", "피드백 없음"),
+                "improvement_suggestions": evaluation.get("improvement_suggestions", [])
+            }
+            question_analyses.append(analysis)
+        
+        # 성능 지표 계산
+        performance_metrics = {
+            "response_time_avg": 45.0,  # 실제로는 답변 시간 측정
+            "completeness_score": (len(session.answers) / max(len(session.questions), 1)) * 100,
+            "technical_accuracy": sum(e.get("criteria_scores", {}).get("technical_accuracy", 0) 
+                                    for e in session.evaluations) / max(len(session.evaluations), 1),
+            "communication_clarity": sum(e.get("criteria_scores", {}).get("communication", 0) 
+                                       for e in session.evaluations) / max(len(session.evaluations), 1)
+        }
+        
+        # 종합 평가
+        overall_assessment = {
+            "score": session.total_score,
+            "strengths": [],
+            "weaknesses": [],
+            "recommendations": []
+        }
+        
+        # 강점과 약점 분석 (기본 로직)
+        if session.total_score >= 8.0:
+            overall_assessment["strengths"].extend(["높은 기술적 이해도", "명확한 의사소통"])
+        if session.total_score < 6.0:
+            overall_assessment["weaknesses"].extend(["기술적 정확성 부족", "문제 해결 능력 개선 필요"])
+            overall_assessment["recommendations"].extend(["추가 학습 권장", "실습 프로젝트 수행"])
+        
+        detailed_report = {
+            "interview_id": interview_id,
+            "repo_info": repo_info,
+            "overall_assessment": overall_assessment,
+            "question_analyses": question_analyses,
+            "performance_metrics": performance_metrics
+        }
+        
+        return {
+            "success": True,
+            "data": detailed_report,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/recent", response_model=Dict[str, Any])
+async def get_recent_reports(limit: int = 5):
+    """최근 완료된 면접 리포트 요약 조회 (홈페이지용)"""
+    try:
+        print(f"[RECENT_REPORTS] 최근 리포트 요청 - limit: {limit}")
+        
+        # 활성 세션에서 완료된 면접만 필터링
+        active_sessions = interview_agent.active_sessions
+        completed_reports = []
+        
+        for session_id, session in active_sessions.items():
+            if session.interview_status == "completed":
+                # 저장소 이름 추출
+                repo_name = session.repo_url.split('/')[-1] if session.repo_url else "Unknown"
+                repo_owner = session.repo_url.split('/')[-2] if session.repo_url and len(session.repo_url.split('/')) > 1 else "Unknown"
+                
+                # 카테고리별 평균 점수 계산
+                category_averages = {}
+                if session.evaluations:
+                    criteria_totals = {"technical_accuracy": 0, "code_quality": 0, 
+                                     "problem_solving": 0, "communication": 0}
+                    for evaluation in session.evaluations:
+                        criteria_scores = evaluation.get("criteria_scores", {})
+                        for criteria, score in criteria_scores.items():
+                            if criteria in criteria_totals:
+                                criteria_totals[criteria] += score
+                    
+                    eval_count = len(session.evaluations)
+                    if eval_count > 0:
+                        category_averages = {
+                            criteria: round(total / eval_count, 1)
+                            for criteria, total in criteria_totals.items()
+                        }
+                
+                completed_reports.append({
+                    "interview_id": session_id,
+                    "repository_name": repo_name,
+                    "repository_owner": repo_owner,
+                    "overall_score": round(session.total_score, 1),
+                    "completed_at": session.end_time.isoformat() if session.end_time else None,
+                    "duration_minutes": int((session.end_time - session.start_time).total_seconds() / 60) if session.start_time and session.end_time else 0,
+                    "questions_count": len(session.questions),
+                    "answers_count": len(session.answers),
+                    "category_scores": category_averages,
+                    "difficulty_level": session.difficulty_level
+                })
+        
+        # 빈 결과일 때 더미 데이터 제공
+        if not completed_reports:
+            # 개발/테스트용 더미 데이터
+            completed_reports = [
+                {
+                    "interview_id": "demo-recent-1",
+                    "repository_name": "vscode",
+                    "repository_owner": "microsoft",
+                    "overall_score": 8.5,
+                    "completed_at": (datetime.now() - timedelta(hours=2)).isoformat(),
+                    "duration_minutes": 42,
+                    "questions_count": 5,
+                    "answers_count": 5,
+                    "category_scores": {
+                        "technical_accuracy": 8.2,
+                        "code_quality": 8.8,
+                        "problem_solving": 8.1,
+                        "communication": 8.9
+                    },
+                    "difficulty_level": "medium"
+                },
+                {
+                    "interview_id": "demo-recent-2", 
+                    "repository_name": "react",
+                    "repository_owner": "facebook",
+                    "overall_score": 7.3,
+                    "completed_at": (datetime.now() - timedelta(hours=24)).isoformat(),
+                    "duration_minutes": 38,
+                    "questions_count": 6,
+                    "answers_count": 5,
+                    "category_scores": {
+                        "technical_accuracy": 7.5,
+                        "code_quality": 7.8,
+                        "problem_solving": 6.9,
+                        "communication": 7.0
+                    },
+                    "difficulty_level": "intermediate"
+                }
+            ]
+        
+        # 완료시간 기준 내림차순 정렬하여 limit만큼 반환
+        completed_reports.sort(key=lambda x: x["completed_at"] or "0000", reverse=True)
+        recent_reports = completed_reports[:limit]
+        
+        print(f"[RECENT_REPORTS] {len(recent_reports)}개 리포트 반환")
+        
+        return {
+            "success": True,
+            "data": {
+                "reports": recent_reports,
+                "total_completed": len(completed_reports)
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"[RECENT_REPORTS] Error: {e}")
+        return {
+            "success": False,
+            "data": {
+                "reports": [],
+                "total_completed": 0
+            },
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
 @router.get("/health/services")
 async def check_services_health():
     """
@@ -429,7 +788,8 @@ async def check_services_health():
         
         # Vector DB 연결 테스트
         try:
-            if vector_db.code_collection is not None:
+            vector_db = get_vector_db()
+            if vector_db and vector_db.code_collection is not None:
                 health_status["vector_db"]["status"] = "healthy"
                 health_status["vector_db"]["details"] = "ChromaDB 연결 정상"
             else:

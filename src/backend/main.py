@@ -98,6 +98,10 @@ app.include_router(config_router, tags=["config"])
 # Homepage 라우터 추가
 app.include_router(homepage_router, tags=["homepage"])
 
+# Reports 라우터 추가
+from app.api.reports import router as reports_router
+app.include_router(reports_router, prefix="/api/v1/reports", tags=["reports"])
+
 
 if __name__ == "__main__":
     uvicorn.run(
