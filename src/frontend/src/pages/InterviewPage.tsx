@@ -1557,9 +1557,9 @@ export const InterviewPage: React.FC = () => {
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      p: ({ children }) => <p style={{ margin: '0 0 20px 0', lineHeight: '1.8' }}>{children}</p>,
-                      code: ({ children }) => <code style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', fontSize: '0.9em', color: '#334155' }}>{children}</code>,
-                      pre: ({ children }) => <pre style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', overflow: 'auto', lineHeight: '1.6', color: '#475569' }}>{children}</pre>
+                      p: ({ children }) => <p className="markdown-paragraph">{children}</p>,
+                      code: ({ children }) => <code className="markdown-code">{children}</code>,
+                      pre: ({ children }) => <pre className="markdown-pre">{children}</pre>
                     }}
                   >
                     {currentQuestion.question}

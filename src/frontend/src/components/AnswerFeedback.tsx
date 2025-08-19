@@ -15,10 +15,10 @@ interface AnswerFeedbackProps {
 export const AnswerFeedback: React.FC<AnswerFeedbackProps> = ({ feedback, isVisible }) => {
   if (!isVisible || !feedback) return null
 
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return 'var(--primary-500)' // 우수
-    if (score >= 6) return 'var(--primary-600)' // 보통
-    return 'var(--primary-700)' // 개선 필요
+  const getScoreClass = (score: number) => {
+    if (score >= 8) return 'score-excellent' // 우수
+    if (score >= 6) return 'score-good' // 보통
+    return 'score-poor' // 개선 필요
   }
 
   const getScoreLabel = (score: number) => {
@@ -44,15 +44,14 @@ export const AnswerFeedback: React.FC<AnswerFeedbackProps> = ({ feedback, isVisi
       <div className="feedback-header">
         <div className="score-container">
           <div 
-            className="score-circle"
-            style={{ borderColor: getScoreColor(feedback.score) }}
+            className={`score-circle ${getScoreClass(feedback.score)}`}
           >
-            <span className="score-value" style={{ color: getScoreColor(feedback.score) }}>
+            <span className={`score-value ${getScoreClass(feedback.score)}`}>
               {feedback.score}
             </span>
             <span className="score-max">/10</span>
           </div>
-          <div className="score-label" style={{ color: getScoreColor(feedback.score) }}>
+          <div className={`score-label ${getScoreClass(feedback.score)}`}>
             {getScoreLabel(feedback.score)}
           </div>
         </div>

@@ -128,11 +128,11 @@ export const ReportsPage: React.FC = () => {
     return report.status === filter
   })
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return '#28a745'
-    if (score >= 60) return '#ffc107'
-    if (score >= 40) return '#fd7e14'
-    return '#dc3545'
+  const getScoreClass = (score: number) => {
+    if (score >= 80) return 'score-excellent'
+    if (score >= 60) return 'score-good'
+    if (score >= 40) return 'score-fair'
+    return 'score-poor'
   }
 
   const getScoreGrade = (score: number) => {
@@ -246,8 +246,7 @@ export const ReportsPage: React.FC = () => {
                       </div>
                       <div className="report-score">
                         <span 
-                          className="score-value"
-                          style={{ color: getScoreColor(report.overall_score) }}
+                          className={`score-value ${getScoreClass(report.overall_score)}`}
                         >
                           {report.overall_score}
                         </span>
@@ -279,11 +278,8 @@ export const ReportsPage: React.FC = () => {
                             <span className="category-name">{category}</span>
                             <div className="score-bar">
                               <div 
-                                className="score-fill"
-                                style={{ 
-                                  width: `${score}%`,
-                                  backgroundColor: getScoreColor(score)
-                                }}
+                                className={`score-fill ${getScoreClass(score)}`}
+                                style={{ width: `${score}%` }}
                               ></div>
                             </div>
                             <span className="score-text">{score}</span>
@@ -320,8 +316,7 @@ export const ReportsPage: React.FC = () => {
                     <div className="assessment-score">
                       <div className="score-display">
                         <span 
-                          className="big-score"
-                          style={{ color: getScoreColor(selectedReport.overall_assessment.score) }}
+                          className={`big-score ${getScoreClass(selectedReport.overall_assessment.score)}`}
                         >
                           {selectedReport.overall_assessment.score}
                         </span>
@@ -414,8 +409,7 @@ export const ReportsPage: React.FC = () => {
                             </div>
                             <div className="question-score">
                               <span 
-                                className="score"
-                                style={{ color: getScoreColor(analysis.score) }}
+                                className={`score ${getScoreClass(analysis.score)}`}
                               >
                                 {analysis.score}점
                               </span>

@@ -219,6 +219,34 @@
   font-weight: 600;
 }
 
+/* 점수별 색상 클래스 (design-tokens.css 기반) */
+.score-circle.score-excellent {
+  border-color: var(--score-excellent);
+}
+
+.score-circle.score-good {
+  border-color: var(--score-good);
+}
+
+.score-circle.score-poor {
+  border-color: var(--score-poor);
+}
+
+.score-value.score-excellent,
+.score-label.score-excellent {
+  color: var(--score-excellent);
+}
+
+.score-value.score-good,
+.score-label.score-good {
+  color: var(--score-good);
+}
+
+.score-value.score-poor,
+.score-label.score-poor {
+  color: var(--score-poor);
+}
+
 /* 반응형 디자인 */
 @media (max-width: 768px) {
   .answer-feedback {
