@@ -778,35 +778,66 @@ async def analyze_repository(
 @router.get("/analysis/recent")
 async def get_recent_analyses(limit: int = 5):
     """최근 분석 결과 요약 조회 (홈페이지용)"""
-    # 간단한 더미 데이터 반환 (개발/테스트용)
-    dummy_analyses = [
-        {
-            "analysis_id": "demo-analysis-1",
-            "repository_name": "vscode",
-            "repository_owner": "microsoft",
-            "primary_language": "TypeScript",
-            "overall_score": 8.5,
-            "created_at": "2025-08-18T20:00:00.000Z",
-            "tech_stack": ["TypeScript", "Node.js", "Electron"],
-            "file_count": 1247
-        },
-        {
-            "analysis_id": "demo-analysis-2",
-            "repository_name": "react",
-            "repository_owner": "facebook",
-            "primary_language": "JavaScript",
-            "overall_score": 7.8,
-            "created_at": "2025-08-17T20:00:00.000Z",
-            "tech_stack": ["JavaScript", "React", "Node.js"],
-            "file_count": 892
+    try:
+        print(f"[RECENT_ANALYSES] 최근 분석 요청 - limit: {limit}")
+        
+        # analysis_cache에서 실제 완료된 분석만 필터링
+        recent_analyses = []
+        
+        for analysis_id, analysis_data in analysis_cache.items():
+            # 실제 분석 결과가 있는지 확인
+            if "analysis_result" in analysis_data and analysis_data["analysis_result"]:
+                result = analysis_data["analysis_result"]
+                
+                # 저장소 정보 추출
+                repo_info = result.get("repo_info", {})
+                repo_name = repo_info.get("name", "Unknown")
+                repo_owner = repo_info.get("owner", "Unknown")
+                
+                # 기술 스택 정보 추출 (상위 3개)
+                tech_stack = list(result.get("tech_stack", {}).keys())[:3]
+                
+                # 주요 언어 결정
+                tech_stack_dict = result.get("tech_stack", {})
+                primary_language = max(tech_stack_dict.keys(), key=tech_stack_dict.get) if tech_stack_dict else "Unknown"
+                
+                # 전체 점수 계산 (기본값)
+                overall_score = 7.5  # 실제로는 분석 품질 기반 계산
+                
+                # 파일 개수
+                file_count = len(result.get("key_files", []))
+                
+                recent_analyses.append({
+                    "analysis_id": analysis_id,
+                    "repository_name": repo_name,
+                    "repository_owner": repo_owner,
+                    "primary_language": primary_language,
+                    "overall_score": overall_score,
+                    "created_at": analysis_data.get("created_at", datetime.now().isoformat()),
+                    "tech_stack": tech_stack,
+                    "file_count": file_count
+                })
+        
+        # 생성 시간 기준 내림차순 정렬하여 limit만큼 반환
+        recent_analyses.sort(key=lambda x: x["created_at"], reverse=True)
+        recent_analyses = recent_analyses[:limit]
+        
+        print(f"[RECENT_ANALYSES] {len(recent_analyses)}개 분석 반환")
+        
+        return {
+            "success": True,
+            "data": recent_analyses,
+            "timestamp": datetime.now().isoformat()
         }
-    ]
-    
-    return {
-        "success": True,
-        "data": dummy_analyses[:limit],
-        "timestamp": "2025-08-18T23:00:00.000Z"
-    }
+        
+    except Exception as e:
+        print(f"[RECENT_ANALYSES] Error: {e}")
+        return {
+            "success": False,
+            "data": [],
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 
 @router.get("/analysis/{analysis_id}", response_model=AnalysisResult)

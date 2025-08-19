@@ -434,53 +434,14 @@ async def get_reports_list(
         
         print(f"[REPORTS_API] 활성 세션 수: {len(active_sessions)}")
         
-        # 빈 세션일 때 즉시 응답 (테스트용 더미 데이터 포함)
+        # 빈 세션일 때 빈 결과 반환 (더미데이터 제거)
         if not active_sessions:
-            # 개발/테스트용 더미 데이터
-            dummy_reports = [
-                {
-                    "id": "demo-interview-1",
-                    "repo_url": "https://github.com/microsoft/vscode",
-                    "repo_name": "vscode",
-                    "completed_at": (datetime.now() - timedelta(hours=2)).isoformat(),
-                    "total_questions": 5,
-                    "answered_questions": 5,
-                    "overall_score": 8.5,
-                    "category_scores": {
-                        "technical_accuracy": 8.2,
-                        "code_quality": 8.8,
-                        "problem_solving": 8.1,
-                        "communication": 8.9
-                    },
-                    "duration_minutes": 45,
-                    "status": "completed"
-                },
-                {
-                    "id": "demo-interview-2", 
-                    "repo_url": "https://github.com/facebook/react",
-                    "repo_name": "react",
-                    "completed_at": (datetime.now() - timedelta(hours=24)).isoformat(),
-                    "total_questions": 7,
-                    "answered_questions": 6,
-                    "overall_score": 7.3,
-                    "category_scores": {
-                        "technical_accuracy": 7.5,
-                        "code_quality": 7.8,
-                        "problem_solving": 6.9,
-                        "communication": 7.0
-                    },
-                    "duration_minutes": 52,
-                    "status": "completed"
-                }
-            ]
-            
             return {
                 "success": True,
                 "data": {
-                    "reports": dummy_reports,
-                    "total_count": len(dummy_reports),
-                    "filters_applied": {"status": status_filter},
-                    "message": "데모 데이터입니다. 실제 면접을 완료하면 여기에 표시됩니다."
+                    "reports": [],
+                    "total_count": 0,
+                    "filters_applied": {"status": status_filter}
                 },
                 "timestamp": datetime.now().isoformat()
             }
@@ -689,45 +650,7 @@ async def get_recent_reports(limit: int = 5):
                     "difficulty_level": session.difficulty_level
                 })
         
-        # 빈 결과일 때 더미 데이터 제공
-        if not completed_reports:
-            # 개발/테스트용 더미 데이터
-            completed_reports = [
-                {
-                    "interview_id": "demo-recent-1",
-                    "repository_name": "vscode",
-                    "repository_owner": "microsoft",
-                    "overall_score": 8.5,
-                    "completed_at": (datetime.now() - timedelta(hours=2)).isoformat(),
-                    "duration_minutes": 42,
-                    "questions_count": 5,
-                    "answers_count": 5,
-                    "category_scores": {
-                        "technical_accuracy": 8.2,
-                        "code_quality": 8.8,
-                        "problem_solving": 8.1,
-                        "communication": 8.9
-                    },
-                    "difficulty_level": "medium"
-                },
-                {
-                    "interview_id": "demo-recent-2", 
-                    "repository_name": "react",
-                    "repository_owner": "facebook",
-                    "overall_score": 7.3,
-                    "completed_at": (datetime.now() - timedelta(hours=24)).isoformat(),
-                    "duration_minutes": 38,
-                    "questions_count": 6,
-                    "answers_count": 5,
-                    "category_scores": {
-                        "technical_accuracy": 7.5,
-                        "code_quality": 7.8,
-                        "problem_solving": 6.9,
-                        "communication": 7.0
-                    },
-                    "difficulty_level": "intermediate"
-                }
-            ]
+        # 빈 결과일 때 빈 배열 반환 (더미데이터 제거)
         
         # 완료시간 기준 내림차순 정렬하여 limit만큼 반환
         completed_reports.sort(key=lambda x: x["completed_at"] or "0000", reverse=True)
