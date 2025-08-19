@@ -12,15 +12,23 @@ export default defineConfig({
     port: parseInt(process.env.PORT || '3000'),
     open: false, // Docker 환경에서 false로 설정
     proxy: {
-      // API 프록시 설정 (IPv4 강제)
+      // API 프록시 설정 (IPv4 강제) - 백엔드 포트 8001로 수정
       '/api': {
-        target: process.env.VITE_API_URL || 'http://127.0.0.1:8003',
+        target: process.env.VITE_API_URL || 'http://127.0.0.1:8001',
         changeOrigin: true,
         secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('Proxy error:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('Proxy request:', req.method, req.url, '-> target:', proxyReq.path);
+          });
+        }
       },
       // WebSocket 프록시 설정 (IPv4 강제)
       '/ws': {
-        target: process.env.VITE_WS_URL || 'ws://127.0.0.1:8003',
+        target: process.env.VITE_WS_URL || 'ws://127.0.0.1:8001',
         changeOrigin: true,
         ws: true,
       }

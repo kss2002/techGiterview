@@ -11,6 +11,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import { ApiKeySetup } from '../components/ApiKeySetup'
+import { QuickAccessSection } from '../components/QuickAccessSection'
 import { usePageInitialization } from '../hooks/usePageInitialization'
 import './HomePage.css'
 
@@ -52,14 +53,12 @@ export const HomePage: React.FC = () => {
         return
       }
 
-      // 저장소 분석 요청
-      const response = await fetch('/api/v1/repository/analyze', {
+      // 저장소 분석 요청 (임시로 간단한 분석 사용)
+      const response = await fetch('/api/v1/repository/analyze-simple', {
         method: 'POST',
         headers: createApiHeaders(true),
         body: JSON.stringify({
-          repo_url: repoUrl,
-          store_results: true,
-          ai_provider: selectedAI
+          repo_url: repoUrl
         })
       })
 
@@ -269,6 +268,13 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* 최근 활동 섹션 */}
+      <section className="section bg-gray-50">
+        <div className="container">
+          <QuickAccessSection />
         </div>
       </section>
 
