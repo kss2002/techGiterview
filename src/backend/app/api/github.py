@@ -14,6 +14,8 @@ from pydantic import BaseModel, HttpUrl
 from datetime import datetime, timedelta
 
 from app.core.config import settings
+from app.services.file_importance_analyzer import SmartFileImportanceAnalyzer
+from app.services.dependency_analyzer import DependencyAnalyzer
 # from app.core.database import get_db
 # from app.models.repository import RepositoryAnalysis
 
@@ -277,133 +279,208 @@ class RepositoryAnalyzer:
         return tech_scores
     
     async def get_key_files(self, owner: str, repo: str) -> List[FileInfo]:
-        """주요 파일 추출 - 최소 6개 이상 확보"""
-        key_files = []
-        target_file_count = 8  # 최소 6개 이상, 목표 8개
+        """SmartFileImportanceAnalyzer를 사용한 고급 파일 선택"""
+        print(f"[SMART_ANALYZER] ========== SmartFileImportanceAnalyzer 시작 ==========")
+        print(f"[SMART_ANALYZER] 저장소: {owner}/{repo}")
         
         try:
-            # 1단계: 루트 레벨 중요 파일들 수집
+            # 1. SmartFileImportanceAnalyzer와 DependencyAnalyzer 초기화
+            smart_analyzer = SmartFileImportanceAnalyzer()
+            dependency_analyzer = DependencyAnalyzer()
+            
+            # 2. GitHub에서 모든 파일 정보 수집
+            all_files_data = []
+            
+            # 루트 레벨 파일 수집
             contents = await self.github_client.get_repository_contents(owner, repo)
-            
             for item in contents:
-                if item["type"] == "file" and item["name"] in self.important_files:
-                    file_content = await self.github_client.get_file_content(owner, repo, item["path"])
-                    
-                    key_files.append(FileInfo(
-                        path=item["path"],
-                        type=item["type"],
-                        size=item["size"],
-                        content=file_content
-                    ))
+                if item["type"] == "file":
+                    try:
+                        file_content = await self.github_client.get_file_content(owner, repo, item["path"])
+                        all_files_data.append({
+                            "path": item["path"],
+                            "type": item["type"],
+                            "size": item["size"],
+                            "content": file_content
+                        })
+                    except Exception as e:
+                        print(f"[SMART_ANALYZER] 파일 내용 가져오기 실패 {item['path']}: {e}")
             
-            print(f"[KEY_FILES] 루트 레벨에서 {len(key_files)}개 파일 수집")
-            
-            # 2단계: src, lib, app 폴더에서 추가 파일 수집
-            important_dirs = ["src", "lib", "app", "components", "pages", "api", "utils", "services"]
+            # src, lib, app 폴더 등에서 추가 파일 수집 (VSCode 특화 디렉토리 포함)
+            important_dirs = ["src", "lib", "app", "components", "pages", "api", "utils", "services", 
+                            "extensions", "build", "cli", "test"]
             
             for dir_name in important_dirs:
-                if len(key_files) >= target_file_count:
-                    break
-                    
                 try:
+                    print(f"[SMART_ANALYZER] {dir_name} 폴더 접근 시도...")
                     dir_contents = await self.github_client.get_repository_contents(owner, repo, dir_name)
-                    # 파일 중요도 순으로 정렬
-                    files_to_add = []
+                    print(f"[SMART_ANALYZER] {dir_name} 폴더에서 {len(dir_contents)}개 항목 발견")
                     
+                    # 파일만 처리 (하위 디렉토리는 제외)
+                    file_count = 0
                     for item in dir_contents:
                         if item["type"] == "file":
-                            # 파일 확장자와 이름으로 중요도 판단
-                            importance_score = self._calculate_file_importance(item["name"], item["path"])
-                            files_to_add.append((item, importance_score))
+                            # TypeScript, JavaScript, JSON 파일 우선 수집
+                            if item["path"].endswith(('.ts', '.js', '.tsx', '.jsx', '.json', '.md', '.yml', '.yaml')):
+                                try:
+                                    file_content = await self.github_client.get_file_content(owner, repo, item["path"])
+                                    all_files_data.append({
+                                        "path": item["path"],
+                                        "type": item["type"], 
+                                        "size": item["size"],
+                                        "content": file_content
+                                    })
+                                    file_count += 1
+                                    if file_count >= 10:  # 각 폴더에서 최대 10개 파일만
+                                        break
+                                except Exception as e:
+                                    print(f"[SMART_ANALYZER] 파일 내용 가져오기 실패 {item['path']}: {e}")
                     
-                    # 중요도 순으로 정렬
-                    files_to_add.sort(key=lambda x: x[1], reverse=True)
+                    print(f"[SMART_ANALYZER] {dir_name} 폴더에서 {file_count}개 파일 수집 완료")
                     
-                    # 상위 파일들 추가 (남은 목표 개수만큼)
-                    remaining_count = target_file_count - len(key_files)
-                    for item, _ in files_to_add[:remaining_count]:
+                except Exception as dir_error:
+                    print(f"[SMART_ANALYZER] {dir_name} 폴더 접근 실패: {dir_error}")
+                    continue
+            
+            print(f"[SMART_ANALYZER] 전체 수집된 파일 수: {len(all_files_data)}개")
+            
+            # 3. SmartFileImportanceAnalyzer로 핵심 파일 12개 선택
+            if not all_files_data:
+                print(f"[SMART_ANALYZER] 수집된 파일이 없음 - 기본 파일 반환")
+                return []
+            
+            # 3-1. 파일 내용 준비 (DependencyAnalyzer용)
+            file_contents = {}
+            file_paths = []
+            for file_data in all_files_data:
+                file_path = file_data["path"]
+                file_content = file_data.get("content", "")
+                if file_content and not file_content.startswith("# File"):  # GitHub API 오류 메시지 제외
+                    file_contents[file_path] = file_content
+                file_paths.append(file_path)
+            
+            print(f"[SMART_ANALYZER] 분석 대상 파일: {len(file_contents)}개 (내용 있음), 전체 {len(file_paths)}개")
+            
+            # 3-2. DependencyAnalyzer로 의존성 중심성 계산
+            print(f"[SMART_ANALYZER] DependencyAnalyzer로 코드 의존성 분석 시작...")
+            dependency_centrality = {}
+            if file_contents:
+                try:
+                    dependency_centrality = dependency_analyzer.analyze_code_dependency_centrality(file_contents)
+                    print(f"[SMART_ANALYZER] 의존성 중심성 계산 완료: {len(dependency_centrality)}개 파일")
+                except Exception as dep_error:
+                    print(f"[SMART_ANALYZER] 의존성 분석 오류: {dep_error}")
+                    dependency_centrality = {fp: 0.1 for fp in file_paths}  # 기본값
+            else:
+                dependency_centrality = {fp: 0.1 for fp in file_paths}  # 기본값
+            
+            # 3-3. 기본 churn과 complexity 메트릭 생성
+            churn_metrics = {}
+            complexity_metrics = {}
+            for file_path in file_paths:
+                # 기본 churn 데이터 (GitHub에서 직접 Git 히스토리 접근 제한)
+                churn_metrics[file_path] = {
+                    "commit_frequency": 5,
+                    "recent_activity": 0.3,
+                    "bug_fix_ratio": 0.1,
+                    "stability_score": 0.8
+                }
+                
+                # 기본 complexity 데이터
+                complexity_metrics[file_path] = {
+                    "cyclomatic_complexity": 3,
+                    "maintainability_index": 70,
+                    "lines_of_code": {"executable": 50}
+                }
+            
+            # 3-4. SmartFileImportanceAnalyzer 실행 (올바른 매개변수 사용)
+            print(f"[SMART_ANALYZER] SmartFileImportanceAnalyzer 실행...")
+            important_files_info = smart_analyzer.identify_critical_files(
+                dependency_centrality=dependency_centrality,
+                churn_metrics=churn_metrics,
+                complexity_metrics=complexity_metrics,
+                top_n=12  # 12개 파일 선택
+            )
+            
+            print(f"[SMART_ANALYZER] SmartFileImportanceAnalyzer 완료: {len(important_files_info)}개 파일 선정")
+            
+            # 4. FileInfo 객체로 변환
+            key_files = []
+            for file_info in important_files_info:
+                file_path = file_info.get("file_path") 
+                if not file_path:
+                    continue
+                    
+                # 원본 파일 데이터 찾기
+                original_file = None
+                for f in all_files_data:
+                    if f["path"] == file_path:
+                        original_file = f
+                        break
+                
+                if original_file:
+                    key_files.append(FileInfo(
+                        path=original_file["path"],
+                        type=original_file["type"],
+                        size=original_file["size"],
+                        content=original_file["content"]
+                    ))
+                    
+                    # dot 파일 확인 로그
+                    if file_path.startswith('.') or '/' + '.' in file_path:
+                        print(f"[SMART_ANALYZER] ⚠️  Dot 파일이 선택됨: {file_path}")
+            
+            print(f"[SMART_ANALYZER] 최종 FileInfo 변환 완료: {len(key_files)}개")
+            
+            # 5. dot 파일 제외 검증
+            dot_files = [f for f in key_files if f.path.startswith('.') or '/.' in f.path]
+            if dot_files:
+                print(f"[SMART_ANALYZER] ❌ Dot 파일 {len(dot_files)}개 발견: {[f.path for f in dot_files]}")
+            else:
+                print(f"[SMART_ANALYZER] ✅ Dot 파일 제외 성공")
+            
+            return key_files
+            
+        except Exception as e:
+            print(f"[SMART_ANALYZER] 심각한 오류 발생: {e}")
+            # 폴백: 기본 방식으로 최소한의 파일 반환
+            return await self._fallback_get_key_files(owner, repo)
+    
+    async def _fallback_get_key_files(self, owner: str, repo: str) -> List[FileInfo]:
+        """SmartFileImportanceAnalyzer 실패 시 폴백 메서드"""
+        print(f"[SMART_ANALYZER] 폴백 모드 실행")
+        key_files = []
+        
+        try:
+            contents = await self.github_client.get_repository_contents(owner, repo)
+            
+            # 중요한 파일들만 선택 (dot 파일 제외)
+            important_names = ["README.md", "package.json", "main.py", "app.py", "__init__.py", 
+                             "index.js", "index.ts", "main.js", "main.ts", "server.js", "server.ts"]
+            
+            for item in contents:
+                if (item["type"] == "file" and 
+                    item["name"] in important_names and 
+                    not item["name"].startswith('.')):  # dot 파일 제외
+                    
+                    try:
                         file_content = await self.github_client.get_file_content(owner, repo, item["path"])
-                        
                         key_files.append(FileInfo(
                             path=item["path"],
                             type=item["type"],
                             size=item["size"],
                             content=file_content
                         ))
-                        
-                        if len(key_files) >= target_file_count:
-                            break
-                            
-                    print(f"[KEY_FILES] {dir_name} 폴더에서 {len(files_to_add)}개 파일 발견, {len(key_files) - len(key_files)}개 추가")
-                    
-                except Exception as dir_error:
-                    print(f"[KEY_FILES] {dir_name} 폴더 접근 실패: {dir_error}")
-                    continue
+                    except:
+                        continue
             
-            # 3단계: 최소 개수 미달 시 추가 파일 수집
-            if len(key_files) < 6:
-                print(f"[KEY_FILES] 파일 수 부족 ({len(key_files)}개), 추가 수집 진행")
-                
-                # 루트의 모든 파일에서 중요도 기준으로 추가 선택
-                for item in contents:
-                    if len(key_files) >= target_file_count:
-                        break
-                        
-                    if item["type"] == "file" and item["name"] not in [f.path for f in key_files]:
-                        # 이미 추가되지 않은 파일 중 중요한 파일들 추가
-                        importance = self._calculate_file_importance(item["name"], item["path"])
-                        if importance > 0.3:  # 중요도 임계값
-                            try:
-                                file_content = await self.github_client.get_file_content(owner, repo, item["path"])
-                                key_files.append(FileInfo(
-                                    path=item["path"],
-                                    type=item["type"],
-                                    size=item["size"],
-                                    content=file_content
-                                ))
-                            except:
-                                continue
-                                
+            print(f"[SMART_ANALYZER] 폴백 모드 완료: {len(key_files)}개 파일")
+            
         except Exception as e:
-            print(f"[KEY_FILES] 파일 추출 오류: {e}")
+            print(f"[SMART_ANALYZER] 폴백 모드도 실패: {e}")
         
-        print(f"[KEY_FILES] 최종 수집된 파일 수: {len(key_files)}개")
         return key_files
     
-    def _calculate_file_importance(self, filename: str, filepath: str) -> float:
-        """파일 중요도 계산"""
-        importance = 0.0
-        
-        # 파일명 기반 중요도
-        important_names = {
-            "main": 0.9, "app": 0.8, "index": 0.8, "config": 0.7,
-            "server": 0.7, "client": 0.6, "router": 0.6, "route": 0.6,
-            "model": 0.5, "service": 0.5, "controller": 0.5, "component": 0.4
-        }
-        
-        for name, score in important_names.items():
-            if name in filename.lower():
-                importance = max(importance, score)
-        
-        # 확장자 기반 중요도
-        important_extensions = {
-            ".py": 0.6, ".js": 0.6, ".ts": 0.7, ".tsx": 0.7, ".jsx": 0.6,
-            ".java": 0.6, ".go": 0.6, ".rs": 0.6, ".cpp": 0.5, ".c": 0.5,
-            ".json": 0.4, ".yml": 0.4, ".yaml": 0.4, ".toml": 0.4
-        }
-        
-        for ext, score in important_extensions.items():
-            if filename.lower().endswith(ext):
-                importance = max(importance, score)
-        
-        # 경로 기반 중요도 보너스
-        important_paths = ["src/", "lib/", "app/", "core/", "main/"]
-        for path in important_paths:
-            if path in filepath.lower():
-                importance += 0.2
-                break
-        
-        return min(importance, 1.0)
     
     async def get_all_files(self, owner: str, repo: str, max_depth: int = 3, max_files: int = 500) -> List[FileTreeNode]:
         """Tree API로 모든 파일을 트리 구조로 가져오기 (최적화됨)"""
