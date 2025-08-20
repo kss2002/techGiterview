@@ -224,6 +224,18 @@
   --color-border-light: var(--gray-100);         /* 연한 보더 */
   --color-border-dark: var(--gray-300);          /* 진한 보더 */
 
+  /* 📊 Dashboard 특화 색상 (브랜드 색상 기반) */
+  --dashboard-light-text: var(--color-text-on-dark-muted);     /* 다크 배경의 연한 텍스트 */
+  --dashboard-soft-navy: var(--brand-navy-200);               /* 연한 네이비 보더/배경 */
+  --dashboard-medium-navy: var(--brand-navy-600);             /* 중간 네이비 텍스트 */
+  --dashboard-bright-blue: var(--color-accent);               /* 강조 블루 */
+  --dashboard-accent-blue: var(--color-accent-light);         /* 밝은 강조 블루 */
+  --dashboard-soft-blue: var(--brand-navy-300);               /* 연한 블루 보더 */
+  --dashboard-error: var(--color-error);                      /* 에러 색상 */
+  --dashboard-warning: var(--color-warning);                  /* 경고 색상 */
+  --dashboard-success: var(--color-success);                  /* 성공 색상 */
+  --dashboard-info: var(--color-info);                        /* 정보 색상 */
+
   /* File Importance Colors - 브랜드 컬러 기반 파스텔 그라데이션 */
   --importance-critical: var(--brand-navy-600);
   --importance-critical-bg: var(--brand-navy-50);
