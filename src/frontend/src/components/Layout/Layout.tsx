@@ -118,12 +118,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             
             <div className="footer-bottom">
-              <p>&copy; 2024 TechGiterview. All rights reserved.</p>
-              <div className="footer-links">
-                <a href="#privacy">개인정보처리방침</a>
-                <a href="#terms">이용약관</a>
-                <a href="#faq">FAQ</a>
-              </div>
+              <p>&copy; 2025 TechGiterview. All rights reserved.</p>
+
             </div>
           </div>
         </footer>

@@ -418,20 +418,14 @@ export const HomePage: React.FC = () => {
               <h4>연락처</h4>
               <ul>
                 <li>EMAIL hong112424@naver.com</li>
-                <li>BUG GitHub Issues</li>
-                <li>CHAT Discord Community</li>
-                <li>DOCS Documentation</li>
+
               </ul>
             </div>
           </div>
           
           <div className="footer-bottom">
-            <p>&copy; 2024 TechGiterview. All rights reserved.</p>
-            <div className="footer-legal-links">
-              <a href="#privacy">개인정보처리방침</a>
-              <a href="#terms">이용약관</a>
-              <a href="#faq">FAQ</a>
-            </div>
+            <p>&copy; 2025 TechGiterview. All rights reserved.</p>
+
           </div>
         </div>
       </footer>
