@@ -324,25 +324,21 @@ class SmartFileImportanceAnalyzer:
             r'.*~$',
             # IDE 및 에디터 설정
             r'\.(vscode|idea|eclipse|settings)/',
-            r'.*\.(orig|rej)$'
+            r'.*\.(orig|rej)$',
+            # Dot 파일 제외 패턴 (루트 및 하위 디렉토리)
+            r'^\.[^/]*$',          # 루트의 dot 파일들 (.env, .gitignore 등)
+            r'/\.[^/]*$',          # 하위 디렉토리의 dot 파일들
+            r'(^|/)\.[a-zA-Z]'     # 더 포괄적인 dot 파일 패턴
         ]
         
         for pattern in dummy_patterns:
             if re.search(pattern, normalized_path, re.IGNORECASE):
                 return True
         
-        # 추가 제외 조건
+        # 추가 제외 조건 (패턴에서 다루지 않은 나머지)
         exclude_conditions = [
             # 빈 파일 또는 매우 작은 파일
             len(normalized_path.strip()) == 0,
-            # 숨김 파일 (리눅스/맥)
-            normalized_path.startswith('.') and not normalized_path.startswith('./'),
-            # 임시 파일
-            '.tmp' in normalized_path or '.temp' in normalized_path,
-            # 백업 파일
-            normalized_path.endswith('~') or '.bak' in normalized_path,
-            # 로그 파일
-            normalized_path.endswith('.log') or '/log/' in normalized_path,
             # 캐시 파일
             '/cache/' in normalized_path or '.cache' in normalized_path
         ]
