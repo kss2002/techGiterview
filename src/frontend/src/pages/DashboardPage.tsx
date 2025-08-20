@@ -270,12 +270,27 @@ const getFileIcon = (filePath: string): React.ReactNode => {
   }
 }
 
+// 분석 목록을 위한 인터페이스 (QuickAccessSection과 동일)
+interface RecentAnalysis {
+  analysis_id: string
+  repository_name: string
+  repository_owner: string
+  created_at: string
+  tech_stack: string[]
+  file_count: number
+  primary_language: string
+}
+
 export const DashboardPage: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [questions, setQuestionsInternal] = useState<Question[]>([])
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false)
   const [questionsGenerated, setQuestionsGenerated] = useState(false)
+  
+  // 전체 분석 목록을 위한 상태
+  const [allAnalyses, setAllAnalyses] = useState<RecentAnalysis[]>([])
+  const [isLoadingAllAnalyses, setIsLoadingAllAnalyses] = useState(false)
   
   // 질문 상태 변경 추적을 위한 래퍼 함수
   const setQuestions = (newQuestions: Question[]) => {
@@ -407,9 +422,9 @@ export const DashboardPage: React.FC = () => {
       // URL 파라미터에서 분석 ID를 가져와서 API에서 데이터 로드
       loadAnalysisResult(analysisId)
     } else {
-      // 분석 ID가 없으면 홈으로 리다이렉트
-      console.log('No analysisId, redirecting to home')
-      navigate('/')
+      // 분석 ID가 없으면 전체 분석 목록 표시
+      console.log('No analysisId, showing all analyses')
+      loadAllAnalyses()
     }
   }, [analysisId, navigate])
 
@@ -435,6 +450,38 @@ export const DashboardPage: React.FC = () => {
    * - DashboardPage.tsx: getDepthClassName() 함수로 CSS 클래스 동적 할당
    */
 
+  // 전체 분석 목록 로드 함수
+  const loadAllAnalyses = async () => {
+    console.log('[Dashboard] Loading all analyses...')
+    setIsLoadingAllAnalyses(true)
+    setError(null)
+    
+    try {
+      const response = await fetch('/api/v1/repository/analysis/recent?limit=50') // 더 많은 결과 가져오기
+      console.log('[Dashboard] All analyses response received:', response.status)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('[Dashboard] All analyses data:', data)
+      
+      if (data.success) {
+        setAllAnalyses(data.data || [])
+        console.log(`[Dashboard] Loaded ${data.data?.length || 0} analyses`)
+      } else {
+        throw new Error('Failed to load analyses')
+      }
+    } catch (error) {
+      console.error('[Dashboard] Error loading all analyses:', error)
+      setError('분석 목록을 불러오는데 실패했습니다.')
+      setAllAnalyses([])
+    } finally {
+      setIsLoadingAllAnalyses(false)
+    }
+  }
+
   const loadAnalysisResult = async (analysisId: string) => {
     console.log('[Dashboard] Starting loadAnalysisResult for ID:', analysisId)
     console.log('[Dashboard] API URL will be:', `/api/v1/repository/analysis/${analysisId}`)
@@ -443,9 +490,9 @@ export const DashboardPage: React.FC = () => {
     setError(null)
     
     try {
-      console.log('[Dashboard] 📤 Making fetch request...')
+      console.log('[Dashboard] Making fetch request...')
       const response = await fetch(`/api/v1/repository/analysis/${analysisId}`)
-      console.log('[Dashboard] 📥 Response received:', {
+      console.log('[Dashboard] Response received:', {
         status: response.status,
         statusText: response.statusText,
         url: response.url,
@@ -508,7 +555,7 @@ export const DashboardPage: React.FC = () => {
       })
       setError(error instanceof Error ? error.message : 'Unknown error occurred')
     } finally {
-      console.log('[Dashboard] 🏁 Analysis loading finished, setting isLoadingAnalysis to false')
+      console.log('[Dashboard] Analysis loading finished, setting isLoadingAnalysis to false')
       setIsLoadingAnalysis(false)
     }
   }
@@ -525,13 +572,13 @@ export const DashboardPage: React.FC = () => {
     try {
       // 먼저 이미 생성된 질문이 있는지 확인
       const checkUrl = `/api/v1/questions/analysis/${analysisToUse.analysis_id}`
-      console.log('[Questions] 📤 Fetching existing questions from:', checkUrl)
+      console.log('[Questions] Fetching existing questions from:', checkUrl)
       
       const checkResponse = await fetch(checkUrl, {
         method: 'GET',
         headers: createApiHeaders(false) // 질문 조회는 API 키 불필요
       })
-      console.log('[Questions] 📥 Check response received:', {
+      console.log('[Questions] Check response received:', {
         status: checkResponse.status,
         statusText: checkResponse.statusText,
         ok: checkResponse.ok,
@@ -949,17 +996,89 @@ export const DashboardPage: React.FC = () => {
   }
 
   // 로딩 상태
-  if (isLoadingAnalysis) {
+  if (isLoadingAnalysis || isLoadingAllAnalyses) {
     console.log('[Dashboard] Rendering loading state')
     return (
       <div className="dashboard-loading">
         <div className="spinner-large"></div>
-        <p>분석 결과를 불러오는 중...</p>
+        <p>{analysisId ? '분석 결과를 불러오는 중...' : '분석 목록을 불러오는 중...'}</p>
       </div>
     )
   }
 
-  // 분석 결과가 없거나 오류가 있는 경우
+  // analysisId가 없는 경우 - 분석 목록 표시
+  if (!analysisId) {
+    console.log('[Dashboard] Rendering analyses list')
+    return (
+      <div className="dashboard-analyses-list">
+        <div className="dashboard-header">
+          <h1>📊 전체 분석 결과</h1>
+          <p>지금까지 분석한 모든 GitHub 저장소를 확인하세요</p>
+        </div>
+
+        {allAnalyses.length === 0 && !error ? (
+          <div className="analyses-empty">
+            <div className="empty-state">
+              <LayoutDashboard className="empty-icon" />
+              <h3>분석 결과가 없습니다</h3>
+              <p>GitHub 저장소를 분석해보세요!</p>
+              <button onClick={() => navigate('/')} className="btn btn-primary">
+                🏠 홈으로 가기
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="analyses-grid">
+            {allAnalyses.map((analysis) => (
+              <div 
+                key={analysis.analysis_id} 
+                className="analysis-card"
+                onClick={() => navigate(`/dashboard/${analysis.analysis_id}`)}
+              >
+                <div className="analysis-header">
+                  <div className="repo-info">
+                    <Github className="repo-icon" />
+                    <h3>{analysis.repository_owner}/{analysis.repository_name}</h3>
+                  </div>
+                  <div className="analysis-date">
+                    <Clock className="date-icon" />
+                    <span>{new Date(analysis.created_at).toLocaleDateString('ko-KR')}</span>
+                  </div>
+                </div>
+                
+                <div className="analysis-details">
+                  <div className="detail-item">
+                    <Code className="detail-icon" />
+                    <span>{analysis.primary_language}</span>
+                  </div>
+                  <div className="detail-item">
+                    <FileText className="detail-icon" />
+                    <span>{analysis.file_count}개 파일</span>
+                  </div>
+                </div>
+                
+                <div className="tech-stack">
+                  {analysis.tech_stack.slice(0, 3).map((tech, idx) => (
+                    <span key={idx} className="tech-tag">{tech}</span>
+                  ))}
+                  {analysis.tech_stack.length > 3 && (
+                    <span className="tech-more">+{analysis.tech_stack.length - 3}</span>
+                  )}
+                </div>
+                
+                <div className="analysis-actions">
+                  <ArrowRight className="action-icon" />
+                  <span>상세보기</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // 분석 결과가 없거나 오류가 있는 경우 (특정 analysisId가 있을 때만)
   if (!analysisResult || error) {
     console.log('[Dashboard] Rendering error state:', { 
       hasAnalysisResult: !!analysisResult, 
@@ -979,6 +1098,9 @@ export const DashboardPage: React.FC = () => {
           <div className="error-actions">
             <button onClick={() => navigate('/')} className="btn btn-outline">
               🏠 홈으로 돌아가기
+            </button>
+            <button onClick={() => navigate('/dashboard')} className="btn btn-primary">
+              📊 전체 분석 보기
             </button>
             <button 
               onClick={() => {
