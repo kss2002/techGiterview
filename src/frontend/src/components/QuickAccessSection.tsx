@@ -18,12 +18,6 @@ export const QuickAccessSection: React.FC = () => {
   const { data, isLoading, error, refetch } = useQuickAccessDataWithCache(3)
   const navigate = useNavigate()
 
-  const getScoreClass = (score: number) => {
-    if (score >= 8.0) return 'score-excellent'
-    if (score >= 6.0) return 'score-good'
-    if (score >= 4.0) return 'score-fair'
-    return 'score-poor'
-  }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -46,7 +40,8 @@ export const QuickAccessSection: React.FC = () => {
   }
 
   const handleAnalysisClick = (analysisId: string) => {
-    navigate(`/dashboard?analysis=${analysisId}`)
+    console.log('[QUICK_ACCESS] 분석 결과 클릭:', analysisId)
+    navigate(`/dashboard/${analysisId}`)
   }
 
   const handleReportClick = (interviewId: string) => {
@@ -97,8 +92,22 @@ export const QuickAccessSection: React.FC = () => {
         </div>
         <div className="quick-access-empty">
           <FileText className="empty-icon" />
-          <h3>아직 활동 기록이 없습니다</h3>
-          <p>GitHub 저장소를 분석하거나 면접을 진행해보세요!</p>
+          <h3>실제 분석 데이터가 없습니다</h3>
+          <p>GitHub 저장소를 새로 분석하거나 실제 면접을 진행해보세요!</p>
+          <div className="empty-actions">
+            <button 
+              onClick={() => navigate('/analyze')} 
+              className="primary-action-btn"
+            >
+              저장소 분석하기
+            </button>
+            <button 
+              onClick={() => navigate('/interview')} 
+              className="secondary-action-btn"
+            >
+              면접 시작하기
+            </button>
+          </div>
         </div>
       </section>
     )
@@ -148,14 +157,6 @@ export const QuickAccessSection: React.FC = () => {
                       <span className="item-date">
                         <Clock className="date-icon" />
                         {formatDate(analysis.created_at)}
-                      </span>
-                    </div>
-                    <div className="item-score">
-                      <span 
-                        className="score-value"
-                        className={`score-value ${getScoreClass(analysis.overall_score)}`}
-                      >
-                        {analysis.overall_score}
                       </span>
                     </div>
                   </div>
@@ -212,14 +213,6 @@ export const QuickAccessSection: React.FC = () => {
                       <span className="item-date">
                         <Clock className="date-icon" />
                         {formatDate(report.completed_at)}
-                      </span>
-                    </div>
-                    <div className="item-score">
-                      <span 
-                        className="score-value"
-                        className={`score-value ${getScoreClass(report.overall_score)}`}
-                      >
-                        {report.overall_score}
                       </span>
                     </div>
                   </div>

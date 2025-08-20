@@ -122,8 +122,61 @@
 
 .quick-access-empty p {
   color: #6c757d;
-  margin: 0;
+  margin: 0 0 1.5rem 0;
   text-align: center;
+}
+
+/* Empty State Actions */
+.empty-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.primary-action-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.primary-action-btn:hover {
+  background: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.secondary-action-btn {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.secondary-action-btn:hover {
+  background: var(--color-accent);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
 }
 
 /* Main Grid */
@@ -260,17 +313,6 @@
   height: 14px;
 }
 
-.item-score {
-  margin-left: 1rem;
-}
-
-.score-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  padding: 0.25rem 0.5rem;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 6px;
-}
 
 /* Item Details */
 .item-details {
@@ -447,9 +489,6 @@
     font-size: 0.8rem;
   }
   
-  .score-value {
-    font-size: 1.1rem;
-  }
 }
 
 /* Animation Keyframes */
@@ -510,11 +549,6 @@
   outline-offset: 2px;
 }
 
-/* 점수별 색상 클래스 */
-.score-value.score-excellent { color: var(--score-excellent); }
-.score-value.score-good { color: var(--score-good); }
-.score-value.score-fair { color: var(--score-fair); }
-.score-value.score-poor { color: var(--score-poor); }
 
 /* Print Styles */
 @media print {

@@ -4,7 +4,6 @@ interface RecentAnalysis {
   analysis_id: string
   repository_name: string
   repository_owner: string
-  overall_score: number
   created_at: string
   tech_stack: string[]
   file_count: number
@@ -49,7 +48,7 @@ export const useQuickAccessData = (limit: number = 3): UseQuickAccessDataResult 
       setIsLoading(true)
       setError(null)
 
-      // 병렬로 두 API 호출
+      // 병렬로 두 API 호출 (Vite 프록시 사용)
       const [analysesResponse, reportsResponse] = await Promise.all([
         fetch(`/api/v1/repository/analysis/recent?limit=${limit}`),
         fetch(`/api/v1/reports/recent?limit=${limit}`)
