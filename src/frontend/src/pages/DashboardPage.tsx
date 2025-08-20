@@ -1010,11 +1010,19 @@ export const DashboardPage: React.FC = () => {
   if (!analysisId) {
     console.log('[Dashboard] Rendering analyses list')
     return (
-      <div className="dashboard-analyses-list">
+      <div className="dashboard-page">
         <div className="dashboard-header">
-          <h1>📊 전체 분석 결과</h1>
-          <p>지금까지 분석한 모든 GitHub 저장소를 확인하세요</p>
+          <div className="header-content">
+            <h1>
+              <LayoutDashboard className="section-icon" />
+              전체 분석 결과
+            </h1>
+            <p className="repo-url">지금까지 분석한 모든 GitHub 저장소를 확인하세요</p>
+            <p className="analysis-id">총 {allAnalyses.length}개의 분석 결과가 있습니다</p>
+          </div>
         </div>
+        
+        <div className="dashboard-content">
 
         {allAnalyses.length === 0 && !error ? (
           <div className="analyses-empty">
@@ -1032,48 +1040,68 @@ export const DashboardPage: React.FC = () => {
             {allAnalyses.map((analysis) => (
               <div 
                 key={analysis.analysis_id} 
-                className="analysis-card"
+                className="card analysis-card"
                 onClick={() => navigate(`/dashboard/${analysis.analysis_id}`)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && navigate(`/dashboard/${analysis.analysis_id}`)}
               >
                 <div className="analysis-header">
                   <div className="repo-info">
                     <Github className="repo-icon" />
                     <h3>{analysis.repository_owner}/{analysis.repository_name}</h3>
                   </div>
-                  <div className="analysis-date">
-                    <Clock className="date-icon" />
-                    <span>{new Date(analysis.created_at).toLocaleDateString('ko-KR')}</span>
+                  <div className="analysis-meta">
+                    <div className="analysis-date">
+                      <Clock className="date-icon" />
+                      <span>{new Date(analysis.created_at).toLocaleDateString('ko-KR', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</span>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="analysis-details">
-                  <div className="detail-item">
-                    <Code className="detail-icon" />
-                    <span>{analysis.primary_language}</span>
+                <div className="analysis-content">
+                  <div className="analysis-details">
+                    <div className="detail-item">
+                      <Code className="detail-icon" />
+                      <span className="detail-label">주언어</span>
+                      <span className="detail-value">{analysis.primary_language}</span>
+                    </div>
+                    <div className="detail-item">
+                      <FileText className="detail-icon" />
+                      <span className="detail-label">파일 수</span>
+                      <span className="detail-value">{analysis.file_count}개</span>
+                    </div>
                   </div>
-                  <div className="detail-item">
-                    <FileText className="detail-icon" />
-                    <span>{analysis.file_count}개 파일</span>
+                  
+                  <div className="tech-stack-section">
+                    <h4 className="tech-stack-title">기술 스택</h4>
+                    <div className="tech-stack">
+                      {analysis.tech_stack.slice(0, 4).map((tech, idx) => (
+                        <span key={idx} className="tech-tag">{tech}</span>
+                      ))}
+                      {analysis.tech_stack.length > 4 && (
+                        <span className="tech-more">+{analysis.tech_stack.length - 4}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
-                <div className="tech-stack">
-                  {analysis.tech_stack.slice(0, 3).map((tech, idx) => (
-                    <span key={idx} className="tech-tag">{tech}</span>
-                  ))}
-                  {analysis.tech_stack.length > 3 && (
-                    <span className="tech-more">+{analysis.tech_stack.length - 3}</span>
-                  )}
-                </div>
-                
-                <div className="analysis-actions">
-                  <ArrowRight className="action-icon" />
-                  <span>상세보기</span>
+                <div className="analysis-footer">
+                  <div className="analysis-actions">
+                    <ArrowRight className="action-icon" />
+                    <span>상세 분석 보기</span>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
+        </div>
       </div>
     )
   }
