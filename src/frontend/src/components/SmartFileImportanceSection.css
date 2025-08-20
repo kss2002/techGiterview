@@ -2,7 +2,7 @@
 
 .smart-file-importance-section {
   padding: 24px;
-  background: #ffffff;
+  background: var(--color-background-card);
   border-radius: 12px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   margin-bottom: 24px;
@@ -16,12 +16,12 @@
 .section-header h3 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text-primary);
   margin: 0 0 8px 0;
 }
 
 .section-description {
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
   margin: 0;
 }
@@ -30,15 +30,15 @@
 .importance-distribution {
   margin-bottom: 32px;
   padding: 20px;
-  background: #f8fafc;
+  background: var(--gray-50);
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
 }
 
 .importance-distribution h4 {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
   margin: 0 0 16px 0;
 }
 
@@ -53,12 +53,12 @@
   padding: 12px;
   background: white;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
 }
 
 .stat-label {
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-weight: 500;
   margin-bottom: 4px;
 }
@@ -66,7 +66,7 @@
 .stat-value {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text-primary);
 }
 
 /* 카테고리 요약 */
@@ -77,7 +77,7 @@
 .category-summary h4 {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
   margin: 0 0 16px 0;
 }
 
@@ -102,7 +102,7 @@
 }
 
 .category-card.active {
-  border-color: #3b82f6;
+  border-color: var(--color-accent);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
@@ -122,12 +122,12 @@
 
 /* 카테고리 색상 */
 .badge-critical {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .badge-critical .category-count {
-  color: #dc2626;
+  color: var(--color-error);
 }
 
 .badge-important {
@@ -140,39 +140,39 @@
 }
 
 .badge-moderate {
-  background: #f0fdf4;
-  color: #16a34a;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .badge-moderate .category-count {
-  color: #16a34a;
+  color: var(--color-success);
 }
 
 .badge-low {
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--gray-50);
+  color: var(--color-text-muted);
 }
 
 .badge-low .category-count {
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .badge-default {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--gray-50);
+  color: var(--color-text-secondary);
 }
 
 .badge-default .category-count {
-  color: #334155;
+  color: var(--color-text-secondary);
 }
 
 /* 컨트롤 */
 .controls {
   margin-bottom: 24px;
   padding: 16px;
-  background: #f8fafc;
+  background: var(--gray-50);
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
 }
 
 .sort-controls {
@@ -183,23 +183,23 @@
 
 .sort-controls label {
   font-weight: 500;
-  color: #374151;
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
 }
 
 .sort-controls select {
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-dark);
   border-radius: 6px;
   background: white;
   font-size: 0.9rem;
-  color: #374151;
+  color: var(--color-text-secondary);
   cursor: pointer;
 }
 
 .sort-controls select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -207,7 +207,7 @@
 .files-list h4 {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
   margin: 0 0 16px 0;
 }
 
@@ -220,14 +220,14 @@
 .file-card {
   padding: 20px;
   background: white;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .file-card:hover {
-  border-color: #3b82f6;
+  border-color: var(--color-accent);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-1px);
 }
@@ -247,7 +247,7 @@
 .file-path {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 0.9rem;
-  color: #1f2937;
+  color: var(--color-text-primary);
   font-weight: 500;
   margin-bottom: 4px;
   word-break: break-all;
@@ -255,7 +255,7 @@
 
 .file-rank {
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 
@@ -280,7 +280,7 @@
   font-size: 0.9rem;
   font-weight: 600;
   padding: 4px 8px;
-  background: #f3f4f6;
+  background: var(--gray-100);
   border-radius: 4px;
 }
 
@@ -298,7 +298,7 @@
 .metric-label {
   width: 120px;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-weight: 500;
   flex-shrink: 0;
 }
@@ -306,7 +306,7 @@
 .metric-progress {
   flex: 1;
   height: 20px;
-  background: #f3f4f6;
+  background: var(--gray-100);
   border-radius: 10px;
   position: relative;
   overflow: hidden;
@@ -349,7 +349,7 @@
 
 /* 선정 이유 */
 .selection-reasons {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--color-border);
   padding-top: 12px;
 }
 
@@ -357,7 +357,7 @@
   background: none;
   border: none;
   font-size: 0.9rem;
-  color: #3b82f6;
+  color: var(--color-accent);
   cursor: pointer;
   font-weight: 500;
   padding: 0;
@@ -367,7 +367,7 @@
 }
 
 .reasons-toggle:hover {
-  color: #1d4ed8;
+  color: var(--color-accent-dark);
 }
 
 .reasons-list {
@@ -380,11 +380,11 @@
   align-items: flex-start;
   margin-bottom: 6px;
   font-size: 0.85rem;
-  color: #374151;
+  color: var(--color-text-secondary);
 }
 
 .reason-icon {
-  color: #3b82f6;
+  color: var(--color-accent);
   margin-right: 8px;
   font-weight: bold;
   flex-shrink: 0;
@@ -398,15 +398,15 @@
 .improvement-suggestions {
   margin-top: 32px;
   padding: 20px;
-  background: #fafafa;
+  background: var(--gray-50);
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
 }
 
 .improvement-suggestions h4 {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
   margin: 0 0 16px 0;
 }
 
@@ -419,11 +419,11 @@
   padding: 16px;
   background: white;
   border-radius: 6px;
-  border-left: 4px solid #d1d5db;
+  border-left: 4px solid var(--color-border-dark);
 }
 
 .suggestion-item.priority-high {
-  border-left-color: #dc2626;
+  border-left-color: var(--color-error);
 }
 
 .suggestion-item.priority-medium {
@@ -431,7 +431,7 @@
 }
 
 .suggestion-item.priority-low {
-  border-left-color: #16a34a;
+  border-left-color: var(--color-success);
 }
 
 .suggestion-header {
@@ -448,7 +448,7 @@
 .suggestion-type {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
 }
 
 .priority-badge {
@@ -461,8 +461,8 @@
 }
 
 .priority-badge.priority-high {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--error-100);
+  color: var(--color-error);
 }
 
 .priority-badge.priority-medium {
@@ -471,20 +471,20 @@
 }
 
 .priority-badge.priority-low {
-  background: #dcfce7;
-  color: #16a34a;
+  background: var(--success-100);
+  color: var(--color-success);
 }
 
 .suggestion-message {
   font-size: 0.9rem;
-  color: #374151;
+  color: var(--color-text-secondary);
   line-height: 1.5;
   margin-bottom: 6px;
 }
 
 .suggestion-meta {
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
