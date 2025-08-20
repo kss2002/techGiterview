@@ -1,0 +1,41 @@
+# Docker Compose Production Configuration
+# 운영 환경 전용 설정
+
+version: '3.8'
+
+services:
+  redis:
+    restart: always
+
+  backend:
+    restart: always
+    environment:
+      - ENV=production
+      - DEBUG=false
+      - DATABASE_PATH=/app/techgiterview_prod.db
+      - REDIS_URL=redis://redis:6379
+    command: uvicorn main:app --host 0.0.0.0 --port 8002 --workers 4
+    volumes:
+      - backend_data:/app/data
+      # Remove development volume mount for production
+    ports:
+      - "9104:8002"
+
+  frontend:
+    restart: always
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: https://tgv.oursophy.com/api
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "9105:80"
+    depends_on:
+      - backend
+    # Remove development volumes for production
+
+volumes:
+  redis_data:
+  backend_data:

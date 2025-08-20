@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HomePage Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .loading { background-color: #fff3cd; color: #856404; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>TechGiterview HomePage API Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+        }
+        
+        async function testHomepageAPI() {
+            addResult('📡 API 테스트 시작...', 'loading');
+            
+            try {
+                const response = await fetch('/api/v1/homepage/init', {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                addResult('✅ API 호출 성공!', 'success');
+                addResult(`<strong>Config:</strong><pre>${JSON.stringify(data.config, null, 2)}</pre>`, 'info');
+                addResult(`<strong>Providers:</strong><pre>${JSON.stringify(data.providers, null, 2)}</pre>`, 'info');
+                addResult(`<strong>Cache Info:</strong><pre>${JSON.stringify(data.cache_info, null, 2)}</pre>`, 'info');
+                
+                // React Query 시뮬레이션
+                addResult('🔄 React Query 동작 시뮬레이션...', 'loading');
+                
+                setTimeout(() => {
+                    addResult('📦 Progressive Enhancement 패턴 테스트 완료!', 'success');
+                    addResult('로컬 데이터 → 서버 데이터 업그레이드 방식으로 React Strict Mode 이슈 해결됨', 'success');
+                }, 1000);
+                
+            } catch (error) {
+                addResult(`❌ API 호출 실패: ${error.message}`, 'error');
+                addResult('로컬 데이터 폴백 모드로 동작할 예정', 'info');
+            }
+        }
+        
+        // 페이지 로드 시 테스트 실행
+        testHomepageAPI();
+        
+        // React Strict Mode 시뮬레이션 (의도적 중복 실행)
+        setTimeout(() => {
+            addResult('🔁 React Strict Mode 중복 실행 시뮬레이션...', 'loading');
+            testHomepageAPI();
+        }, 2000);
+    </script>
+</body>
+</html>

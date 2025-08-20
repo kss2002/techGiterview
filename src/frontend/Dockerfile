@@ -42,16 +42,16 @@ RUN chown -R $USER_ID:$GROUP_ID /app && \
 # 프로덕션에서는 보안을 위해 non-root 사용자 권장
 
 # 포트 노출
-EXPOSE 3000
+EXPOSE 3001
 
 # 환경 변수 설정
 ENV NODE_ENV=development
-ENV PORT=3000
+ENV PORT=3001
 ENV VITE_CJS_IGNORE_WARNING=true
 
 # 헬스체크
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
-    CMD curl -f http://localhost:3000 || exit 1
+    CMD curl -f http://localhost:3001 || exit 1
 
 # 개발 서버 시작
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3001"]

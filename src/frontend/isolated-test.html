@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isolated CSS Test - Direct Copy of HomePage Styles</title>
+    <style>
+        /* 정확히 같은 CSS 변수들 직접 복사 */
+        :root {
+            --primary-900: #1e3a8a;
+            --text-6xl: 3.75rem;
+            --spacing-20: 5rem;
+            --spacing-5: 1.25rem;
+            --gray-50: #f9fafb;
+            --font-bold: 700;
+            --content-max-width-xl: 1280px;
+        }
+        
+        /* HomePage.css에서 직접 복사한 스타일들 */
+        .home-page {
+            min-height: 100vh;
+            background: var(--primary-900);
+            color: var(--gray-50);
+        }
+        
+        .hero-section {
+            padding: var(--spacing-20) var(--spacing-5);
+            text-align: center;
+            max-width: var(--content-max-width-xl);
+            margin: 0 auto;
+        }
+        
+        .hero-title {
+            font-size: var(--text-6xl);
+            font-weight: var(--font-bold);
+            margin-bottom: 20px;
+            color: var(--gray-50);
+        }
+        
+        /* 비교용 하드코딩 스타일 */
+        .hardcoded-style {
+            background: #1e3a8a;
+            color: #f9fafb;
+            font-size: 3.75rem;
+            font-weight: 700;
+            padding: 5rem 1.25rem;
+            min-height: 100vh;
+            text-align: center;
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+        
+        /* CSS Variables가 제대로 작동하는지 확인용 */
+        .test-background-red {
+            background: var(--primary-900, red);
+            color: var(--gray-50, green);
+            padding: var(--spacing-20, 20px);
+            font-size: var(--text-6xl, 16px);
+        }
+    </style>
+</head>
+<body>
+    <!-- CSS Variables 사용 버전 (HomePage와 동일) -->
+    <div class="home-page">
+        <div class="hero-section">
+            <h1 class="hero-title">CSS Variables 테스트 (HomePage 스타일)</h1>
+            <p>이 페이지가 파란색 배경이면 CSS 변수가 작동합니다</p>
+            <p>회색 또는 다른 색이면 CSS 변수가 실패했습니다</p>
+        </div>
+    </div>
+
+    <!-- 하드코딩된 버전 (비교용) -->
+    <div class="hardcoded-style">
+        <h1>하드코딩된 스타일 (비교용)</h1>
+        <p>이 페이지는 항상 파란색이어야 합니다</p>
+        <p>CSS Variables와 시각적으로 동일해야 합니다</p>
+    </div>
+
+    <!-- Fallback 테스트 -->
+    <div class="test-background-red">
+        <h1>Fallback 테스트</h1>
+        <p>변수가 작동하면 파란색, 실패하면 빨간색입니다</p>
+    </div>
+
+    <script>
+        // 브라우저에서 실제 CSS 변수 값 확인
+        function checkCSSVariables() {
+            const root = document.documentElement;
+            const computed = getComputedStyle(root);
+            
+            console.log('CSS Variables Check:');
+            console.log('--primary-900:', computed.getPropertyValue('--primary-900'));
+            console.log('--text-6xl:', computed.getPropertyValue('--text-6xl'));
+            console.log('--spacing-20:', computed.getPropertyValue('--spacing-20'));
+            console.log('--gray-50:', computed.getPropertyValue('--gray-50'));
+            
+            // DOM에 출력
+            const homePageDiv = document.querySelector('.home-page');
+            const computedHomeStyle = getComputedStyle(homePageDiv);
+            
+            console.log('Computed styles:');
+            console.log('background-color:', computedHomeStyle.backgroundColor);
+            console.log('color:', computedHomeStyle.color);
+            
+            // 결과를 페이지에 표시
+            const resultDiv = document.createElement('div');
+            resultDiv.style.cssText = 'position: fixed; top: 0; left: 0; background: white; color: black; padding: 10px; font-family: monospace; font-size: 12px; z-index: 9999; max-width: 300px; border: 1px solid black;';
+            resultDiv.innerHTML = `
+                <strong>CSS Variables Debug:</strong><br>
+                --primary-900: "${computed.getPropertyValue('--primary-900')}"<br>
+                --text-6xl: "${computed.getPropertyValue('--text-6xl')}"<br>
+                --spacing-20: "${computed.getPropertyValue('--spacing-20')}"<br>
+                --gray-50: "${computed.getPropertyValue('--gray-50')}"<br><br>
+                <strong>Computed styles:</strong><br>
+                background: ${computedHomeStyle.backgroundColor}<br>
+                color: ${computedHomeStyle.color}<br>
+                font-size: ${getComputedStyle(document.querySelector('.hero-title')).fontSize}
+            `;
+            document.body.appendChild(resultDiv);
+        }
+        
+        // 페이지 로드 후 확인
+        window.addEventListener('load', checkCSSVariables);
+    </script>
+</body>
+</html>
