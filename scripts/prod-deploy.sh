@@ -16,7 +16,7 @@ DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-"docker"}
 ENVIRONMENT=${ENVIRONMENT:-"production"}
 BUILD_VERSION=${BUILD_VERSION:-$(date +%Y%m%d-%H%M%S)}
 
-echo "📋 배포 설정:"
+echo "배포 설정:"
 echo "   - 배포 모드: $DEPLOYMENT_MODE"
 echo "   - 환경: $ENVIRONMENT"
 echo "   - 빌드 버전: $BUILD_VERSION"

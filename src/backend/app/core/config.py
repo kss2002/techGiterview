@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     
     # CORS
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
     
     def get_allowed_origins(self) -> List[str]:
         """CORS allowed origins 리스트 반환"""

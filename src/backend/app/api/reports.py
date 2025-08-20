@@ -604,64 +604,76 @@ async def get_detailed_report(interview_id: str):
 
 
 @router.get("/recent", response_model=Dict[str, Any])
-async def get_recent_reports(limit: int = 5):
-    """최근 완료된 면접 리포트 요약 조회 (홈페이지용)"""
+async def get_recent_reports(limit: int = 5, db: Session = Depends(get_db)):
+    """최근 완료된 면접 리포트 요약 조회 (데이터베이스 기반)"""
     try:
         print(f"[RECENT_REPORTS] 최근 리포트 요청 - limit: {limit}")
         
-        # 활성 세션에서 완료된 면접만 필터링
-        active_sessions = interview_agent.active_sessions
+        # 데이터베이스에서 완료된 면접 세션 조회
+        from app.models.interview import InterviewSession, InterviewReport
+        from app.models.repository import RepositoryAnalysis
+        from sqlalchemy import desc, and_
+        
+        # 완료된 면접 세션 조회 (completed 상태 또는 overall_score가 있는 것)
+        completed_sessions = db.query(InterviewSession)\
+            .join(RepositoryAnalysis, InterviewSession.analysis_id == RepositoryAnalysis.id)\
+            .filter(
+                and_(
+                    InterviewSession.status == "completed",
+                    InterviewSession.overall_score.isnot(None)
+                )
+            )\
+            .order_by(desc(InterviewSession.ended_at))\
+            .limit(limit)\
+            .all()
+        
         completed_reports = []
         
-        for session_id, session in active_sessions.items():
-            if session.interview_status == "completed":
-                # 저장소 이름 추출
-                repo_name = session.repo_url.split('/')[-1] if session.repo_url else "Unknown"
-                repo_owner = session.repo_url.split('/')[-2] if session.repo_url and len(session.repo_url.split('/')) > 1 else "Unknown"
+        for session in completed_sessions:
+            # 연관된 저장소 분석 정보 가져오기
+            analysis = session.analysis
+            if not analysis:
+                continue
                 
-                # 카테고리별 평균 점수 계산
-                category_averages = {}
-                if session.evaluations:
-                    criteria_totals = {"technical_accuracy": 0, "code_quality": 0, 
-                                     "problem_solving": 0, "communication": 0}
-                    for evaluation in session.evaluations:
-                        criteria_scores = evaluation.get("criteria_scores", {})
-                        for criteria, score in criteria_scores.items():
-                            if criteria in criteria_totals:
-                                criteria_totals[criteria] += score
-                    
-                    eval_count = len(session.evaluations)
-                    if eval_count > 0:
-                        category_averages = {
-                            criteria: round(total / eval_count, 1)
-                            for criteria, total in criteria_totals.items()
-                        }
-                
-                completed_reports.append({
-                    "interview_id": session_id,
-                    "repository_name": repo_name,
-                    "repository_owner": repo_owner,
-                    "overall_score": round(session.total_score, 1),
-                    "completed_at": session.end_time.isoformat() if session.end_time else None,
-                    "duration_minutes": int((session.end_time - session.start_time).total_seconds() / 60) if session.start_time and session.end_time else 0,
-                    "questions_count": len(session.questions),
-                    "answers_count": len(session.answers),
-                    "category_scores": category_averages,
-                    "difficulty_level": session.difficulty_level
-                })
+            # URL에서 owner/repo 추출
+            url_parts = analysis.repository_url.replace("https://github.com/", "").split("/")
+            repo_owner = url_parts[0] if len(url_parts) > 0 else "Unknown"
+            repo_name = url_parts[1] if len(url_parts) > 1 else analysis.repository_name or "Unknown"
+            
+            # 면접 지속 시간 계산
+            duration_minutes = 0
+            if session.started_at and session.ended_at:
+                duration_seconds = (session.ended_at - session.started_at).total_seconds()
+                duration_minutes = int(duration_seconds / 60)
+            
+            # 카테고리별 점수 (feedback JSON에서 추출)
+            category_scores = {}
+            if session.feedback and isinstance(session.feedback, dict):
+                category_scores = session.feedback.get("category_scores", {})
+            
+            # 답변 개수 계산
+            answers_count = len(session.answers) if session.answers else 0
+            questions_count = len(session.interview_questions) if hasattr(session, 'interview_questions') else 0
+            
+            completed_reports.append({
+                "interview_id": str(session.id),
+                "repository_name": repo_name,
+                "repository_owner": repo_owner,
+                "overall_score": round(float(session.overall_score), 1) if session.overall_score else 0.0,
+                "completed_at": session.ended_at.isoformat() if session.ended_at else None,
+                "duration_minutes": duration_minutes,
+                "questions_count": questions_count,
+                "answers_count": answers_count,
+                "category_scores": category_scores,
+                "difficulty_level": session.difficulty
+            })
         
-        # 빈 결과일 때 빈 배열 반환 (더미데이터 제거)
-        
-        # 완료시간 기준 내림차순 정렬하여 limit만큼 반환
-        completed_reports.sort(key=lambda x: x["completed_at"] or "0000", reverse=True)
-        recent_reports = completed_reports[:limit]
-        
-        print(f"[RECENT_REPORTS] {len(recent_reports)}개 리포트 반환")
+        print(f"[RECENT_REPORTS] 데이터베이스에서 {len(completed_reports)}개 리포트 반환")
         
         return {
             "success": True,
             "data": {
-                "reports": recent_reports,
+                "reports": completed_reports,
                 "total_completed": len(completed_reports)
             },
             "timestamp": datetime.now().isoformat()
@@ -669,6 +681,8 @@ async def get_recent_reports(limit: int = 5):
         
     except Exception as e:
         print(f"[RECENT_REPORTS] Error: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "success": False,
             "data": {
