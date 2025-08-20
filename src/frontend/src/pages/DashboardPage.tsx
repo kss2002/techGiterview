@@ -888,7 +888,7 @@ export const DashboardPage: React.FC = () => {
 
   // key_files를 smart_file_analysis 형태로 변환하는 헬퍼 함수
   const convertKeyFilesToSmartAnalysis = (keyFiles: FileInfo[]): SmartFileAnalysis[] => {
-    return keyFiles.slice(0, 5).map((file, index) => ({
+    return keyFiles.slice(0, 12).map((file, index) => ({
       file_path: file.path || 'unknown-file',
       importance_score: file.importance === 'high' ? 0.9 - (index * 0.05) : 0.7 - (index * 0.05),
       reasons: [
