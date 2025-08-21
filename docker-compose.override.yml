@@ -1,20 +1,38 @@
 # Docker Compose Override for Development Environment
-# 개발 환경 전용 설정
+# Enhanced development configuration with smart volume mounting
 
 version: '3.8'
 
 services:
   backend:
+    # Development-specific overrides
     environment:
       - ENV=development
       - DEBUG=true
-    command: ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+      - DATABASE_PATH=/app/techgiterview_dev.db
+    # Enhanced development volumes with smart mounting
+    volumes:
+      # Mount only specific source directories for hot-reload
+      - ./src/backend/app:/app/app:cached
+      - ./src/backend/main.py:/app/main.py:cached
+      - ./src/backend/tests:/app/tests:cached
+      # Preserve virtual environment
+      - backend_venv:/app/.venv
+      # Data persistence
+      - backend_data:/app/data
+    # Development command with hot-reload
+    command: ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload", "--reload-dir", "/app/app"]
     
   frontend:
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8002
+      - VITE_API_URL=http://localhost:9104
     volumes:
       - ./src/frontend:/app:cached
       - frontend_node_modules:/app/node_modules
     command: npm run dev -- --host 0.0.0.0 --port 3001
+
+volumes:
+  backend_venv:
+  backend_data:
+  frontend_node_modules:

@@ -1,25 +1,37 @@
 # Docker Compose Production Configuration
-# 운영 환경 전용 설정
+# Optimized for production deployment
 
 version: '3.8'
 
 services:
   redis:
     restart: always
+    # Production Redis configuration
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
 
   backend:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+      target: production  # Use production stage
     restart: always
     environment:
       - ENV=production
       - DEBUG=false
       - DATABASE_PATH=/app/techgiterview_prod.db
       - REDIS_URL=redis://redis:6379
-    command: ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--workers", "4"]
     volumes:
-      - backend_data:/app/data
-      # Remove development volume mount for production
+      # Only data volumes in production, no source code mounts
+      - backend_data_prod:/app/data
+      # No .venv volume - it's embedded in the image
     ports:
       - "9104:8002"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   frontend:
     restart: always
@@ -34,8 +46,8 @@ services:
       - "9105:80"
     depends_on:
       - backend
-    # Remove development volumes for production
+    # No volumes in production - static files are embedded
 
 volumes:
   redis_data:
-  backend_data:
+  backend_data_prod:

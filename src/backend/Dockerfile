@@ -1,7 +1,10 @@
 # Backend Dockerfile for TechGiterview
-# Python + uv 기반 FastAPI 애플리케이션 - 단일 스테이지
+# Multi-stage build: Base + Development/Production variants
 
-FROM python:3.11-slim
+# ================================
+# Base Stage: Common setup
+# ================================
+FROM python:3.11-slim as base
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -9,44 +12,89 @@ RUN apt-get update && apt-get install -y \
     git \
     gcc \
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Install uv
-RUN pip install uv
+# Install uv globally
+RUN pip install --no-cache-dir uv
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash app
+# Create application user early
+RUN groupadd --gid 1000 app && \
+    useradd --uid 1000 --gid app --shell /bin/bash --create-home app
 
 # Set work directory
 WORKDIR /app
 
-# Copy uv configuration files
+# Copy dependency files
 COPY pyproject.toml uv.lock* ./
 
-# Create virtual environment explicitly and install dependencies
-RUN uv sync || (echo "uv sync failed, trying pip fallback" && \
-    python -m venv .venv && \
-    .venv/bin/pip install --upgrade pip && \
-    .venv/bin/pip install uvicorn fastapi aiohttp aioredis aiosqlite asyncpg chardet chromadb google-generativeai langchain langchain-google-genai langgraph langsmith lizard networkx psycopg2-binary pydantic pydantic-settings python-multipart redis scipy sqlalchemy tiktoken)
+# ================================
+# Dependencies Stage: Install packages
+# ================================
+FROM base as dependencies
 
-# Verify uvicorn installation
-RUN .venv/bin/python -c "import uvicorn; print('uvicorn successfully installed')"
-RUN ls -la .venv/bin/uvicorn
+# Create virtual environment with proper ownership
+RUN uv venv .venv && \
+    chown -R app:app .venv
+
+# Install dependencies with fallback strategy
+RUN uv sync --frozen || \
+    (echo "uv sync failed, trying manual install..." && \
+     .venv/bin/pip install --upgrade pip && \
+     .venv/bin/pip install --no-cache-dir \
+        uvicorn[standard] \
+        fastapi \
+        aiohttp \
+        aioredis \
+        aiosqlite \
+        asyncpg \
+        chardet \
+        chromadb \
+        google-generativeai \
+        langchain \
+        langchain-core \
+        langchain-google-genai \
+        langgraph \
+        langsmith \
+        lizard \
+        networkx \
+        psycopg2-binary \
+        pydantic \
+        pydantic-settings \
+        python-multipart \
+        redis \
+        scipy \
+        sqlalchemy \
+        tiktoken)
+
+# Verify installation
+RUN .venv/bin/python -c "import uvicorn, fastapi; print('Core dependencies OK')" && \
+    .venv/bin/python -c "import langchain, google.generativeai; print('AI dependencies OK')"
+
+# ================================
+# Development Stage: For development with hot-reload
+# ================================
+FROM dependencies as development
 
 # Copy application code
 COPY --chown=app:app . .
 
-# Create data directory for SQLite
-RUN mkdir -p /app/data && chown -R app:app /app/data
+# Set proper permissions
+RUN chown -R app:app /app
 
-# Set environment variables
+# Environment variables for development
 ENV PYTHONPATH="/app"
 ENV DATABASE_PATH="/app/techgiterview_dev.db"
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
+ENV ENV="development"
+ENV DEBUG="true"
 
-# Switch to non-root user
+# Switch to app user
 USER app
+
+# Create data directory
+RUN mkdir -p /app/data
 
 # Expose port
 EXPOSE 8002
@@ -55,7 +103,40 @@ EXPOSE 8002
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8002/health || exit 1
 
-# Command to run the application using python -m uvicorn as backup
-# Primary: absolute path to uvicorn
-# Backup: python -m uvicorn
-CMD ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
+# Development command with hot-reload
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+
+# ================================
+# Production Stage: Optimized for production
+# ================================
+FROM dependencies as production
+
+# Copy application code
+COPY --chown=app:app . .
+
+# Set proper permissions
+RUN chown -R app:app /app
+
+# Environment variables for production
+ENV PYTHONPATH="/app"
+ENV DATABASE_PATH="/app/techgiterview_prod.db"
+ENV PATH="/app/.venv/bin:$PATH"
+ENV VIRTUAL_ENV="/app/.venv"
+ENV ENV="production"
+ENV DEBUG="false"
+
+# Switch to app user
+USER app
+
+# Create data directory
+RUN mkdir -p /app/data
+
+# Expose port
+EXPOSE 8002
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8002/health || exit 1
+
+# Production command with workers
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--workers", "4"]
