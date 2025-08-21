@@ -9,6 +9,7 @@ import {
   CheckCircle,
   Loader
 } from 'lucide-react'
+import { apiFetch } from '../utils/apiUtils'
 import './ApiKeySetup.css'
 
 // 로컬스토리지 키 상수
@@ -90,7 +91,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 3000) // 3초 타임아웃
         
-        const response = await fetch('/api/v1/config/keys-required', {
+        const response = await apiFetch('/api/v1/config/keys-required', {
           signal: controller.signal
         })
         
@@ -149,7 +150,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
         }
         
         // API 키 유효성을 테스트하기 위해 AI providers 호출
-        const testResponse = await fetch('/api/v1/ai/providers', {
+        const testResponse = await apiFetch('/api/v1/ai/providers', {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -170,7 +171,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
         console.log('API 키 검증 완료. 사용 가능한 제공업체:', providers.length)
       } else {
         // 서버 모드: 기존 방식 유지
-        const response = await fetch('/api/v1/config/api-keys', {
+        const response = await apiFetch('/api/v1/config/api-keys', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

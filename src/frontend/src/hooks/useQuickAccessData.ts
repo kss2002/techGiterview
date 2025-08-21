@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { apiFetch } from '../utils/apiUtils'
 
 interface RecentAnalysis {
   analysis_id: string
@@ -50,8 +51,8 @@ export const useQuickAccessData = (limit: number = 3): UseQuickAccessDataResult 
 
       // 병렬로 두 API 호출 (Vite 프록시 사용)
       const [analysesResponse, reportsResponse] = await Promise.all([
-        fetch(`/api/v1/repository/analysis/recent?limit=${limit}`),
-        fetch(`/api/v1/reports/recent?limit=${limit}`)
+        apiFetch(`/api/v1/repository/analysis/recent?limit=${limit}`),
+        apiFetch(`/api/v1/reports/recent?limit=${limit}`)
       ])
 
       // 응답 처리
@@ -144,8 +145,8 @@ export const useQuickAccessDataWithCache = (limit: number = 3): UseQuickAccessDa
       setError(null)
 
       const [analysesResponse, reportsResponse] = await Promise.all([
-        fetch(`/api/v1/repository/analysis/recent?limit=${limit}`),
-        fetch(`/api/v1/reports/recent?limit=${limit}`)
+        apiFetch(`/api/v1/repository/analysis/recent?limit=${limit}`),
+        apiFetch(`/api/v1/reports/recent?limit=${limit}`)
       ])
 
       const analysesResult = await analysesResponse.json()

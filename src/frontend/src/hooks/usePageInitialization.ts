@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
+import { apiFetch } from '../utils/apiUtils'
 
 // 로컬스토리지 유틸리티
 const getApiKeysFromStorage = () => {
@@ -53,7 +54,7 @@ const fetchPageInitData = async (): Promise<PageInitData> => {
     const headers = createApiHeaders(true)
     
     // 새로운 통합 API 호출
-    const response = await fetch('/api/v1/homepage/init', { 
+    const response = await apiFetch('/api/v1/homepage/init', { 
       headers,
       timeout: 5000 // 5초 타임아웃
     })
