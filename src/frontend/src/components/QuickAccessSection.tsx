@@ -18,6 +18,15 @@ export const QuickAccessSection: React.FC = () => {
   const { data, isLoading, error, refetch } = useQuickAccessDataWithCache(3)
   const navigate = useNavigate()
 
+  // 개발 모드에서 중복 키 디버깅을 위한 캐시 클리어
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      // 페이지 로드 시 캐시 클리어로 중복 데이터 방지
+      localStorage.removeItem('quick-access-data')
+      localStorage.removeItem('quick-access-data-time')
+    }
+  }, [])
+
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)

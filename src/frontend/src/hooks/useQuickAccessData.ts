@@ -58,16 +58,38 @@ export const useQuickAccessData = (limit: number = 3): UseQuickAccessDataResult 
       const analysesResult = await analysesResponse.json()
       const reportsResult = await reportsResponse.json()
 
+      // 중복 제거 로직 추가
+      const analyses = analysesResult.success ? analysesResult.data : []
+      const reports = reportsResult.success ? reportsResult.data.reports : []
+      
+      const uniqueAnalyses = analyses.filter((analysis: RecentAnalysis, index: number, arr: RecentAnalysis[]) => 
+        arr.findIndex(a => a.analysis_id === analysis.analysis_id) === index
+      )
+      
+      const uniqueReports = reports.filter((report: RecentReport, index: number, arr: RecentReport[]) => 
+        arr.findIndex(r => r.interview_id === report.interview_id) === index
+      )
+
       // 데이터 설정
       setData({
-        recent_analyses: analysesResult.success ? analysesResult.data : [],
-        recent_reports: reportsResult.success ? reportsResult.data.reports : []
+        recent_analyses: uniqueAnalyses,
+        recent_reports: uniqueReports
       })
 
       console.log('[QUICK_ACCESS_HOOK] 데이터 로드 완료:', {
-        analyses: analysesResult.success ? analysesResult.data.length : 0,
-        reports: reportsResult.success ? reportsResult.data.reports?.length : 0
+        원본_analyses: analyses.length,
+        중복제거_후_analyses: uniqueAnalyses.length,
+        원본_reports: reports.length,
+        중복제거_후_reports: uniqueReports.length
       })
+      
+      // 중복이 발견된 경우 경고 로그
+      if (analyses.length !== uniqueAnalyses.length) {
+        console.warn('[QUICK_ACCESS_HOOK] 중복 분석 데이터 발견!', {
+          원본: analyses.map(a => a.analysis_id),
+          중복제거후: uniqueAnalyses.map(a => a.analysis_id)
+        })
+      }
 
     } catch (error) {
       console.error('[QUICK_ACCESS_HOOK] 데이터 로딩 오류:', error)
@@ -129,9 +151,21 @@ export const useQuickAccessDataWithCache = (limit: number = 3): UseQuickAccessDa
       const analysesResult = await analysesResponse.json()
       const reportsResult = await reportsResponse.json()
 
+      // 중복 제거 로직 추가
+      const analyses = analysesResult.success ? analysesResult.data : []
+      const reports = reportsResult.success ? reportsResult.data.reports : []
+      
+      const uniqueAnalyses = analyses.filter((analysis: RecentAnalysis, index: number, arr: RecentAnalysis[]) => 
+        arr.findIndex(a => a.analysis_id === analysis.analysis_id) === index
+      )
+      
+      const uniqueReports = reports.filter((report: RecentReport, index: number, arr: RecentReport[]) => 
+        arr.findIndex(r => r.interview_id === report.interview_id) === index
+      )
+
       const newData = {
-        recent_analyses: analysesResult.success ? analysesResult.data : [],
-        recent_reports: reportsResult.success ? reportsResult.data.reports : []
+        recent_analyses: uniqueAnalyses,
+        recent_reports: uniqueReports
       }
 
       setData(newData)
