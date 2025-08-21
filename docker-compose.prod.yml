@@ -14,7 +14,7 @@ services:
       - DEBUG=false
       - DATABASE_PATH=/app/techgiterview_prod.db
       - REDIS_URL=redis://redis:6379
-    command: uvicorn main:app --host 0.0.0.0 --port 8002 --workers 4
+    command: ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--workers", "4"]
     volumes:
       - backend_data:/app/data
       # Remove development volume mount for production

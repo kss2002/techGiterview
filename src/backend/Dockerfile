@@ -24,7 +24,10 @@ WORKDIR /app
 COPY pyproject.toml uv.lock* ./
 
 # Create virtual environment explicitly and install dependencies
-RUN uv sync
+RUN uv sync || (echo "uv sync failed, trying pip fallback" && \
+    python -m venv .venv && \
+    .venv/bin/pip install --upgrade pip && \
+    .venv/bin/pip install uvicorn fastapi aiohttp aioredis aiosqlite asyncpg chardet chromadb google-generativeai langchain langchain-google-genai langgraph langsmith lizard networkx psycopg2-binary pydantic pydantic-settings python-multipart redis scipy sqlalchemy tiktoken)
 
 # Verify uvicorn installation
 RUN .venv/bin/python -c "import uvicorn; print('uvicorn successfully installed')"
