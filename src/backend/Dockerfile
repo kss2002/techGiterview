@@ -103,22 +103,22 @@ RUN echo "Installing analysis dependencies with uv..." && \
 # Try uv sync as alternative (faster if uv.lock exists) with fallback
 RUN echo "Attempting uv sync as additional validation..." && \
     (uv sync --frozen && echo "✅ uv sync successful") || \
-    (echo "⚠️  uv sync failed, verifying pip fallback is working..." && \
-     .venv/bin/pip list | head -10 && \
-     echo "✅ pip installation confirmed working")
+    (echo "⚠️  uv sync failed, verifying uv pip installation is working..." && \
+     uv pip list | head -10 && \
+     echo "✅ uv pip installation confirmed working")
 
 # Comprehensive verification with timeout protection and fallback testing
 RUN echo "🔍 Verifying installations with comprehensive tests..." && \
     echo "Testing Python environment..." && \
     .venv/bin/python --version && \
-    .venv/bin/pip --version && \
+    uv --version && \
     echo "Testing core dependencies..." && \
     timeout 30 .venv/bin/python -c "import uvicorn, fastapi; print('✅ Core web framework OK')" && \
     timeout 30 .venv/bin/python -c "import sqlalchemy, aiosqlite; print('✅ Database libraries OK')" && \
     timeout 30 .venv/bin/python -c "import google.generativeai; print('✅ Gemini AI OK')" && \
     timeout 30 .venv/bin/python -c "import langchain; print('✅ LangChain OK')" && \
     timeout 30 .venv/bin/python -c "import chromadb; print('✅ ChromaDB OK')" && \
-    echo "📦 Package count: $(.venv/bin/pip list | wc -l) packages installed" && \
+    echo "📦 Package count: $(uv pip list | wc -l) packages installed" && \
     echo "✅ All critical dependencies verified successfully"
 
 # ================================
