@@ -130,7 +130,7 @@ FROM dependencies as development
 COPY --chown=app:app . .
 
 # Make startup script executable and set proper permissions
-RUN chmod +x start.sh && chown -R app:app /app
+RUN chmod +x ./start.sh && chown -R app:app /app
 
 # Environment variables for development
 ENV PYTHONPATH="/app"
