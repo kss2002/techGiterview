@@ -1,5 +1,10 @@
 version: '3.8'
 
+# Global timeout configurations for build and startup
+x-timeout-config: &timeout-config
+  COMPOSE_HTTP_TIMEOUT: 300
+  DOCKER_CLIENT_TIMEOUT: 300
+
 services:
   # Redis Cache (for future caching needs)
   redis:
@@ -22,6 +27,8 @@ services:
       context: ./src/backend
       dockerfile: Dockerfile
       target: development  # Use development stage
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     ports:
       - "9104:8002"
     environment:
@@ -29,27 +36,34 @@ services:
       - DEBUG=true
       - DATABASE_PATH=/app/techgiterview_dev.db
       - REDIS_URL=redis://redis:6379
+      - PYTHONUNBUFFERED=1
+      - COMPOSE_HTTP_TIMEOUT=300
     depends_on:
       redis:
         condition: service_healthy
-    # Smart volume mounting strategy
+    # Simplified volume mounting strategy for development
     volumes:
-      # Mount source code for development hot-reload, but preserve .venv
-      - ./src/backend:/app/src:cached
+      # Only mount essential source code for hot-reload
       - ./src/backend/app:/app/app:cached
       - ./src/backend/main.py:/app/main.py:cached
-      # Preserve virtual environment and node_modules equivalent
+      # Preserve virtual environment in named volume
       - backend_venv:/app/.venv
-      # Data directory for SQLite and other persistent data
+      # Data directory for SQLite and persistent data
       - backend_data:/app/data
-    # Remove command override - use Dockerfile CMD
+    # Optimized health check with longer startup period
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
+      interval: 45s
+      timeout: 30s
+      retries: 5
+      start_period: 120s  # Allow 2 minutes for startup
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
 
   # Frontend Vite App
   frontend:

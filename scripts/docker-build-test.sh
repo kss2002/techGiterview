@@ -31,14 +31,18 @@ test_docker() {
     echo "✅ Docker daemon running"
 }
 
-# Function to build backend image
+# Function to build backend image with timeout protection
 build_backend() {
     echo "🏗️  Building backend image (development stage)..."
+    echo "⏱️  This may take 3-5 minutes due to AI dependency installation..."
     cd src/backend
-    if docker build --target development -t techgiterview-backend:dev .; then
+    
+    # Build with progress and timeout
+    if timeout 600 docker build --target development --progress=plain -t techgiterview-backend:dev .; then
         echo "✅ Backend development image built successfully"
     else
-        echo "❌ Backend build failed"
+        echo "❌ Backend build failed or timed out after 10 minutes"
+        echo "💡 Try increasing system resources or checking network connectivity"
         return 1
     fi
     cd ../..

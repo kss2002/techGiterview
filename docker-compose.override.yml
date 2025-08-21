@@ -20,8 +20,12 @@ services:
       - backend_venv:/app/.venv
       # Data persistence
       - backend_data:/app/data
-    # Development command with hot-reload
-    command: ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload", "--reload-dir", "/app/app"]
+    # Development command with enhanced startup script
+    command: ["./start.sh"]
+    # Add development environment variables
+    environment:
+      - STARTUP_MODE=development
+      - STARTUP_TIMEOUT=180
     
   frontend:
     environment:
