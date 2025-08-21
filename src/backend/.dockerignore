@@ -139,7 +139,7 @@ docs/
 
 # Scripts (if not needed in production)
 scripts/
-*.sh
+# *.sh  # Commented out to allow start.sh in build context
 
 # Development tools config
 .editorconfig
