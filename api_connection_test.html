@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-result { margin: 20px 0; padding: 15px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 TechGiterview API 연결 테스트</h1>
+    
+    <button onclick="testHealth()">🏥 Health 테스트</button>
+    <button onclick="testKeysRequired()">🔑 Keys Required 테스트</button>
+    <button onclick="testPageInit()">🏠 Page Init 테스트</button>
+    <button onclick="clearResults()">🗑 결과 지우기</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        const API_BASE = 'http://localhost:3001';
+        
+        function addResult(title, isSuccess, data) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            div.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            results.appendChild(div);
+        }
+        
+        async function testHealth() {
+            try {
+                console.log('Testing:', `${API_BASE}/health`);
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                addResult('✅ Health Check', response.ok, { 
+                    status: response.status, 
+                    data 
+                });
+            } catch (error) {
+                addResult('❌ Health Check', false, { error: error.message });
+            }
+        }
+        
+        async function testKeysRequired() {
+            try {
+                console.log('Testing:', `${API_BASE}/api/v1/config/keys-required`);
+                const response = await fetch(`${API_BASE}/api/v1/config/keys-required`);
+                const data = await response.json();
+                addResult('✅ Keys Required', response.ok, { 
+                    status: response.status, 
+                    data 
+                });
+            } catch (error) {
+                addResult('❌ Keys Required', false, { error: error.message });
+            }
+        }
+        
+        async function testPageInit() {
+            try {
+                console.log('Testing:', `${API_BASE}/api/v1/homepage/init`);
+                const response = await fetch(`${API_BASE}/api/v1/homepage/init`);
+                const data = await response.json();
+                addResult('✅ Page Init', response.ok, { 
+                    status: response.status, 
+                    data: data ? (typeof data === 'object' ? Object.keys(data) : data) : null
+                });
+            } catch (error) {
+                addResult('❌ Page Init', false, { error: error.message });
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        // 페이지 로드 시 자동으로 기본 테스트 실행
+        window.onload = function() {
+            console.log('API Base URL:', API_BASE);
+            console.log('Current Location:', window.location.href);
+            setTimeout(testHealth, 500);
+        };
+    </script>
+</body>
+</html>
