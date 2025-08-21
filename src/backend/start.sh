@@ -22,7 +22,21 @@ wait_for_service() {
     echo "⏳ Waiting for $service_name ($host:$port)..."
     
     for i in $(seq 1 $timeout); do
-        if nc -z "$host" "$port" 2>/dev/null; then
+        # Try multiple connection methods
+        if nc -z "$host" "$port" 2>/dev/null || \
+           timeout 3 bash -c "</dev/tcp/$host/$port" 2>/dev/null || \
+           /app/.venv/bin/python -c "
+import socket
+import sys
+try:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(3)
+    result = sock.connect_ex(('$host', $port))
+    sock.close()
+    sys.exit(0 if result == 0 else 1)
+except:
+    sys.exit(1)
+" 2>/dev/null; then
             echo "✅ $service_name is ready!"
             return 0
         fi
@@ -48,20 +62,20 @@ verify_python_env() {
         exit 1
     fi
     
-    # Check if pip is available
-    if [[ ! -f "/app/.venv/bin/pip" ]]; then
-        echo "❌ pip not found in virtual environment at /app/.venv/bin/pip"
-        echo "📂 Available files in /app/.venv/bin:"
-        ls -la /app/.venv/bin/ || true
+    # Check if UV is available (consistent with build process)
+    if ! command -v uv &> /dev/null; then
+        echo "❌ uv not found in PATH"
+        echo "📂 Available commands:"
+        ls -la /app/.venv/bin/ | head -10 || true
         exit 1
     fi
     
     # Display environment info
     echo "📊 Environment Information:"
     echo "   Python: $(/app/.venv/bin/python --version)"
-    echo "   Pip: $(/app/.venv/bin/pip --version)"
+    echo "   UV: $(uv --version)"
     echo "   Virtual Environment: /app/.venv"
-    echo "   Package count: $(/app/.venv/bin/pip list | wc -l) packages"
+    echo "   Package count: $(uv pip list | wc -l) packages"
     
     # Test critical imports with timeout and comprehensive error reporting
     echo "🔍 Testing critical imports..."
