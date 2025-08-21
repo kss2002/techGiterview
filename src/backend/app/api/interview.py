@@ -55,13 +55,15 @@ async def start_interview(request: InterviewStartRequest, db: Session = Depends(
         
         # 질문 캐시에서 질문 데이터 확인 (현재 시스템은 여전히 메모리 캐시 사용)
         from app.api.questions import question_cache
-        if request.analysis_id not in question_cache:
+        # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
+        normalized_analysis_id = request.analysis_id.replace('-', '')
+        if normalized_analysis_id not in question_cache:
             raise HTTPException(
                 status_code=400, 
                 detail="해당 분석 ID에 대한 질문이 없습니다. 먼저 질문을 생성해주세요."
             )
         
-        cache_data = question_cache[request.analysis_id]
+        cache_data = question_cache[normalized_analysis_id]
         cached_questions = cache_data.parsed_questions
         available_question_ids = {q.id for q in cached_questions}
         
@@ -75,14 +77,17 @@ async def start_interview(request: InterviewStartRequest, db: Session = Depends(
         
         # 분석 ID 검증 및 생성 (데이터베이스에 없으면 생성)
         from app.models.repository import RepositoryAnalysis
+        # UUID 정규화 후 데이터베이스 조회
+        normalized_uuid_str = normalize_uuid_string(request.analysis_id)
+        analysis_uuid = uuid.UUID(normalized_uuid_str)
         analysis = db.query(RepositoryAnalysis).filter(
-            RepositoryAnalysis.id == uuid.UUID(request.analysis_id)
+            RepositoryAnalysis.id == analysis_uuid
         ).first()
         
         if not analysis:
             # 분석 데이터가 데이터베이스에 없으면 임시로 생성
             analysis = RepositoryAnalysis(
-                id=uuid.UUID(request.analysis_id),
+                id=analysis_uuid,
                 user_id=uuid.uuid4(),  # 임시 사용자 ID
                 repository_url=str(request.repo_url),
                 repository_name=str(request.repo_url).split('/')[-1],
@@ -100,7 +105,7 @@ async def start_interview(request: InterviewStartRequest, db: Session = Depends(
         # InterviewRepository를 사용하여 세션 생성
         repo = InterviewRepository(db)
         session = repo.create_session({
-            'analysis_id': uuid.UUID(request.analysis_id),
+            'analysis_id': analysis_uuid,
             'interview_type': request.interview_type,
             'difficulty_level': request.difficulty_level
         })
@@ -128,7 +133,7 @@ async def start_interview(request: InterviewStartRequest, db: Session = Depends(
                     # 새 질문 저장
                     db_question = InterviewQuestion(
                         id=question_uuid,
-                        analysis_id=uuid.UUID(request.analysis_id),
+                        analysis_id=analysis_uuid,
                         category=question_data.type,  # QuestionResponse uses 'type' not 'category'
                         difficulty=question_data.difficulty,
                         question_text=question_data.question,
