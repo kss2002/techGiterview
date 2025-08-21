@@ -52,9 +52,13 @@ RUN echo "Creating virtual environment with uv..." && \
     echo "Python: $(.venv/bin/python --version)" && \
     echo "Pip: $(.venv/bin/pip --version)"
 
+# Set virtual environment variables for uv to auto-detect
+ENV VIRTUAL_ENV="/app/.venv"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
 # Install core dependencies first (fastest to install) using uv for speed
 RUN echo "Installing core web dependencies with uv..." && \
-    uv pip install --virtual-env .venv \
+    uv pip install \
         uvicorn[standard] \
         fastapi \
         pydantic \
@@ -66,7 +70,7 @@ RUN echo "Installing core web dependencies with uv..." && \
 
 # Install database and cache dependencies (medium speed)
 RUN echo "Installing database dependencies with uv..." && \
-    uv pip install --virtual-env .venv \
+    uv pip install \
         aiosqlite \
         asyncpg \
         psycopg2-binary \
@@ -76,7 +80,7 @@ RUN echo "Installing database dependencies with uv..." && \
 
 # Install AI dependencies (slowest, most likely to timeout)
 RUN echo "Installing AI dependencies with uv (this may take a while)..." && \
-    uv pip install --virtual-env .venv \
+    uv pip install \
         google-generativeai \
         langchain \
         langchain-core \
@@ -88,7 +92,7 @@ RUN echo "Installing AI dependencies with uv (this may take a while)..." && \
 
 # Install analysis and utility dependencies
 RUN echo "Installing analysis dependencies with uv..." && \
-    uv pip install --virtual-env .venv \
+    uv pip install \
         chromadb \
         scipy \
         networkx \
