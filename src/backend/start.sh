@@ -38,6 +38,7 @@ wait_for_service() {
 verify_python_env() {
     echo "🐍 Verifying Python environment..."
     
+    # Check if virtual environment exists
     if [[ ! -f "/app/.venv/bin/python" ]]; then
         echo "❌ Virtual environment not found at /app/.venv/bin/python"
         echo "📂 Available files in /app:"
@@ -47,13 +48,29 @@ verify_python_env() {
         exit 1
     fi
     
-    # Test critical imports with timeout
+    # Check if pip is available
+    if [[ ! -f "/app/.venv/bin/pip" ]]; then
+        echo "❌ pip not found in virtual environment at /app/.venv/bin/pip"
+        echo "📂 Available files in /app/.venv/bin:"
+        ls -la /app/.venv/bin/ || true
+        exit 1
+    fi
+    
+    # Display environment info
+    echo "📊 Environment Information:"
+    echo "   Python: $(/app/.venv/bin/python --version)"
+    echo "   Pip: $(/app/.venv/bin/pip --version)"
+    echo "   Virtual Environment: /app/.venv"
+    echo "   Package count: $(/app/.venv/bin/pip list | wc -l) packages"
+    
+    # Test critical imports with timeout and comprehensive error reporting
     echo "🔍 Testing critical imports..."
     
     timeout 30 /app/.venv/bin/python -c "
 import sys
-print(f'Python version: {sys.version}')
+print(f'Python path: {sys.path[:3]}...')
 
+# Test core web framework
 try:
     import uvicorn
     print('✅ uvicorn imported successfully')
@@ -68,9 +85,28 @@ except ImportError as e:
     print(f'❌ FastAPI import failed: {e}')
     sys.exit(1)
 
-print('✅ Core dependencies verified')
+# Test database libraries
+try:
+    import sqlalchemy
+    print('✅ SQLAlchemy imported successfully')
+except ImportError as e:
+    print(f'⚠️  SQLAlchemy import failed: {e}')
+
+# Test AI libraries (optional, might be slow)
+try:
+    import google.generativeai
+    print('✅ Google Generative AI imported successfully')
+except ImportError as e:
+    print(f'⚠️  Google Generative AI import failed: {e}')
+
+print('✅ Core dependencies verified - ready to start application')
 " || {
         echo "❌ Python environment verification failed"
+        echo "🔧 Debugging information:"
+        echo "   PYTHONPATH: $PYTHONPATH"
+        echo "   PATH: $PATH"
+        echo "   Virtual env activation:"
+        source /app/.venv/bin/activate && python --version || echo "Failed to activate venv"
         exit 1
     }
 }

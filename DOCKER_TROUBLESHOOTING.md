@@ -1,6 +1,27 @@
 # Docker Troubleshooting Guide
 
-## Backend Container Timeout Issues
+## Docker Permission Setup (Required First)
+
+**IMPORTANT**: Before running any Docker commands, ensure proper permissions are set up.
+
+### Fix Docker Permissions
+```bash
+# 1. Check if user is in docker group
+groups $USER
+
+# 2. If 'docker' is not listed, add user to docker group
+sudo usermod -aG docker $USER
+
+# 3. Apply the group membership (choose one):
+# Option A: Logout and login again
+# Option B: Use newgrp (temporary for current session)
+newgrp docker
+
+# 4. Verify Docker access
+docker info
+```
+
+## Backend Container Issues
 
 ### Quick Fix Commands
 
@@ -59,7 +80,29 @@ docker exec -it techgiterview_backend_1 curl -f http://localhost:8002/health
 #   disable: true
 ```
 
-#### 4. Volume Mount Issues
+#### 4. Permission Denied Errors
+**Symptoms**: "permission denied while trying to connect to the Docker daemon socket"
+**Solution**:
+```bash
+# Check Docker permissions first
+groups $USER | grep docker
+
+# If docker group is missing, fix permissions:
+sudo usermod -aG docker $USER
+newgrp docker  # or logout/login
+
+# Verify fix
+docker info
+```
+
+#### 5. Virtual Environment Issues (FIXED)
+**Symptoms**: "pip not found" or "Virtual environment not found"
+**Solution**: This has been fixed in the latest Dockerfile:
+- Uses `uv pip install` consistently
+- Ensures pip availability via ensurepip
+- Progressive dependency installation
+
+#### 6. Volume Mount Issues
 **Symptoms**: "Virtual environment not found"
 **Solution**:
 ```bash
@@ -71,7 +114,7 @@ docker-compose up --build
 docker exec -it techgiterview_backend_1 ls -la /app/.venv/bin/
 ```
 
-#### 5. Memory/Resource Issues
+#### 7. Memory/Resource Issues
 **Symptoms**: Build fails with no specific error
 **Solution**:
 ```bash

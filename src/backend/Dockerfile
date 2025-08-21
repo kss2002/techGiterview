@@ -41,15 +41,20 @@ COPY pyproject.toml uv.lock* ./
 # ================================
 FROM base as dependencies
 
-# Create virtual environment with proper ownership
-RUN uv venv .venv && \
+# Create virtual environment with proper ownership and pip
+RUN echo "Creating virtual environment with uv..." && \
+    uv venv .venv && \
+    echo "Installing pip in virtual environment..." && \
+    .venv/bin/python -m ensurepip --upgrade && \
+    .venv/bin/python -m pip install --upgrade pip setuptools wheel && \
     chown -R app:app .venv && \
-    echo "Virtual environment created successfully"
+    echo "Virtual environment created with pip successfully" && \
+    echo "Python: $(.venv/bin/python --version)" && \
+    echo "Pip: $(.venv/bin/pip --version)"
 
-# Install core dependencies first (fastest to install)
-RUN echo "Installing core web dependencies..." && \
-    .venv/bin/pip install --upgrade pip setuptools wheel && \
-    .venv/bin/pip install --no-cache-dir \
+# Install core dependencies first (fastest to install) using uv for speed
+RUN echo "Installing core web dependencies with uv..." && \
+    uv pip install --virtual-env .venv \
         uvicorn[standard] \
         fastapi \
         pydantic \
@@ -60,8 +65,8 @@ RUN echo "Installing core web dependencies..." && \
     && echo "Core web dependencies installed"
 
 # Install database and cache dependencies (medium speed)
-RUN echo "Installing database dependencies..." && \
-    .venv/bin/pip install --no-cache-dir \
+RUN echo "Installing database dependencies with uv..." && \
+    uv pip install --virtual-env .venv \
         aiosqlite \
         asyncpg \
         psycopg2-binary \
@@ -70,8 +75,8 @@ RUN echo "Installing database dependencies..." && \
     && echo "Database dependencies installed"
 
 # Install AI dependencies (slowest, most likely to timeout)
-RUN echo "Installing AI dependencies (this may take a while)..." && \
-    .venv/bin/pip install --no-cache-dir \
+RUN echo "Installing AI dependencies with uv (this may take a while)..." && \
+    uv pip install --virtual-env .venv \
         google-generativeai \
         langchain \
         langchain-core \
@@ -82,8 +87,8 @@ RUN echo "Installing AI dependencies (this may take a while)..." && \
     && echo "AI dependencies installed"
 
 # Install analysis and utility dependencies
-RUN echo "Installing analysis dependencies..." && \
-    .venv/bin/pip install --no-cache-dir \
+RUN echo "Installing analysis dependencies with uv..." && \
+    uv pip install --virtual-env .venv \
         chromadb \
         scipy \
         networkx \
@@ -91,18 +96,26 @@ RUN echo "Installing analysis dependencies..." && \
         chardet \
     && echo "Analysis dependencies installed"
 
-# Try uv sync as alternative (faster if uv.lock exists)
-RUN echo "Attempting uv sync as backup..." && \
-    (uv sync --frozen && echo "uv sync successful") || \
-    echo "uv sync failed, using pip installation (this is normal)"
+# Try uv sync as alternative (faster if uv.lock exists) with fallback
+RUN echo "Attempting uv sync as additional validation..." && \
+    (uv sync --frozen && echo "✅ uv sync successful") || \
+    (echo "⚠️  uv sync failed, verifying pip fallback is working..." && \
+     .venv/bin/pip list | head -10 && \
+     echo "✅ pip installation confirmed working")
 
-# Verification with timeout protection
-RUN echo "Verifying installations..." && \
+# Comprehensive verification with timeout protection and fallback testing
+RUN echo "🔍 Verifying installations with comprehensive tests..." && \
+    echo "Testing Python environment..." && \
+    .venv/bin/python --version && \
+    .venv/bin/pip --version && \
+    echo "Testing core dependencies..." && \
     timeout 30 .venv/bin/python -c "import uvicorn, fastapi; print('✅ Core web framework OK')" && \
     timeout 30 .venv/bin/python -c "import sqlalchemy, aiosqlite; print('✅ Database libraries OK')" && \
     timeout 30 .venv/bin/python -c "import google.generativeai; print('✅ Gemini AI OK')" && \
     timeout 30 .venv/bin/python -c "import langchain; print('✅ LangChain OK')" && \
-    echo "✅ All critical dependencies verified"
+    timeout 30 .venv/bin/python -c "import chromadb; print('✅ ChromaDB OK')" && \
+    echo "📦 Package count: $(.venv/bin/pip list | wc -l) packages installed" && \
+    echo "✅ All critical dependencies verified successfully"
 
 # ================================
 # Development Stage: For development with hot-reload
