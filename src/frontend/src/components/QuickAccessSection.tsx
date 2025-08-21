@@ -166,7 +166,7 @@ export const QuickAccessSection: React.FC = () => {
                       <span className="language-tag">{analysis.primary_language}</span>
                       <span className="files-tag">{analysis.file_count}개 파일</span>
                       {analysis.tech_stack.slice(0, 2).map((tech, idx) => (
-                        <span key={idx} className="tech-tag">{tech}</span>
+                        <span key={`${analysis.analysis_id}-tech-${idx}-${tech}`} className="tech-tag">{tech}</span>
                       ))}
                     </div>
                     <ArrowRight className="arrow-icon" />
