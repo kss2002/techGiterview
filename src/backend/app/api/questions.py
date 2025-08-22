@@ -312,15 +312,21 @@ async def generate_questions(
         # 질문 그룹 관계 생성
         question_groups = create_question_groups(parsed_questions)
         
-        # 캐시에 저장 (구조화된 데이터)
+        # 캐시에 저장 (구조화된 데이터) - UUID 정규화하여 저장
         if analysis_id:
             from datetime import datetime
+            # UUID 정규화: 하이픈 제거하여 일관성 있게 저장
+            normalized_cache_key = analysis_id.replace('-', '')
             cache_data = QuestionCacheData(
                 original_questions=questions,
                 parsed_questions=parsed_questions,
                 question_groups=question_groups,
                 created_at=datetime.now().isoformat()
             )
+            question_cache[normalized_cache_key] = cache_data
+            print(f"[CACHE] 질문을 캐시에 저장: 원본키={analysis_id}, 정규화키={normalized_cache_key}, 질문수={len(parsed_questions)}")
+            
+            # 하이픈 있는 키로도 저장 (호환성 보장)
             question_cache[analysis_id] = cache_data
             
             # DB에도 저장하여 영구 보존
@@ -344,10 +350,13 @@ async def generate_questions(
 async def get_questions(analysis_id: str):
     """분석 ID로 질문 조회"""
     try:
-        if analysis_id not in question_cache:
+        # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
+        normalized_analysis_id = analysis_id.replace('-', '')
+        
+        if normalized_analysis_id not in question_cache:
             raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다")
         
-        cache_data = question_cache[analysis_id]
+        cache_data = question_cache[normalized_analysis_id]
         return {
             "success": True,
             "questions": cache_data.parsed_questions,
@@ -362,10 +371,13 @@ async def get_questions(analysis_id: str):
 async def get_question_groups(analysis_id: str):
     """질문 그룹 정보 조회"""
     try:
-        if analysis_id not in question_cache:
+        # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
+        normalized_analysis_id = analysis_id.replace('-', '')
+        
+        if normalized_analysis_id not in question_cache:
             raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다")
         
-        cache_data = question_cache[analysis_id]
+        cache_data = question_cache[normalized_analysis_id]
         return {
             "success": True,
             "question_groups": cache_data.question_groups,
@@ -419,10 +431,11 @@ async def get_cache_status():
 async def get_questions_by_analysis(analysis_id: str):
     """분석 ID로 생성된 질문 조회 - 메모리 캐시 우선, 없으면 DB 조회"""
     try:
-        # 1. 먼저 메모리 캐시에서 조회
-        if analysis_id in question_cache:
-            print(f"[QUESTIONS] Found questions in memory cache for {analysis_id}")
-            cache_data = question_cache[analysis_id]
+        # 1. 먼저 메모리 캐시에서 조회 (UUID 정규화)
+        normalized_analysis_id = analysis_id.replace('-', '')
+        if normalized_analysis_id in question_cache:
+            print(f"[QUESTIONS] Found questions in memory cache for {analysis_id} (normalized: {normalized_analysis_id})")
+            cache_data = question_cache[normalized_analysis_id]
             
             # 캐시 데이터 구조 확인
             questions = []
@@ -512,10 +525,13 @@ async def debug_question_cache():
 async def debug_original_questions(analysis_id: str):
     """원본 질문 확인 (디버깅용)"""
     try:
-        if analysis_id not in question_cache:
+        # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
+        normalized_analysis_id = analysis_id.replace('-', '')
+        
+        if normalized_analysis_id not in question_cache:
             raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다")
         
-        cache_data = question_cache[analysis_id]
+        cache_data = question_cache[normalized_analysis_id]
         return {
             "success": True,
             "original_questions": [
@@ -578,13 +594,16 @@ async def add_test_questions(analysis_id: str):
         # 질문 그룹 관계 생성
         question_groups = create_question_groups(parsed_questions)
         
-        # 캐시에 저장
+        # 캐시에 저장 (UUID 정규화)
+        normalized_cache_key = analysis_id.replace('-', '')
         cache_data = QuestionCacheData(
             original_questions=test_questions,
             parsed_questions=parsed_questions,
             question_groups=question_groups,
             created_at=datetime.now().isoformat()
         )
+        question_cache[normalized_cache_key] = cache_data
+        # 호환성을 위해 원본 키로도 저장
         question_cache[analysis_id] = cache_data
         
         return {
@@ -692,10 +711,13 @@ async def _restore_questions_to_cache(analysis_id: str, questions: List[Question
             created_at=datetime.now().isoformat()
         )
         
-        # 메모리 캐시에 저장
+        # 메모리 캐시에 저장 (UUID 정규화하여 일관성 유지)
+        normalized_cache_key = analysis_id.replace('-', '')
+        question_cache[normalized_cache_key] = cache_data
+        # 호환성을 위해 원본 키로도 저장
         question_cache[analysis_id] = cache_data
         
-        print(f"[CACHE] Restored {len(questions)} questions to memory cache for analysis {analysis_id}")
+        print(f"[CACHE] Restored {len(questions)} questions to memory cache for analysis {analysis_id} (normalized: {normalized_cache_key})")
         
     except Exception as e:
         print(f"[CACHE] Error restoring questions to cache: {e}")

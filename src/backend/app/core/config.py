@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env.dev"
         case_sensitive = False
+        env_file_encoding = 'utf-8'
 
 
 def check_env_file_exists() -> bool:

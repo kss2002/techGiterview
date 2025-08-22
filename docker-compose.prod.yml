@@ -20,6 +20,11 @@ services:
       - DEBUG=false
       - DATABASE_PATH=/app/techgiterview_prod.db
       - REDIS_URL=redis://redis:6379
+      - ALLOWED_ORIGINS=https://tgv.oursophy.com,http://tgv.oursophy.com,https://techgiterview.com,https://www.techgiterview.com
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
     volumes:
       # Only data volumes in production, no source code mounts
       - backend_data_prod:/app/data
