@@ -47,14 +47,35 @@ class InterviewState:
 class MockInterviewAgent:
     """모의면접 진행 에이전트"""
     
-    def __init__(self):
+    def __init__(self, github_token: Optional[str] = None, google_api_key: Optional[str] = None):
+        self.github_token = github_token
+        self.google_api_key = google_api_key
+        
         self.question_generator = QuestionGenerator()
         # self.vector_db = VectorDBService()  # 미사용으로 주석 처리 (chromadb 의존성 제거)
         
-        # Google Gemini LLM 초기화
-        self.llm = get_gemini_llm()
+        # Google Gemini LLM 초기화 (동적 API 키 사용)
+        if google_api_key:
+            print(f"[MOCK_INTERVIEW] Google API Key provided: {google_api_key[:20]}...")
+            # 동적 API 키로 Gemini 초기화 시도
+            try:
+                from app.core.gemini_client import get_gemini_llm_with_key
+                self.llm = get_gemini_llm_with_key(google_api_key)
+                if self.llm:
+                    self.llm.temperature = 0.3
+                    print("[MOCK_INTERVIEW] Google Gemini LLM initialized with provided API key")
+                else:
+                    raise Exception("Failed to initialize with provided key")
+            except Exception as e:
+                print(f"[MOCK_INTERVIEW] Failed to init with provided key: {e}, fallback to default")
+                self.llm = get_gemini_llm()
+        else:
+            print("[MOCK_INTERVIEW] No Google API Key provided, using default configuration")
+            self.llm = get_gemini_llm()
+            
         if self.llm:
-            # Gemini에 맞는 설정 조정
+            if not hasattr(self.llm, 'temperature'):
+                print("[MOCK_INTERVIEW] Setting temperature for Gemini LLM")
             self.llm.temperature = 0.3
             print("[MOCK_INTERVIEW] Google Gemini LLM initialized successfully")
         else:

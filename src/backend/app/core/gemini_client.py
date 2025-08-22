@@ -108,3 +108,28 @@ def get_gemini_llm() -> Optional['ChatGoogleGenerativeAI']:
     except Exception as e:
         logger.error(f"Failed to get Gemini LLM: {e}")
         return None
+
+
+def get_gemini_llm_with_key(api_key: str) -> Optional['ChatGoogleGenerativeAI']:
+    """동적 API 키로 Gemini LLM 생성"""
+    try:
+        if not LANGCHAIN_GOOGLE_AVAILABLE:
+            logger.error("langchain-google-genai package not available")
+            return None
+            
+        # 동적 API 키로 새로운 LLM 인스턴스 생성
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash",
+            google_api_key=api_key,
+            temperature=0.1,
+            max_tokens=8192,
+            timeout=60,
+            max_retries=3
+        )
+        
+        logger.info("Dynamic Gemini LLM created successfully with provided API key")
+        return llm
+        
+    except Exception as e:
+        logger.error(f"Failed to create Gemini LLM with provided key: {e}")
+        return None

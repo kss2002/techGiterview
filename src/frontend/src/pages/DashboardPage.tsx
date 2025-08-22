@@ -872,17 +872,25 @@ export const DashboardPage: React.FC = () => {
     })
     
     try {
+      // API 키 헤더 포함하여 면접 시작 요청
+      const apiHeaders = createApiHeaders(true)
+      console.log('[DASHBOARD] 면접 시작 요청 헤더:', JSON.stringify(apiHeaders, null, 2))
+      console.log('[DASHBOARD] localStorage 키 확인:', {
+        githubToken: localStorage.getItem('techgiterview_github_token') ? '설정됨' : '없음',
+        googleApiKey: localStorage.getItem('techgiterview_google_api_key') ? '설정됨' : '없음'
+      })
+      
       const response = await fetch('/api/v1/interview/start', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: apiHeaders,
         body: JSON.stringify({
           repo_url: `https://github.com/${analysisResult.repo_info.owner}/${analysisResult.repo_info.name}`,
           analysis_id: analysisResult.analysis_id,
           question_ids: questions.map(q => q.id)
         })
       })
+      
+      console.log('[DASHBOARD] 면접 시작 응답 상태:', response.status, response.statusText)
 
       if (!response.ok) {
         throw new Error('면접 시작에 실패했습니다.')

@@ -6,7 +6,7 @@ Interview API Router - Database-based Version
 
 import uuid
 from typing import Dict, List, Any, Optional
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, HttpUrl
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -46,9 +46,25 @@ class ConversationRequest(BaseModel):
 
 
 @router.post("/start")
-async def start_interview(request: InterviewStartRequest, db: Session = Depends(get_db)):
+async def start_interview(
+    request: InterviewStartRequest, 
+    db: Session = Depends(get_db),
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+):
     """새 면접 세션 시작"""
     try:
+        # API 키 헤더 로깅
+        print(f"[INTERVIEW_START] ========== 면접 시작 요청 ==========")
+        print(f"[INTERVIEW_START] 분석 ID: {request.analysis_id}")
+        print(f"[INTERVIEW_START] 받은 헤더:")
+        print(f"[INTERVIEW_START]   - GitHub Token: {'있음' if github_token else '없음'}")
+        print(f"[INTERVIEW_START]   - Google API Key: {'있음' if google_api_key else '없음'}")
+        if github_token:
+            print(f"[INTERVIEW_START]   - GitHub Token 값: {github_token[:20]}...")
+        if google_api_key:
+            print(f"[INTERVIEW_START]   - Google API Key 값: {google_api_key[:20]}...")
+        
         # 질문 ID 유효성 검증
         if not request.question_ids:
             raise HTTPException(status_code=400, detail="질문 ID가 제공되지 않았습니다.")
@@ -315,12 +331,24 @@ def normalize_uuid_string(uuid_str: str) -> str:
 
 
 @router.post("/answer")
-async def submit_answer(request: AnswerSubmitRequest, db: Session = Depends(get_db)):
+async def submit_answer(
+    request: AnswerSubmitRequest, 
+    db: Session = Depends(get_db),
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+):
     """답변 제출"""
-    print(f"[DEBUG] 원본 요청 데이터:")
-    print(f"  - interview_id: '{request.interview_id}'")
-    print(f"  - question_id: '{request.question_id}'")
-    print(f"  - answer: '{request.answer[:50]}...'")
+    print(f"[SUBMIT_ANSWER] ========== 답변 제출 요청 ===========")
+    print(f"[SUBMIT_ANSWER] interview_id: '{request.interview_id}'")
+    print(f"[SUBMIT_ANSWER] question_id: '{request.question_id}'")
+    print(f"[SUBMIT_ANSWER] answer: '{request.answer[:50]}...'")
+    print(f"[SUBMIT_ANSWER] 받은 헤더:")
+    print(f"[SUBMIT_ANSWER]   - GitHub Token: {'있음' if github_token else '없음'}")
+    print(f"[SUBMIT_ANSWER]   - Google API Key: {'있음' if google_api_key else '없음'}")
+    if github_token:
+        print(f"[SUBMIT_ANSWER]   - GitHub Token 값: {github_token[:20]}...")
+    if google_api_key:
+        print(f"[SUBMIT_ANSWER]   - Google API Key 값: {google_api_key[:20]}...")
     
     try:
         # UUID 정규화 후 변환
@@ -362,8 +390,8 @@ async def submit_answer(request: AnswerSubmitRequest, db: Session = Depends(get_
         print(f"[DEBUG] 질문 {question_uuid}: 첫 번째 답변? {is_first_answer}")
         print(f"[DEBUG] 기존 답변 존재: {existing_answer is not None}")
         
-        # Mock Interview Agent를 사용하여 피드백 생성
-        interview_agent = MockInterviewAgent()
+        # Mock Interview Agent를 사용하여 피드백 생성 (API 키 전달)
+        interview_agent = MockInterviewAgent(github_token=github_token, google_api_key=google_api_key)
         
         # 질문 정보 조회
         question = db.query(InterviewQuestion).filter(
@@ -432,14 +460,31 @@ async def submit_answer(request: AnswerSubmitRequest, db: Session = Depends(get_
 
 
 @router.post("/conversation")
-async def handle_conversation(request: ConversationRequest, db: Session = Depends(get_db)):
+async def handle_conversation(
+    request: ConversationRequest, 
+    db: Session = Depends(get_db),
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+):
     """대화 처리"""
+    print(f"[CONVERSATION] ========== 대화 처리 요청 ===========")
+    print(f"[CONVERSATION] interview_id: '{request.interview_id}'")
+    print(f"[CONVERSATION] question_id: '{request.question_id}'")
+    print(f"[CONVERSATION] conversation_question: '{request.conversation_question[:50]}...'")
+    print(f"[CONVERSATION] 받은 헤더:")
+    print(f"[CONVERSATION]   - GitHub Token: {'있음' if github_token else '없음'}")
+    print(f"[CONVERSATION]   - Google API Key: {'있음' if google_api_key else '없음'}")
+    if github_token:
+        print(f"[CONVERSATION]   - GitHub Token 값: {github_token[:20]}...")
+    if google_api_key:
+        print(f"[CONVERSATION]   - Google API Key 값: {google_api_key[:20]}...")
+    
     try:
         normalized_interview_id = normalize_uuid_string(request.interview_id)
         normalized_question_id = normalize_uuid_string(request.question_id)
         session_uuid = uuid.UUID(normalized_interview_id)
         question_uuid = uuid.UUID(normalized_question_id)
-        print(f"[DEBUG] 대화 처리 - UUID 정규화: '{request.interview_id}' → '{normalized_interview_id}', '{request.question_id}' → '{normalized_question_id}'")
+        print(f"[CONVERSATION] UUID 정규화: '{request.interview_id}' → '{normalized_interview_id}', '{request.question_id}' → '{normalized_question_id}'")
     except ValueError as e:
         print(f"[ERROR] 대화 처리 UUID 변환 실패: {str(e)}")
         raise HTTPException(status_code=400, detail="올바르지 않은 ID 형식입니다.")
@@ -459,8 +504,8 @@ async def handle_conversation(request: ConversationRequest, db: Session = Depend
             "metadata": {"original_answer": request.original_answer}
         })
         
-        # AI 응답 생성
-        interview_agent = MockInterviewAgent()
+        # AI 응답 생성 (API 키 전달)
+        interview_agent = MockInterviewAgent(github_token=github_token, google_api_key=google_api_key)
         ai_response = await interview_agent.handle_follow_up_question(
             original_question="",  # 필요시 DB에서 조회
             original_answer=request.original_answer,
