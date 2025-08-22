@@ -1266,7 +1266,8 @@ async def test_github_connection():
 async def analyze_repository_simple(
     request: RepositoryAnalysisRequest,
     github_token: Optional[str] = Header(None, alias="x-github-token"),
-    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key"),
+    db: Session = Depends(get_db)
 ):
     """간단한 저장소 분석 - 캐시 저장 포함"""
     try:
@@ -1353,6 +1354,41 @@ async def analyze_repository_simple(
         
         print(f"[ANALYZE_SIMPLE] 분석 결과 캐시에 저장: {analysis_id}")
         print(f"[ANALYZE_SIMPLE] 캐시 크기: {len(analysis_cache)}")
+        
+        # 🔥 핵심 수정: 데이터베이스에도 저장하여 면접 시작 시 조회 가능하도록 함
+        try:
+            from app.models.repository import RepositoryAnalysis
+            
+            # RepositoryAnalysis 객체 생성
+            db_analysis = RepositoryAnalysis(
+                id=uuid.UUID(analysis_id),
+                repository_url=repo_url_str,
+                repository_name=f"{repo_info.owner}/{repo_info.name}",
+                primary_language=repo_info.language,
+                tech_stack=tech_stack,
+                file_count=len(key_files),
+                complexity_score=complexity_score,
+                analysis_metadata={
+                    "summary": summary,
+                    "recommendations": recommendations,
+                    "key_files_count": len(key_files),
+                    "created_by": "analyze_simple_api"
+                },
+                status="completed",
+                completed_at=datetime.now()
+            )
+            
+            # 데이터베이스에 저장
+            db.add(db_analysis)
+            db.commit()
+            db.refresh(db_analysis)
+            
+            print(f"[ANALYZE_SIMPLE] 데이터베이스에 저장 완료: {analysis_id}")
+            print(f"[ANALYZE_SIMPLE] DB 저장 상태: {db_analysis.status}")
+            
+        except Exception as e:
+            print(f"[ANALYZE_SIMPLE] 데이터베이스 저장 오류 (캐시는 정상): {str(e)}")
+            # 데이터베이스 저장 실패해도 캐시는 정상이므로 계속 진행
         
         return analysis_result
         

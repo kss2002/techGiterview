@@ -129,17 +129,65 @@ async def start_interview(
                 }
             )
         
-        # 분석 ID 검증 (데이터베이스에 없으면 오류 반환 - 더미데이터 생성 없음)
+        # 분석 ID 검증 - 다양한 UUID 형식으로 조회 시도
         from app.models.repository import RepositoryAnalysis
-        # UUID 정규화 후 데이터베이스 조회
-        normalized_uuid_str = normalize_uuid_string(request.analysis_id)
-        analysis_uuid = uuid.UUID(normalized_uuid_str)
-        analysis = db.query(RepositoryAnalysis).filter(
-            RepositoryAnalysis.id == analysis_uuid
-        ).first()
+        
+        analysis = None
+        analysis_uuid = None
+        
+        # 1. 하이픈 포함된 원본 ID로 시도
+        try:
+            analysis_uuid = uuid.UUID(request.analysis_id)
+            analysis = db.query(RepositoryAnalysis).filter(
+                RepositoryAnalysis.id == analysis_uuid
+            ).first()
+            if analysis:
+                print(f"[SUCCESS] 분석 데이터 찾음 (하이픈 포함): {request.analysis_id}")
+        except ValueError:
+            pass
+        
+        # 2. 하이픈 제거된 ID로 시도
+        if not analysis:
+            try:
+                cleaned_id = request.analysis_id.replace('-', '')
+                analysis_uuid = uuid.UUID(f"{cleaned_id[:8]}-{cleaned_id[8:12]}-{cleaned_id[12:16]}-{cleaned_id[16:20]}-{cleaned_id[20:]}")
+                analysis = db.query(RepositoryAnalysis).filter(
+                    RepositoryAnalysis.id == analysis_uuid
+                ).first()
+                if analysis:
+                    print(f"[SUCCESS] 분석 데이터 찾음 (하이픈 제거 후 재조합): {analysis_uuid}")
+            except (ValueError, IndexError):
+                pass
+        
+        # 3. 문자열로 직접 조회 시도
+        if not analysis:
+            try:
+                from sqlalchemy import text
+                # 하이픈 포함/제거 모두 시도
+                result = db.execute(text("SELECT * FROM repository_analyses WHERE id = :id1 OR id = :id2"), 
+                                  {"id1": request.analysis_id, "id2": request.analysis_id.replace('-', '')})
+                row = result.fetchone()
+                if row:
+                    analysis_uuid = uuid.UUID(str(row[0]))  # id 컬럼
+                    analysis = db.query(RepositoryAnalysis).filter(
+                        RepositoryAnalysis.id == analysis_uuid
+                    ).first()
+                    if analysis:
+                        print(f"[SUCCESS] 분석 데이터 찾음 (문자열 직접 조회): {analysis_uuid}")
+            except Exception as e:
+                print(f"[DEBUG] 문자열 직접 조회 실패: {e}")
         
         if not analysis:
             print(f"[ERROR] 분석 데이터 없음: {request.analysis_id}")
+            # 데이터베이스에 어떤 분석 데이터가 있는지 확인
+            try:
+                from sqlalchemy import text
+                result = db.execute(text("SELECT id FROM repository_analyses LIMIT 5"))
+                existing_ids = [str(row[0]) for row in result.fetchall()]
+                print(f"[DEBUG] 데이터베이스의 기존 분석 ID들: {existing_ids}")
+            except Exception as e:
+                print(f"[DEBUG] 기존 분석 ID 조회 실패: {e}")
+                
             raise HTTPException(
                 status_code=404, 
                 detail={
