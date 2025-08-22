@@ -115,88 +115,181 @@ async def start_interview(
         cached_questions = cache_data.parsed_questions
         available_question_ids = {q.id for q in cached_questions}
         
-        # 요청된 질문 ID가 모두 캐시에 있는지 확인
+        # 요청된 질문 ID가 모두 캐시에 있는지 확인 및 Fallback 처리
         missing_question_ids = set(request.question_ids) - available_question_ids
         if missing_question_ids:
-            print(f"[ERROR] 요청한 질문 ID 없음: {missing_question_ids}")
-            raise HTTPException(
-                status_code=400, 
-                detail={
-                    "error": "INVALID_QUESTION_IDS",
-                    "message": f"요청한 질문 중 존재하지 않는 ID가 있습니다: {list(missing_question_ids)}",
-                    "available_question_ids": list(available_question_ids),
-                    "missing_question_ids": list(missing_question_ids)
-                }
-            )
-        
-        # 분석 ID 검증 - 다양한 UUID 형식으로 조회 시도
-        from app.models.repository import RepositoryAnalysis
-        
-        analysis = None
-        analysis_uuid = None
-        
-        # 1. 하이픈 포함된 원본 ID로 시도
-        try:
-            analysis_uuid = uuid.UUID(request.analysis_id)
-            analysis = db.query(RepositoryAnalysis).filter(
-                RepositoryAnalysis.id == analysis_uuid
-            ).first()
-            if analysis:
-                print(f"[SUCCESS] 분석 데이터 찾음 (하이픈 포함): {request.analysis_id}")
-        except ValueError:
-            pass
-        
-        # 2. 하이픈 제거된 ID로 시도
-        if not analysis:
+            print(f"[FALLBACK] 요청한 질문 ID가 캐시에 없음: {missing_question_ids}")
+            print(f"[FALLBACK] 데이터베이스에서 최신 질문으로 대체 시도...")
+            
+            # 🔧 핵심 수정: 데이터베이스에서 해당 analysis_id의 최신 질문들 조회
             try:
-                cleaned_id = request.analysis_id.replace('-', '')
-                analysis_uuid = uuid.UUID(f"{cleaned_id[:8]}-{cleaned_id[8:12]}-{cleaned_id[12:16]}-{cleaned_id[16:20]}-{cleaned_id[20:]}")
-                analysis = db.query(RepositoryAnalysis).filter(
-                    RepositoryAnalysis.id == analysis_uuid
-                ).first()
-                if analysis:
-                    print(f"[SUCCESS] 분석 데이터 찾음 (하이픈 제거 후 재조합): {analysis_uuid}")
-            except (ValueError, IndexError):
-                pass
-        
-        # 3. 문자열로 직접 조회 시도
-        if not analysis:
-            try:
-                from sqlalchemy import text
-                # 하이픈 포함/제거 모두 시도
-                result = db.execute(text("SELECT * FROM repository_analyses WHERE id = :id1 OR id = :id2"), 
-                                  {"id1": request.analysis_id, "id2": request.analysis_id.replace('-', '')})
-                row = result.fetchone()
-                if row:
-                    analysis_uuid = uuid.UUID(str(row[0]))  # id 컬럼
+                # 먼저 analysis_uuid 확인이 필요하므로 분석 ID 검증을 먼저 수행
+                analysis = None
+                analysis_uuid = None
+                
+                # 1. 하이픈 포함된 원본 ID로 시도
+                try:
+                    analysis_uuid = uuid.UUID(request.analysis_id)
                     analysis = db.query(RepositoryAnalysis).filter(
                         RepositoryAnalysis.id == analysis_uuid
                     ).first()
                     if analysis:
-                        print(f"[SUCCESS] 분석 데이터 찾음 (문자열 직접 조회): {analysis_uuid}")
-            except Exception as e:
-                print(f"[DEBUG] 문자열 직접 조회 실패: {e}")
-        
-        if not analysis:
-            print(f"[ERROR] 분석 데이터 없음: {request.analysis_id}")
-            # 데이터베이스에 어떤 분석 데이터가 있는지 확인
-            try:
-                from sqlalchemy import text
-                result = db.execute(text("SELECT id FROM repository_analyses LIMIT 5"))
-                existing_ids = [str(row[0]) for row in result.fetchall()]
-                print(f"[DEBUG] 데이터베이스의 기존 분석 ID들: {existing_ids}")
-            except Exception as e:
-                print(f"[DEBUG] 기존 분석 ID 조회 실패: {e}")
+                        print(f"[FALLBACK] 분석 데이터 찾음 (하이픈 포함): {request.analysis_id}")
+                except ValueError:
+                    pass
                 
-            raise HTTPException(
-                status_code=404, 
-                detail={
-                    "error": "ANALYSIS_NOT_FOUND",
-                    "message": "해당 분석 ID에 대한 분석 데이터가 존재하지 않습니다.",
-                    "analysis_id": request.analysis_id,
-                    "suggestion": "먼저 저장소 분석을 완료해주세요."
-                }
-            )
+                # 2. 하이픈 제거된 ID로 시도
+                if not analysis:
+                    try:
+                        cleaned_id = request.analysis_id.replace('-', '')
+                        analysis_uuid = uuid.UUID(f"{cleaned_id[:8]}-{cleaned_id[8:12]}-{cleaned_id[12:16]}-{cleaned_id[16:20]}-{cleaned_id[20:]}")
+                        analysis = db.query(RepositoryAnalysis).filter(
+                            RepositoryAnalysis.id == analysis_uuid
+                        ).first()
+                        if analysis:
+                            print(f"[FALLBACK] 분석 데이터 찾음 (하이픈 제거 후 재조합): {analysis_uuid}")
+                    except (ValueError, IndexError):
+                        pass
+                
+                if not analysis_uuid:
+                    raise HTTPException(status_code=404, detail="분석 데이터를 찾을 수 없어 질문 ID 대체가 불가능합니다.")
+                
+                # 데이터베이스에서 해당 analysis_id의 모든 질문 조회
+                from app.models.interview import InterviewQuestion
+                db_questions = db.query(InterviewQuestion).filter(
+                    InterviewQuestion.analysis_id == analysis_uuid
+                ).order_by(InterviewQuestion.created_at.desc()).all()
+                
+                if not db_questions:
+                    print(f"[FALLBACK_ERROR] 데이터베이스에 질문이 없음 - analysis_id: {analysis_uuid}")
+                    raise HTTPException(
+                        status_code=404, 
+                        detail={
+                            "error": "NO_DATABASE_QUESTIONS",
+                            "message": "데이터베이스에 해당 분석의 질문이 존재하지 않습니다.",
+                            "analysis_id": request.analysis_id,
+                            "suggestion": "먼저 질문 생성을 완료해주세요."
+                        }
+                    )
+                
+                print(f"[FALLBACK] 데이터베이스에서 {len(db_questions)}개 질문 찾음")
+                
+                # 🔥 핵심 수정: 캐시를 데이터베이스 최신 질문들로 갱신
+                from app.api.questions import QuestionResponse
+                
+                # 데이터베이스 질문들을 캐시 형식으로 변환
+                updated_questions = []
+                for db_q in db_questions:
+                    question_data = {
+                        "id": str(db_q.id),
+                        "question": db_q.question_text,
+                        "type": db_q.category,
+                        "difficulty": db_q.difficulty,
+                        "expected_answer_points": db_q.context.get("expected_answer_points", []) if db_q.context else []
+                    }
+                    updated_questions.append(QuestionResponse(**question_data))
+                
+                # 캐시 업데이트
+                cache_data.parsed_questions = updated_questions
+                print(f"[FALLBACK] 캐시를 데이터베이스 최신 질문으로 갱신 완료: {len(updated_questions)}개")
+                
+                # 새로운 질문 ID 목록 생성 (요청한 개수만큼 최신 질문 선택)
+                new_question_ids = [str(q.id) for q in db_questions[:len(request.question_ids)]]
+                request.question_ids = new_question_ids
+                print(f"[FALLBACK] 새로운 질문 ID로 대체: {new_question_ids}")
+                
+                # 업데이트된 캐시로 질문 정보 재설정
+                cached_questions = cache_data.parsed_questions
+                available_question_ids = {q.id for q in cached_questions}
+                print(f"[FALLBACK] 캐시 갱신 완료 - 사용 가능한 질문 ID: {available_question_ids}")
+                
+            except HTTPException:
+                raise  # HTTPException은 그대로 전달
+            except Exception as e:
+                print(f"[FALLBACK_ERROR] 질문 ID 대체 실패: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "error": "FALLBACK_FAILED",
+                        "message": f"질문 ID 대체 처리 중 오류가 발생했습니다: {str(e)}",
+                        "original_missing_ids": list(missing_question_ids)
+                    }
+                )
+        
+        # 분석 ID 검증 - Fallback에서 이미 처리되지 않은 경우만 수행
+        from app.models.repository import RepositoryAnalysis
+        
+        # 🔧 최적화: Fallback 로직에서 분석 ID가 이미 검증되지 않은 경우만 처리
+        if missing_question_ids:
+            # Fallback 로직에서 이미 analysis와 analysis_uuid가 설정됨
+            print(f"[INFO] 분석 ID는 Fallback 로직에서 이미 검증됨: {analysis_uuid}")
+        else:
+            # Fallback이 실행되지 않은 경우에만 분석 ID 검증 수행
+            analysis = None
+            analysis_uuid = None
+            
+            # 1. 하이픈 포함된 원본 ID로 시도
+            try:
+                analysis_uuid = uuid.UUID(request.analysis_id)
+                analysis = db.query(RepositoryAnalysis).filter(
+                    RepositoryAnalysis.id == analysis_uuid
+                ).first()
+                if analysis:
+                    print(f"[SUCCESS] 분석 데이터 찾음 (하이픈 포함): {request.analysis_id}")
+            except ValueError:
+                pass
+            
+            # 2. 하이픈 제거된 ID로 시도
+            if not analysis:
+                try:
+                    cleaned_id = request.analysis_id.replace('-', '')
+                    analysis_uuid = uuid.UUID(f"{cleaned_id[:8]}-{cleaned_id[8:12]}-{cleaned_id[12:16]}-{cleaned_id[16:20]}-{cleaned_id[20:]}")
+                    analysis = db.query(RepositoryAnalysis).filter(
+                        RepositoryAnalysis.id == analysis_uuid
+                    ).first()
+                    if analysis:
+                        print(f"[SUCCESS] 분석 데이터 찾음 (하이픈 제거 후 재조합): {analysis_uuid}")
+                except (ValueError, IndexError):
+                    pass
+            
+            # 3. 문자열로 직접 조회 시도
+            if not analysis:
+                try:
+                    from sqlalchemy import text
+                    # 하이픈 포함/제거 모두 시도
+                    result = db.execute(text("SELECT * FROM repository_analyses WHERE id = :id1 OR id = :id2"), 
+                                      {"id1": request.analysis_id, "id2": request.analysis_id.replace('-', '')})
+                    row = result.fetchone()
+                    if row:
+                        analysis_uuid = uuid.UUID(str(row[0]))  # id 컬럼
+                        analysis = db.query(RepositoryAnalysis).filter(
+                            RepositoryAnalysis.id == analysis_uuid
+                        ).first()
+                        if analysis:
+                            print(f"[SUCCESS] 분석 데이터 찾음 (문자열 직접 조회): {analysis_uuid}")
+                except Exception as e:
+                    print(f"[DEBUG] 문자열 직접 조회 실패: {e}")
+            
+            if not analysis:
+                print(f"[ERROR] 분석 데이터 없음: {request.analysis_id}")
+                # 데이터베이스에 어떤 분석 데이터가 있는지 확인
+                try:
+                    from sqlalchemy import text
+                    result = db.execute(text("SELECT id FROM repository_analyses LIMIT 5"))
+                    existing_ids = [str(row[0]) for row in result.fetchall()]
+                    print(f"[DEBUG] 데이터베이스의 기존 분석 ID들: {existing_ids}")
+                except Exception as e:
+                    print(f"[DEBUG] 기존 분석 ID 조회 실패: {e}")
+                    
+                raise HTTPException(
+                    status_code=404, 
+                    detail={
+                        "error": "ANALYSIS_NOT_FOUND",
+                        "message": "해당 분석 ID에 대한 분석 데이터가 존재하지 않습니다.",
+                        "analysis_id": request.analysis_id,
+                        "suggestion": "먼저 저장소 분석을 완료해주세요."
+                    }
+                )
         
         # InterviewRepository를 사용하여 세션 생성
         repo = InterviewRepository(db)

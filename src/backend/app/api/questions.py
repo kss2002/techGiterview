@@ -261,15 +261,90 @@ async def generate_questions(
         analysis_id = None
         if request.analysis_result and "analysis_id" in request.analysis_result:
             analysis_id = request.analysis_result["analysis_id"]
+
+        # 🔧 핵심 수정: 중복 요청 방지를 위한 Redis 락 사용
+        if analysis_id and not request.force_regenerate:
+            from app.core.database import get_redis
+            import asyncio
+            
+            lock_key = f"question_generation_lock:{analysis_id}"
+            lock_timeout = 300  # 5분 (질문 생성이 오래 걸릴 수 있음)
+            
+            try:
+                redis = await get_redis()
+                
+                # 🔥 Redis 락 획득 시도 (이미 생성 중인 요청이 있으면 대기 또는 거부)
+                lock_acquired = await redis.set(lock_key, "generating", ex=lock_timeout, nx=True)
+                
+                if not lock_acquired:
+                    # 락을 획득하지 못한 경우: 다른 요청이 이미 진행 중
+                    print(f"[LOCK_BLOCKED] 질문 생성이 이미 진행 중: analysis_id={analysis_id}")
+                    
+                    # 잠시 대기 후 캐시에서 결과 확인
+                    for attempt in range(10):  # 최대 10회 시도 (약 50초)
+                        await asyncio.sleep(5)
+                        
+                        # 정규화된 캐시 키로 확인
+                        normalized_cache_key = analysis_id.replace('-', '')
+                        if normalized_cache_key in question_cache:
+                            cache_data = question_cache[normalized_cache_key]
+                            print(f"[LOCK_WAIT_SUCCESS] 대기 중 질문 생성 완료됨: {len(cache_data.parsed_questions)}개 질문")
+                            return QuestionGenerationResult(
+                                success=True,
+                                questions=cache_data.parsed_questions,
+                                analysis_id=analysis_id
+                            )
+                        
+                        # 하이픈 포함 키로도 확인
+                        if analysis_id in question_cache:
+                            cache_data = question_cache[analysis_id]
+                            print(f"[LOCK_WAIT_SUCCESS] 대기 중 질문 생성 완료됨 (하이픈 키): {len(cache_data.parsed_questions)}개 질문")
+                            return QuestionGenerationResult(
+                                success=True,
+                                questions=cache_data.parsed_questions,
+                                analysis_id=analysis_id
+                            )
+                    
+                    # 대기 시간이 초과된 경우
+                    raise HTTPException(
+                        status_code=409,
+                        detail={
+                            "error": "GENERATION_IN_PROGRESS",
+                            "message": "질문 생성이 이미 진행 중입니다. 잠시 후 다시 시도해주세요.",
+                            "analysis_id": analysis_id,
+                            "suggestion": "질문 목록 조회를 통해 생성 완료 여부를 확인해주세요."
+                        }
+                    )
+                
+                # 락 획득 성공 - 질문 생성 진행
+                print(f"[LOCK_ACQUIRED] 질문 생성 락 획득 성공: analysis_id={analysis_id}")
+                
+            except Exception as e:
+                print(f"[LOCK_ERROR] Redis 락 처리 중 오류: {str(e)}")
+                # Redis 연결 실패 시에도 질문 생성은 계속 진행
         
         # 이미 생성된 질문이 있는지 확인 (강제 재생성이 아닌 경우)
-        if analysis_id and analysis_id in question_cache and not request.force_regenerate:
-            cache_data = question_cache[analysis_id]
-            return QuestionGenerationResult(
-                success=True,
-                questions=cache_data.parsed_questions,
-                analysis_id=analysis_id
-            )
+        if analysis_id and not request.force_regenerate:
+            # 정규화된 키로 먼저 확인
+            normalized_cache_key = analysis_id.replace('-', '')
+            if normalized_cache_key in question_cache:
+                cache_data = question_cache[normalized_cache_key]
+                print(f"[CACHE_HIT] 기존 질문 반환 (정규화 키): {len(cache_data.parsed_questions)}개")
+                return QuestionGenerationResult(
+                    success=True,
+                    questions=cache_data.parsed_questions,
+                    analysis_id=analysis_id
+                )
+            
+            # 하이픈 포함 키로도 확인
+            if analysis_id in question_cache:
+                cache_data = question_cache[analysis_id]
+                print(f"[CACHE_HIT] 기존 질문 반환 (하이픈 키): {len(cache_data.parsed_questions)}개")
+                return QuestionGenerationResult(
+                    success=True,
+                    questions=cache_data.parsed_questions,
+                    analysis_id=analysis_id
+                )
         
         # 헤더에서 API 키 추출
         api_keys = extract_api_keys_from_headers(github_token, google_api_key)
@@ -332,6 +407,17 @@ async def generate_questions(
             # DB에도 저장하여 영구 보존
             await _save_questions_to_db(analysis_id, parsed_questions)
         
+        # 🔧 Redis 락 해제 (질문 생성 완료)
+        if analysis_id:
+            try:
+                from app.core.database import get_redis
+                redis = await get_redis()
+                lock_key = f"question_generation_lock:{analysis_id}"
+                await redis.delete(lock_key)
+                print(f"[LOCK_RELEASED] 질문 생성 락 해제 완료: analysis_id={analysis_id}")
+            except Exception as lock_error:
+                print(f"[LOCK_ERROR] Redis 락 해제 실패 (질문 생성은 성공): {str(lock_error)}")
+        
         return QuestionGenerationResult(
             success=True,
             questions=parsed_questions,
@@ -339,6 +425,17 @@ async def generate_questions(
         )
         
     except Exception as e:
+        # 🔧 예외 발생 시에도 Redis 락 해제
+        if analysis_id:
+            try:
+                from app.core.database import get_redis
+                redis = await get_redis()
+                lock_key = f"question_generation_lock:{analysis_id}"
+                await redis.delete(lock_key)
+                print(f"[LOCK_RELEASED] 예외 발생으로 인한 락 해제: analysis_id={analysis_id}")
+            except Exception as lock_error:
+                print(f"[LOCK_ERROR] 예외 상황에서 락 해제 실패: {str(lock_error)}")
+                
         return QuestionGenerationResult(
             success=False,
             questions=[],
@@ -724,40 +821,131 @@ async def _restore_questions_to_cache(analysis_id: str, questions: List[Question
 
 
 async def _save_questions_to_db(analysis_id: str, questions: List[QuestionResponse]):
-    """생성된 질문들을 데이터베이스에 저장"""
+    """생성된 질문들을 데이터베이스에 저장 - UPSERT 방식으로 개선"""
     try:
+        from app.core.database import database_url
+        from datetime import datetime
+        current_time = datetime.now()
+        
         with engine.connect() as conn:
-            # 기존 질문이 있으면 삭제 (중복 방지)
-            conn.execute(text(
-                "DELETE FROM interview_questions WHERE analysis_id = :analysis_id"
-            ), {"analysis_id": analysis_id})
+            # 🔧 핵심 개선: DELETE-INSERT 대신 UPSERT 사용
+            # 데이터베이스 종류에 따라 다른 UPSERT 구문 사용
+            is_sqlite = "sqlite" in database_url.lower()
             
-            # 새로운 질문들 저장
-            from datetime import datetime
-            current_time = datetime.now()
+            print(f"[DB_UPSERT] UPSERT 방식으로 질문 저장 시작: {len(questions)}개 질문, DB타입={'SQLite' if is_sqlite else 'PostgreSQL'}")
             
+            # 🔥 단계별 UPSERT: 기존 질문 ID 조회 후 새 질문 처리
             for question in questions:
-                conn.execute(text(
-                    """
-                    INSERT INTO interview_questions 
-                    (id, analysis_id, category, difficulty, question_text, expected_points, created_at)
-                    VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, :created_at)
+                if is_sqlite:
+                    # SQLite: INSERT OR REPLACE 사용
+                    conn.execute(text(
+                        """
+                        INSERT OR REPLACE INTO interview_questions 
+                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at, updated_at)
+                        VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, 
+                                COALESCE((SELECT created_at FROM interview_questions WHERE id = :id), :created_at),
+                                :updated_at)
+                        """
+                    ), {
+                        "id": question.id,
+                        "analysis_id": analysis_id,
+                        "category": question.type,
+                        "difficulty": question.difficulty,
+                        "question_text": question.question,
+                        "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
+                        "created_at": current_time,
+                        "updated_at": current_time
+                    })
+                else:
+                    # PostgreSQL: INSERT ... ON CONFLICT DO UPDATE 사용
+                    conn.execute(text(
+                        """
+                        INSERT INTO interview_questions 
+                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at, updated_at)
+                        VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, :created_at, :updated_at)
+                        ON CONFLICT (id) DO UPDATE SET
+                            category = EXCLUDED.category,
+                            difficulty = EXCLUDED.difficulty,
+                            question_text = EXCLUDED.question_text,
+                            expected_points = EXCLUDED.expected_points,
+                            updated_at = EXCLUDED.updated_at
+                        """
+                    ), {
+                        "id": question.id,
+                        "analysis_id": analysis_id,
+                        "category": question.type,
+                        "difficulty": question.difficulty,
+                        "question_text": question.question,
+                        "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
+                        "created_at": current_time,
+                        "updated_at": current_time
+                    })
+            
+            # 🔧 추가 개선: 현재 질문 세트에 없는 기존 질문들은 비활성화 (삭제하지 않음)
+            current_question_ids = [q.id for q in questions]
+            if current_question_ids:
+                question_ids_placeholder = ','.join([f"'{qid}'" for qid in current_question_ids])
+                
+                # 현재 질문 세트에 없는 기존 질문들 비활성화
+                result = conn.execute(text(
+                    f"""
+                    UPDATE interview_questions 
+                    SET is_active = FALSE, updated_at = :updated_at
+                    WHERE analysis_id = :analysis_id 
+                    AND id NOT IN ({question_ids_placeholder})
+                    AND is_active = TRUE
                     """
                 ), {
-                    "id": question.id,
                     "analysis_id": analysis_id,
-                    "category": question.type,
-                    "difficulty": question.difficulty,
-                    "question_text": question.question,
-                    "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
-                    "created_at": current_time
+                    "updated_at": current_time
                 })
+                
+                deactivated_count = result.rowcount if hasattr(result, 'rowcount') else 0
+                if deactivated_count > 0:
+                    print(f"[DB_UPSERT] 기존 질문 {deactivated_count}개 비활성화 (삭제하지 않음)")
             
             # 변경사항 커밋
             conn.commit()
             
-            print(f"[DB] Saved {len(questions)} questions to database for analysis {analysis_id}")
+            print(f"[DB_UPSERT] UPSERT 완료: {len(questions)}개 질문 저장/업데이트, analysis_id={analysis_id}")
+            print(f"[DB_UPSERT] ✅ 장점: 질문 삭제 없이 원자적 업데이트로 캐시-DB 일관성 보장")
             
     except Exception as e:
-        print(f"[DB] Error saving questions to database: {e}")
-        # DB 저장 실패는 질문 생성 자체를 실패시키지 않음
+        print(f"[DB_UPSERT_ERROR] UPSERT 저장 실패: {str(e)}")
+        print(f"[DB_UPSERT_ERROR] 폴백: 기존 DELETE-INSERT 방식으로 재시도...")
+        
+        # 🔧 폴백: UPSERT 실패 시 기존 방식으로 재시도
+        try:
+            with engine.connect() as conn:
+                # 기존 질문 삭제
+                conn.execute(text(
+                    "DELETE FROM interview_questions WHERE analysis_id = :analysis_id"
+                ), {"analysis_id": analysis_id})
+                
+                # 새로운 질문들 저장
+                from datetime import datetime
+                current_time = datetime.now()
+                
+                for question in questions:
+                    conn.execute(text(
+                        """
+                        INSERT INTO interview_questions 
+                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at)
+                        VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, :created_at)
+                        """
+                    ), {
+                        "id": question.id,
+                        "analysis_id": analysis_id,
+                        "category": question.type,
+                        "difficulty": question.difficulty,
+                        "question_text": question.question,
+                        "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
+                        "created_at": current_time
+                    })
+                
+                conn.commit()
+                print(f"[DB_FALLBACK] 폴백 저장 성공: {len(questions)}개 질문")
+                
+        except Exception as fallback_error:
+            print(f"[DB_FALLBACK_ERROR] 폴백도 실패: {str(fallback_error)}")
+            # DB 저장 실패는 질문 생성 자체를 실패시키지 않음
