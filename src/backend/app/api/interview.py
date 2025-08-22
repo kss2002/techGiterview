@@ -54,16 +54,41 @@ async def start_interview(
 ):
     """새 면접 세션 시작"""
     try:
-        # API 키 헤더 로깅
+        # API 키 우선순위 결정: .env.dev > 헤더 > 기본값
+        from app.core.config import settings
+        
+        # GitHub Token 우선순위
+        effective_github_token = None
+        if settings.github_token and settings.github_token != "your_github_token_here":
+            effective_github_token = settings.github_token
+            github_token_source = "환경변수(.env.dev)"
+        elif github_token:
+            effective_github_token = github_token
+            github_token_source = "요청 헤더"
+        else:
+            github_token_source = "없음"
+        
+        # Google API Key 우선순위
+        effective_google_api_key = None
+        if settings.google_api_key and settings.google_api_key != "your_google_api_key_here":
+            effective_google_api_key = settings.google_api_key
+            google_api_key_source = "환경변수(.env.dev)"
+        elif google_api_key:
+            effective_google_api_key = google_api_key
+            google_api_key_source = "요청 헤더"
+        else:
+            google_api_key_source = "없음"
+        
+        # API 키 사용 현황 로깅
         print(f"[INTERVIEW_START] ========== 면접 시작 요청 ==========")
         print(f"[INTERVIEW_START] 분석 ID: {request.analysis_id}")
-        print(f"[INTERVIEW_START] 받은 헤더:")
-        print(f"[INTERVIEW_START]   - GitHub Token: {'있음' if github_token else '없음'}")
-        print(f"[INTERVIEW_START]   - Google API Key: {'있음' if google_api_key else '없음'}")
-        if github_token:
-            print(f"[INTERVIEW_START]   - GitHub Token 값: {github_token[:20]}...")
-        if google_api_key:
-            print(f"[INTERVIEW_START]   - Google API Key 값: {google_api_key[:20]}...")
+        print(f"[INTERVIEW_START] API 키 사용 현황:")
+        print(f"[INTERVIEW_START]   - GitHub Token: {github_token_source}")
+        print(f"[INTERVIEW_START]   - Google API Key: {google_api_key_source}")
+        if effective_github_token:
+            print(f"[INTERVIEW_START]   - 사용될 GitHub Token: {effective_github_token[:20]}...")
+        if effective_google_api_key:
+            print(f"[INTERVIEW_START]   - 사용될 Google API Key: {effective_google_api_key[:20]}...")
         
         # 질문 ID 유효성 검증
         if not request.question_ids:
@@ -351,24 +376,29 @@ async def submit_answer(
         print(f"[SUBMIT_ANSWER]   - Google API Key 값: {google_api_key[:20]}...")
     
     try:
-        # UUID 정규화 후 변환
+        # Interview ID는 UUID 형식으로 정규화 및 변환
         normalized_interview_id = normalize_uuid_string(request.interview_id)
-        normalized_question_id = normalize_uuid_string(request.question_id)
-        
-        print(f"[DEBUG] 정규화된 UUID:")
-        print(f"  - interview_id: '{normalized_interview_id}'")
-        print(f"  - question_id: '{normalized_question_id}'")
-        
         session_uuid = uuid.UUID(normalized_interview_id)
-        question_uuid = uuid.UUID(normalized_question_id)
         
-        print(f"[DEBUG] UUID 변환 성공:")
-        print(f"  - session_uuid: {session_uuid}")
-        print(f"  - question_uuid: {question_uuid}")
+        # Question ID는 UUID 형식인지 확인하고, 아니면 문자열 그대로 사용
+        try:
+            normalized_question_id = normalize_uuid_string(request.question_id)
+            question_uuid = uuid.UUID(normalized_question_id)
+            question_id_is_uuid = True
+            print(f"[DEBUG] 질문 ID가 UUID 형식: {question_uuid}")
+        except ValueError:
+            # UUID 형식이 아니면 문자열 그대로 사용 (예: 'tech_stack_1632')
+            question_id_is_uuid = False
+            question_string_id = request.question_id
+            print(f"[DEBUG] 질문 ID가 문자열 형식: {question_string_id}")
+        
+        print(f"[DEBUG] 정규화된 ID:")
+        print(f"  - interview_id: '{normalized_interview_id}' → UUID: {session_uuid}")
+        print(f"  - question_id: '{request.question_id}' → UUID 형식: {question_id_is_uuid}")
         
     except ValueError as e:
-        print(f"[ERROR] UUID 변환 실패: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"올바르지 않은 ID 형식입니다: {str(e)}")
+        print(f"[ERROR] Interview ID UUID 변환 실패: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"올바르지 않은 면접 ID 형식입니다: {str(e)}")
     
     repo = InterviewRepository(db)
     session = repo.get_session(session_uuid)
@@ -380,26 +410,84 @@ async def submit_answer(
         raise HTTPException(status_code=400, detail="활성화된 면접 세션에만 답변할 수 있습니다.")
     
     try:
-        # 첫 번째 답변인지 확인 (기존 답변 존재 여부로 판단)
-        existing_answer = db.query(InterviewAnswer).filter(
-            InterviewAnswer.session_id == session_uuid,
-            InterviewAnswer.question_id == question_uuid
-        ).first()
+        # 질문 ID에 따른 조회 방식 결정
+        if question_id_is_uuid:
+            # UUID 형식의 질문 ID로 데이터베이스 조회
+            existing_answer = db.query(InterviewAnswer).filter(
+                InterviewAnswer.session_id == session_uuid,
+                InterviewAnswer.question_id == question_uuid
+            ).first()
+            
+            question = db.query(InterviewQuestion).filter(
+                InterviewQuestion.id == question_uuid
+            ).first()
+            
+            question_identifier = str(question_uuid)
+            print(f"[DEBUG] UUID 질문 조회: {question_uuid}")
+        else:
+            # 문자열 질문 ID로 메모리 캐시에서 정보 가져오기
+            existing_answer = None  # 문자열 ID는 데이터베이스에 저장되지 않음
+            question = None  # 메모리 캐시의 질문 사용
+            question_identifier = question_string_id
+            print(f"[DEBUG] 문자열 질문 ID 사용: {question_string_id}")
+            
         is_first_answer = existing_answer is None
-        
-        print(f"[DEBUG] 질문 {question_uuid}: 첫 번째 답변? {is_first_answer}")
+        print(f"[DEBUG] 질문 {question_identifier}: 첫 번째 답변? {is_first_answer}")
         print(f"[DEBUG] 기존 답변 존재: {existing_answer is not None}")
         
-        # Mock Interview Agent를 사용하여 피드백 생성 (API 키 전달)
-        interview_agent = MockInterviewAgent(github_token=github_token, google_api_key=google_api_key)
+        # 문자열 질문 ID의 경우 캐시에서 질문 정보 가져오기
+        if not question_id_is_uuid:
+            # 질문 캐시에서 질문 텍스트 찾기
+            from app.api.questions import question_cache
+            normalized_analysis_id = str(session.analysis_id).replace('-', '')  # 캐시 키 정규화
+            
+            if normalized_analysis_id in question_cache:
+                cache_data = question_cache[normalized_analysis_id]
+                cached_questions = cache_data.parsed_questions
+                
+                # 질문 ID로 질문 찾기
+                cached_question = None
+                for q in cached_questions:
+                    if q.id == question_string_id:
+                        cached_question = q
+                        break
+                
+                if not cached_question:
+                    raise HTTPException(status_code=404, detail=f"캐시에서 질문을 찾을 수 없습니다: {question_string_id}")
+                    
+                # 임시 질문 객체 생성
+                class TempQuestion:
+                    def __init__(self, q):
+                        self.question_text = q.question
+                        self.category = q.type
+                        self.difficulty = q.difficulty
+                        self.expected_points = getattr(q, 'expected_answer_points', [])
+                        
+                question = TempQuestion(cached_question)
+                print(f"[DEBUG] 캐시에서 질문 정보 가져옴: {question.question_text[:50]}...")
+            else:
+                raise HTTPException(status_code=404, detail="질문 캐시를 찾을 수 없습니다.")
+        elif not question:
+            raise HTTPException(status_code=404, detail="데이터베이스에서 질문을 찾을 수 없습니다.")
         
-        # 질문 정보 조회
-        question = db.query(InterviewQuestion).filter(
-            InterviewQuestion.id == question_uuid
-        ).first()
+        # Mock Interview Agent를 사용하여 피드백 생성 (우선순위 적용된 API 키 전달)
+        from app.core.config import settings
         
-        if not question:
-            raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다.")
+        # GitHub Token 우선순위 적용
+        effective_github_token = None
+        if settings.github_token and settings.github_token != "your_github_token_here":
+            effective_github_token = settings.github_token
+        elif github_token:
+            effective_github_token = github_token
+            
+        # Google API Key 우선순위 적용  
+        effective_google_api_key = None
+        if settings.google_api_key and settings.google_api_key != "your_google_api_key_here":
+            effective_google_api_key = settings.google_api_key
+        elif google_api_key:
+            effective_google_api_key = google_api_key
+            
+        interview_agent = MockInterviewAgent(github_token=effective_github_token, google_api_key=effective_google_api_key)
         
         # 피드백 생성 (답변 횟수 정보 포함)
         feedback_result = await interview_agent.evaluate_answer(
@@ -421,25 +509,47 @@ async def submit_answer(
             print(f"  - feedback: {feedback_data.get('feedback', 'N/A')[:50]}...")
             print(f"  - suggestions count: {len(feedback_data.get('suggestions', []))}")
         
-        # 답변 및 피드백 저장
+        # 답변 및 피드백 저장 (문자열 ID는 메모리만 사용, UUID ID는 데이터베이스에 저장)
         answer_data = {
             "answer": request.answer,
             "time_taken": request.time_taken,
-            "feedback": feedback_result if feedback_result.get("success") else None
+            "feedback": feedback_result if feedback_result.get("success") else None,
+            "question_id_type": "uuid" if question_id_is_uuid else "string",
+            "question_identifier": question_identifier
         }
         
-        saved_answer = repo.save_answer(session_uuid, question_uuid, answer_data)
+        if question_id_is_uuid:
+            # UUID 질문은 데이터베이스에 저장
+            saved_answer = repo.save_answer(session_uuid, question_uuid, answer_data)
+            saved_answer_id = str(saved_answer.id)
+        else:
+            # 문자열 질문은 메모리만 사용 (임시 처리)
+            saved_answer_id = f"temp_answer_{question_string_id}_{session_uuid}"
+            print(f"[DEBUG] 문자열 질문 답변은 메모리 처리: {saved_answer_id}")
         
-        # 다음 질문 확인
-        total_questions = db.query(InterviewQuestion).filter(
-            InterviewQuestion.analysis_id == session.analysis_id
-        ).count()
-        
-        answered_questions = db.query(InterviewAnswer).filter(
-            InterviewAnswer.session_id == session_uuid
-        ).count()
-        
+        # 다음 질문 확인 (현재는 간단히 처리)
+        # 문자열 질문의 경우 캐시의 전체 질문 수로 비교
+        if question_id_is_uuid:
+            total_questions = db.query(InterviewQuestion).filter(
+                InterviewQuestion.analysis_id == session.analysis_id
+            ).count()
+            
+            answered_questions = db.query(InterviewAnswer).filter(
+                InterviewAnswer.session_id == session_uuid
+            ).count()
+        else:
+            # 캐시에서 전체 질문 수 가져오기
+            normalized_analysis_id = str(session.analysis_id).replace('-', '')
+            if normalized_analysis_id in question_cache:
+                total_questions = len(question_cache[normalized_analysis_id].parsed_questions)
+            else:
+                total_questions = 1  # 기본값
+            
+            # 임시로 답변 수는 1로 처리 (실제 구현 시 세션별 답변 추적 필요)
+            answered_questions = 1
+            
         is_completed = answered_questions >= total_questions
+        print(f"[DEBUG] 질문 진행상황: {answered_questions}/{total_questions}, 완료: {is_completed}")
         
         if is_completed:
             repo.update_session_status(session_uuid, "completed")
@@ -448,7 +558,7 @@ async def submit_answer(
             "success": True,
             "message": "답변이 성공적으로 제출되었습니다.",
             "data": {
-                "answer_id": str(saved_answer.id),
+                "answer_id": saved_answer_id,
                 "feedback": feedback_result.get("data") if feedback_result and feedback_result.get("success") else None,
                 "is_completed": is_completed,
                 "next_question_index": answered_questions if not is_completed else None
@@ -504,8 +614,22 @@ async def handle_conversation(
             "metadata": {"original_answer": request.original_answer}
         })
         
-        # AI 응답 생성 (API 키 전달)
-        interview_agent = MockInterviewAgent(github_token=github_token, google_api_key=google_api_key)
+        # AI 응답 생성 (우선순위 적용된 API 키 전달)
+        # GitHub Token 우선순위 적용
+        effective_github_token = None
+        if settings.github_token and settings.github_token != "your_github_token_here":
+            effective_github_token = settings.github_token
+        elif github_token:
+            effective_github_token = github_token
+            
+        # Google API Key 우선순위 적용  
+        effective_google_api_key = None
+        if settings.google_api_key and settings.google_api_key != "your_google_api_key_here":
+            effective_google_api_key = settings.google_api_key
+        elif google_api_key:
+            effective_google_api_key = google_api_key
+            
+        interview_agent = MockInterviewAgent(github_token=effective_github_token, google_api_key=effective_google_api_key)
         ai_response = await interview_agent.handle_follow_up_question(
             original_question="",  # 필요시 DB에서 조회
             original_answer=request.original_answer,
