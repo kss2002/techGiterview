@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
+from app.core.database import init_database_on_startup
 # from app.core.database import close_db_connections
 
 
@@ -19,6 +20,10 @@ async def lifespan(app: FastAPI):
     """애플리케이션 생명주기 관리"""
     # 시작 시 초기화
     print("[START] TechGiterview 서버 시작")
+    
+    # 데이터베이스 자동 초기화 (테이블 누락시에만 생성)
+    init_database_on_startup()
+    
     yield
     # 종료 시 정리
     # await close_db_connections()

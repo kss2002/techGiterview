@@ -94,14 +94,21 @@ async def start_interview(
         if not request.question_ids:
             raise HTTPException(status_code=400, detail="질문 ID가 제공되지 않았습니다.")
         
-        # 질문 캐시에서 질문 데이터 확인 (현재 시스템은 여전히 메모리 캐시 사용)
+        # 질문 캐시에서 질문 데이터 확인 (실제 질문이 없으면 오류 반환 - 더미데이터 생성 없음)
         from app.api.questions import question_cache
         # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
         normalized_analysis_id = request.analysis_id.replace('-', '')
+        
         if normalized_analysis_id not in question_cache:
+            print(f"[ERROR] 질문 캐시 없음: {normalized_analysis_id}")
             raise HTTPException(
-                status_code=400, 
-                detail="해당 분석 ID에 대한 질문이 없습니다. 먼저 질문을 생성해주세요."
+                status_code=404, 
+                detail={
+                    "error": "QUESTIONS_NOT_FOUND", 
+                    "message": "해당 분석 ID에 대한 질문이 존재하지 않습니다.",
+                    "analysis_id": request.analysis_id,
+                    "suggestion": "먼저 질문 생성을 완료해주세요."
+                }
             )
         
         cache_data = question_cache[normalized_analysis_id]
@@ -111,12 +118,18 @@ async def start_interview(
         # 요청된 질문 ID가 모두 캐시에 있는지 확인
         missing_question_ids = set(request.question_ids) - available_question_ids
         if missing_question_ids:
+            print(f"[ERROR] 요청한 질문 ID 없음: {missing_question_ids}")
             raise HTTPException(
                 status_code=400, 
-                detail=f"다음 질문 ID를 찾을 수 없습니다: {list(missing_question_ids)}"
+                detail={
+                    "error": "INVALID_QUESTION_IDS",
+                    "message": f"요청한 질문 중 존재하지 않는 ID가 있습니다: {list(missing_question_ids)}",
+                    "available_question_ids": list(available_question_ids),
+                    "missing_question_ids": list(missing_question_ids)
+                }
             )
         
-        # 분석 ID 검증 및 생성 (데이터베이스에 없으면 생성)
+        # 분석 ID 검증 (데이터베이스에 없으면 오류 반환 - 더미데이터 생성 없음)
         from app.models.repository import RepositoryAnalysis
         # UUID 정규화 후 데이터베이스 조회
         normalized_uuid_str = normalize_uuid_string(request.analysis_id)
@@ -126,22 +139,16 @@ async def start_interview(
         ).first()
         
         if not analysis:
-            # 분석 데이터가 데이터베이스에 없으면 임시로 생성
-            analysis = RepositoryAnalysis(
-                id=analysis_uuid,
-                user_id=uuid.uuid4(),  # 임시 사용자 ID
-                repository_url=str(request.repo_url),
-                repository_name=str(request.repo_url).split('/')[-1],
-                primary_language="Unknown",
-                tech_stack={},
-                file_count=0,
-                complexity_score=0.0,
-                analysis_metadata={"temporary": True, "source": "question_cache"},
-                status="completed"
+            print(f"[ERROR] 분석 데이터 없음: {request.analysis_id}")
+            raise HTTPException(
+                status_code=404, 
+                detail={
+                    "error": "ANALYSIS_NOT_FOUND",
+                    "message": "해당 분석 ID에 대한 분석 데이터가 존재하지 않습니다.",
+                    "analysis_id": request.analysis_id,
+                    "suggestion": "먼저 저장소 분석을 완료해주세요."
+                }
             )
-            db.add(analysis)
-            db.commit()
-            db.refresh(analysis)
         
         # InterviewRepository를 사용하여 세션 생성
         repo = InterviewRepository(db)

@@ -5,7 +5,7 @@ PostgreSQL 및 Redis 연결 설정
 """
 
 import redis.asyncio as redis
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
@@ -29,6 +29,47 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # SQLAlchemy Base 클래스
 Base = declarative_base()
+
+
+def init_database_on_startup():
+    """앱 시작시 데이터베이스 자동 초기화 - 테이블 누락 확인 및 생성 (더미데이터 생성 없음)"""
+    try:
+        print("[DATABASE] 데이터베이스 초기화 확인 시작...")
+        
+        with engine.connect() as conn:
+            # SQLite와 PostgreSQL 구분하여 테이블 목록 조회
+            if "sqlite" in database_url.lower():
+                result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+            else:
+                result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public'"))
+            
+            existing_tables = [row[0] for row in result]
+            print(f"[DATABASE] 기존 테이블: {existing_tables}")
+            
+            required_tables = ['repository_analyses', 'interview_sessions', 'interview_questions', 'interview_answers']
+            missing_tables = [t for t in required_tables if t not in existing_tables]
+            
+            if missing_tables:
+                print(f"[DATABASE] 누락된 테이블 발견: {missing_tables}")
+                print("[DATABASE] 테이블 자동 생성 중... (데이터 생성 없음)")
+                
+                # Base.metadata.create_all()로 모든 테이블 생성
+                Base.metadata.create_all(bind=engine)
+                
+                # 생성 후 재확인
+                if "sqlite" in database_url.lower():
+                    result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+                else:
+                    result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public'"))
+                
+                created_tables = [row[0] for row in result]
+                print(f"[DATABASE] 테이블 생성 완료: {created_tables}")
+            else:
+                print("[DATABASE] 모든 필요 테이블이 존재합니다.")
+                
+    except Exception as e:
+        print(f"[DATABASE] 초기화 오류 (앱은 계속 실행): {e}")
+        # 오류가 있어도 앱은 계속 실행되도록 함
 
 
 def get_db() -> Generator[Session, None, None]:

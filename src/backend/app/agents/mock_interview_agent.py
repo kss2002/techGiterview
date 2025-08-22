@@ -50,12 +50,13 @@ class MockInterviewAgent:
     def __init__(self, github_token: Optional[str] = None, google_api_key: Optional[str] = None):
         self.github_token = github_token
         self.google_api_key = google_api_key
+        self.api_key_available = bool(google_api_key)
         
         self.question_generator = QuestionGenerator()
         # self.vector_db = VectorDBService()  # 미사용으로 주석 처리 (chromadb 의존성 제거)
         
         # Google Gemini LLM 초기화 (동적 API 키 사용)
-        if google_api_key:
+        if google_api_key and google_api_key != "your_google_api_key_here":
             print(f"[MOCK_INTERVIEW] Google API Key provided: {google_api_key[:20]}...")
             # 동적 API 키로 Gemini 초기화 시도
             try:
@@ -64,22 +65,30 @@ class MockInterviewAgent:
                 if self.llm:
                     self.llm.temperature = 0.3
                     print("[MOCK_INTERVIEW] Google Gemini LLM initialized with provided API key")
+                    self.api_key_available = True
                 else:
                     raise Exception("Failed to initialize with provided key")
             except Exception as e:
-                print(f"[MOCK_INTERVIEW] Failed to init with provided key: {e}, fallback to default")
+                print(f"[MOCK_INTERVIEW] Failed to init with provided key: {e}, API 키 없는 모드로 전환")
+                self.llm = None
+                self.api_key_available = False
+        else:
+            print("[MOCK_INTERVIEW] Google API Key 없음 - 제한된 기능으로 작동")
+            # 환경변수의 API 키도 확인
+            try:
                 self.llm = get_gemini_llm()
-        else:
-            print("[MOCK_INTERVIEW] No Google API Key provided, using default configuration")
-            self.llm = get_gemini_llm()
-            
-        if self.llm:
-            if not hasattr(self.llm, 'temperature'):
-                print("[MOCK_INTERVIEW] Setting temperature for Gemini LLM")
-            self.llm.temperature = 0.3
-            print("[MOCK_INTERVIEW] Google Gemini LLM initialized successfully")
-        else:
-            print("[MOCK_INTERVIEW] Warning: Gemini LLM not available, using fallback responses")
+                if self.llm:
+                    self.llm.temperature = 0.3
+                    print("[MOCK_INTERVIEW] 환경변수 Google API Key로 초기화 성공")
+                    self.api_key_available = True
+                else:
+                    self.api_key_available = False
+            except:
+                self.llm = None
+                self.api_key_available = False
+                
+        if not self.api_key_available:
+            print("[MOCK_INTERVIEW] Warning: Google API Key 없음 - 기본 응답만 제공됩니다")
         
         # 활성 면접 세션들
         self.active_sessions: Dict[str, InterviewState] = {}
@@ -621,23 +630,17 @@ class MockInterviewAgent:
         print(f"[EVALUATE] 첫 번째 답변으로 인식 - 정식 평가 진행")
         
         try:
-            if not self.llm:
-                # LLM이 없는 경우 기본 평가 반환
+            if not self.api_key_available:
+                # API 키가 없는 경우 명확한 안내 메시지
                 return {
-                    "success": True,
+                    "success": False,
+                    "error": "API_KEY_REQUIRED",
+                    "message": "AI 피드백 생성을 위해 Google API 키가 필요합니다.",
+                    "suggestion": "API 키를 설정한 후 다시 시도해주세요.",
                     "data": {
-                        "overall_score": 6.0,
-                        "criteria_scores": {
-                            "technical_accuracy": 6.0,
-                            "problem_solving": 6.0,
-                            "communication": 6.0
-                        },
-                        "feedback": "답변을 주셨지만, 더 구체적으로 설명해주시면 좋겠습니다.",
-                        "suggestions": [
-                            "구체적인 예시를 들어 설명해보세요.",
-                            "기술적 용어를 정확히 사용해보세요.",
-                            "단계별로 차근차근 설명해보세요."
-                        ]
+                        "overall_score": 0.0,
+                        "feedback": "Google API 키가 설정되지 않아 상세한 피드백을 제공할 수 없습니다.",
+                        "suggestions": ["API 키 설정 후 다시 시도해주세요."]
                     }
                 }
             
