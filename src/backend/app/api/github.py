@@ -99,8 +99,13 @@ class GitHubClient:
             async with session.get(url, headers=self.headers) as response:
                 if response.status == 404:
                     raise HTTPException(status_code=404, detail="Repository not found")
+                elif response.status == 403:
+                    raise HTTPException(
+                        status_code=403, 
+                        detail="GitHub API 접근이 제한되었습니다. API 키가 필요합니다. 페이지 상단의 'API 키 설정' 버튼을 클릭하여 GitHub Personal Access Token을 설정해주세요."
+                    )
                 elif response.status != 200:
-                    raise HTTPException(status_code=response.status, detail="GitHub API error")
+                    raise HTTPException(status_code=response.status, detail=f"GitHub API 오류 (상태 코드: {response.status})")
                 
                 return await response.json()
     

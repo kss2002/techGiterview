@@ -63,6 +63,11 @@ export const HomePage: React.FC = () => {
       })
 
       if (!response.ok) {
+        // 403 에러 처리 (API 키 필요)
+        if (response.status === 403) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.detail || 'GitHub API 접근이 제한되었습니다. API 키 설정이 필요합니다.')
+        }
         throw new Error('저장소 분석에 실패했습니다.')
       }
 
@@ -86,7 +91,15 @@ export const HomePage: React.FC = () => {
       
     } catch (error) {
       console.error('Analysis error:', error)
-      alert(error instanceof Error ? error.message : '오류가 발생했습니다.')
+      const errorMessage = error instanceof Error ? error.message : '오류가 발생했습니다.'
+      
+      // 403 에러 시 API 키 설정 모달 자동 열기
+      if (errorMessage.includes('API 키') || errorMessage.includes('접근이 제한')) {
+        setShowApiKeySetup(true)
+        alert(errorMessage + '\n\nAPI 키 설정 창을 열어드립니다.')
+      } else {
+        alert(errorMessage)
+      }
     } finally {
       setIsAnalyzing(false)
     }
