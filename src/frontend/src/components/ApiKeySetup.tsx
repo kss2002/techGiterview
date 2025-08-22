@@ -7,7 +7,12 @@ import {
   Shield, 
   AlertTriangle, 
   CheckCircle,
-  Loader
+  Loader,
+  Eye,
+  EyeOff,
+  TestTube,
+  Copy,
+  RefreshCw
 } from 'lucide-react'
 import { apiFetch } from '../utils/apiUtils'
 import './ApiKeySetup.css'
@@ -83,6 +88,13 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
   const [error, setError] = useState('')
   const [saveToLocalStorage, setSaveToLocalStorage] = useState(true)
   const [useLocalStorageMode, setUseLocalStorageMode] = useState(false)
+  
+  // 디버깅 및 가시성 관련 상태
+  const [showGithubToken, setShowGithubToken] = useState(false)
+  const [showGoogleApiKey, setShowGoogleApiKey] = useState(false)
+  const [debugInfo, setDebugInfo] = useState('')
+  const [isTestingApi, setIsTestingApi] = useState(false)
+  const [showDebugSection, setShowDebugSection] = useState(false)
 
   // 컴포넌트 마운트 시 모드 확인 및 저장된 키 로드
   useEffect(() => {
@@ -237,18 +249,40 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
           <div className="form-group">
             <label htmlFor="github-token" className="form-label">
               <Github className="icon" /> GitHub Personal Access Token
+              <button
+                type="button"
+                onClick={() => setShowGithubToken(!showGithubToken)}
+                className="btn btn-ghost btn-sm" 
+                style={{ marginLeft: '8px' }}
+                title={showGithubToken ? "토큰 숨기기" : "토큰 보기"}
+              >
+                {showGithubToken ? <EyeOff className="icon" /> : <Eye className="icon" />}
+              </button>
             </label>
-            <input
-              type="password"
-              id="github-token"
-              value={githubToken}
-              onChange={(e) => setGithubToken(e.target.value)}
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-              className="form-input"
-              autoComplete="username"
-              required
-              disabled={isLoading}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showGithubToken ? "text" : "password"}
+                id="github-token"
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                className="form-input"
+                autoComplete="username"
+                required
+                disabled={isLoading}
+              />
+              {githubToken && (
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(githubToken)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)' }}
+                  title="클립보드에 복사"
+                >
+                  <Copy className="icon" style={{ width: '16px', height: '16px' }} />
+                </button>
+              )}
+            </div>
             <div className="form-help">
               <a
                 href="https://github.com/settings/tokens"
@@ -266,18 +300,40 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
           <div className="form-group">
             <label htmlFor="google-api-key" className="form-label">
               <Globe className="icon" /> Google API Key (Gemini)
+              <button
+                type="button"
+                onClick={() => setShowGoogleApiKey(!showGoogleApiKey)}
+                className="btn btn-ghost btn-sm"
+                style={{ marginLeft: '8px' }}
+                title={showGoogleApiKey ? "키 숨기기" : "키 보기"}
+              >
+                {showGoogleApiKey ? <EyeOff className="icon" /> : <Eye className="icon" />}
+              </button>
             </label>
-            <input
-              type="password"
-              id="google-api-key"
-              value={googleApiKey}
-              onChange={(e) => setGoogleApiKey(e.target.value)}
-              placeholder="AIzaxxxxxxxxxxxxxxxxxxxxxxxx"
-              className="form-input"
-              autoComplete="new-password"
-              required
-              disabled={isLoading}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showGoogleApiKey ? "text" : "password"}
+                id="google-api-key"
+                value={googleApiKey}
+                onChange={(e) => setGoogleApiKey(e.target.value)}
+                placeholder="AIzaxxxxxxxxxxxxxxxxxxxxxxxx"
+                className="form-input"
+                autoComplete="new-password"
+                required
+                disabled={isLoading}
+              />
+              {googleApiKey && (
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(googleApiKey)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)' }}
+                  title="클립보드에 복사"
+                >
+                  <Copy className="icon" style={{ width: '16px', height: '16px' }} />
+                </button>
+              )}
+            </div>
             <div className="form-help">
               <a
                 href="https://aistudio.google.com/app/apikey"
@@ -340,8 +396,198 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
                 </>
               )}
             </button>
+            
+            {/* 디버깅 섹션 토글 버튼 */}
+            <button
+              type="button"
+              onClick={() => setShowDebugSection(!showDebugSection)}
+              className="btn btn-outline btn-sm"
+              style={{ marginTop: '12px' }}
+            >
+              <TestTube className="icon" />
+              {showDebugSection ? '디버깅 숨기기' : '디버깅 도구'}
+            </button>
           </div>
         </form>
+
+        {/* 디버깅 섹션 */}
+        {showDebugSection && (
+          <div className="debug-section" style={{ 
+            marginTop: '24px', 
+            padding: '16px', 
+            backgroundColor: '#f8f9fa', 
+            border: '1px solid #e9ecef',
+            borderRadius: '8px' 
+          }}>
+            <h4 style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              marginBottom: '16px',
+              fontSize: '16px',
+              fontWeight: '600'
+            }}>
+              <TestTube className="icon" />
+              API 키 디버깅 도구
+            </h4>
+            
+            {/* 현재 저장된 키 확인 */}
+            <div className="debug-item" style={{ marginBottom: '16px' }}>
+              <h5 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                현재 저장된 API 키 값:
+              </h5>
+              <div style={{ 
+                padding: '12px', 
+                backgroundColor: '#ffffff',
+                border: '1px solid #dee2e6',
+                borderRadius: '4px',
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                wordBreak: 'break-all'
+              }}>
+                <div style={{ marginBottom: '8px' }}>
+                  <strong>GitHub Token:</strong> {storageUtils.loadApiKeys().githubToken || '(없음)'}
+                </div>
+                <div>
+                  <strong>Google API Key:</strong> {storageUtils.loadApiKeys().googleApiKey || '(없음)'}
+                </div>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  const keys = storageUtils.loadApiKeys()
+                  setGithubToken(keys.githubToken)
+                  setGoogleApiKey(keys.googleApiKey)
+                }}
+                className="btn btn-outline btn-sm"
+                style={{ marginTop: '8px' }}
+              >
+                <RefreshCw className="icon" />
+                저장된 키로 새로고침
+              </button>
+            </div>
+            
+            {/* GitHub API 테스트 */}
+            <div className="debug-item" style={{ marginBottom: '16px' }}>
+              <h5 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                GitHub API 연결 테스트:
+              </h5>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsTestingApi(true)
+                  setDebugInfo('')
+                  
+                  try {
+                    const keys = storageUtils.loadApiKeys()
+                    if (!keys.githubToken) {
+                      setDebugInfo('❌ GitHub Token이 저장되어 있지 않습니다.')
+                      return
+                    }
+                    
+                    // GitHub API 직접 테스트
+                    const testUrl = 'https://api.github.com/user'
+                    const response = await fetch(testUrl, {
+                      headers: {
+                        'Authorization': `Bearer ${keys.githubToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                      }
+                    })
+                    
+                    if (response.ok) {
+                      const userData = await response.json()
+                      setDebugInfo(`✅ GitHub API 연결 성공!\\n사용자: ${userData.login}\\n이름: ${userData.name || 'N/A'}\\nAPI 호출 제한: ${response.headers.get('X-RateLimit-Remaining')}/${response.headers.get('X-RateLimit-Limit')}`)
+                    } else {
+                      const errorData = await response.text()
+                      setDebugInfo(`❌ GitHub API 연결 실패 (${response.status}): ${errorData}`)
+                    }
+                  } catch (error) {
+                    setDebugInfo(`❌ GitHub API 테스트 오류: ${error instanceof Error ? error.message : String(error)}`)
+                  } finally {
+                    setIsTestingApi(false)
+                  }
+                }}
+                className="btn btn-outline btn-sm"
+                disabled={isTestingApi}
+              >
+                {isTestingApi ? (
+                  <>
+                    <Loader className="icon spinner" />
+                    테스트 중...
+                  </>
+                ) : (
+                  <>
+                    <Github className="icon" />
+                    GitHub API 테스트
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {/* API 헤더 검증 */}
+            <div className="debug-item" style={{ marginBottom: '16px' }}>
+              <h5 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                API 헤더 검증:
+              </h5>
+              <button
+                type="button"
+                onClick={() => {
+                  const keys = storageUtils.loadApiKeys()
+                  const headers = {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-GitHub-Token': keys.githubToken || '(없음)',
+                    'X-Google-API-Key': keys.googleApiKey || '(없음)'
+                  }
+                  
+                  setDebugInfo(`API 요청 헤더:\\n${JSON.stringify(headers, null, 2)}`)
+                }}
+                className="btn btn-outline btn-sm"
+              >
+                <Key className="icon" />
+                현재 헤더 확인
+              </button>
+            </div>
+            
+            {/* 디버그 정보 출력 */}
+            {debugInfo && (
+              <div style={{
+                padding: '12px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #dee2e6',
+                borderRadius: '4px',
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                whiteSpace: 'pre-wrap',
+                maxHeight: '200px',
+                overflowY: 'auto'
+              }}>
+                {debugInfo}
+              </div>
+            )}
+            
+            {/* 로컬스토리지 초기화 */}
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #dee2e6' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('저장된 모든 API 키를 삭제하시겠습니까?')) {
+                    storageUtils.clearApiKeys()
+                    setGithubToken('')
+                    setGoogleApiKey('')
+                    setDebugInfo('✅ 로컬스토리지의 API 키가 모두 삭제되었습니다.')
+                  }
+                }}
+                className="btn btn-outline btn-sm"
+                style={{ backgroundColor: '#fff5f5', borderColor: '#fed7d7', color: '#c53030' }}
+              >
+                <AlertTriangle className="icon" />
+                API 키 전체 삭제
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="security-notice">
           <Shield className="icon" />

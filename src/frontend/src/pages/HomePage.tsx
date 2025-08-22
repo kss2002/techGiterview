@@ -54,13 +54,22 @@ export const HomePage: React.FC = () => {
       }
 
       // 저장소 분석 요청 (임시로 간단한 분석 사용)
+      const apiHeaders = createApiHeaders(true)
+      console.log('[HOMEPAGE] 분석 요청 헤더:', JSON.stringify(apiHeaders, null, 2))
+      console.log('[HOMEPAGE] localStorage 키 확인:', {
+        githubToken: localStorage.getItem('techgiterview_github_token') ? '설정됨' : '없음',
+        googleApiKey: localStorage.getItem('techgiterview_google_api_key') ? '설정됨' : '없음'
+      })
+      
       const response = await fetch('/api/v1/repository/analyze-simple', {
         method: 'POST',
-        headers: createApiHeaders(true),
+        headers: apiHeaders,
         body: JSON.stringify({
           repo_url: repoUrl
         })
       })
+      
+      console.log('[HOMEPAGE] 응답 상태:', response.status, response.statusText)
 
       if (!response.ok) {
         // 403 에러 처리 (API 키 필요)

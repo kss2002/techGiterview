@@ -82,14 +82,20 @@ class AnalysisResult(BaseModel):
 class GitHubClient:
     """실제 GitHub API 클라이언트"""
     
-    def __init__(self):
+    def __init__(self, github_token: Optional[str] = None):
         self.base_url = "https://api.github.com"
         self.headers = {
             "Accept": "application/vnd.github.v3+json",
             "User-Agent": "TechGiterview/1.0"
         }
-        if settings.github_token and settings.github_token != "your_github_token_here":
-            self.headers["Authorization"] = f"token {settings.github_token}"
+        
+        # 헤더로 받은 토큰 우선 사용, 없으면 설정에서 가져오기
+        token_to_use = github_token or settings.github_token
+        if token_to_use and token_to_use != "your_github_token_here":
+            self.headers["Authorization"] = f"token {token_to_use}"
+            print(f"[GITHUB_CLIENT] GitHub Token 설정됨: {token_to_use[:20]}...")
+        else:
+            print(f"[GITHUB_CLIENT] GitHub Token 없음 - 인증되지 않은 요청으로 진행")
     
     async def get_repository_info(self, owner: str, repo: str) -> Dict[str, Any]:
         """저장소 기본 정보 조회"""
@@ -195,8 +201,8 @@ class GitHubClient:
 class RepositoryAnalyzer:
     """실제 저장소 분석기"""
     
-    def __init__(self):
-        self.github_client = GitHubClient()
+    def __init__(self, github_client: Optional[GitHubClient] = None):
+        self.github_client = github_client or GitHubClient()
         # SmartFileImportanceAnalyzer 추가
         from app.services.file_importance_analyzer import SmartFileImportanceAnalyzer
         self.smart_file_analyzer = SmartFileImportanceAnalyzer()
@@ -1257,7 +1263,11 @@ async def test_github_connection():
 
 
 @router.post("/analyze-simple", response_model=AnalysisResult)
-async def analyze_repository_simple(request: RepositoryAnalysisRequest):
+async def analyze_repository_simple(
+    request: RepositoryAnalysisRequest,
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+):
     """간단한 저장소 분석 - 캐시 저장 포함"""
     try:
         # URL 유효성 검증
@@ -1276,10 +1286,17 @@ async def analyze_repository_simple(request: RepositoryAnalysisRequest):
         print(f"[ANALYZE_SIMPLE] ========== 실제 GitHub API 분석 시작 ==========")
         print(f"[ANALYZE_SIMPLE] 저장소: {owner}/{repo_name}")
         print(f"[ANALYZE_SIMPLE] 분석 ID: {analysis_id}")
+        print(f"[ANALYZE_SIMPLE] 받은 헤더:")
+        print(f"[ANALYZE_SIMPLE]   - GitHub Token: {'있음' if github_token else '없음'}")
+        print(f"[ANALYZE_SIMPLE]   - Google API Key: {'있음' if google_api_key else '없음'}")
+        if github_token:
+            print(f"[ANALYZE_SIMPLE]   - GitHub Token 값: {github_token[:20]}...")
+        if google_api_key:
+            print(f"[ANALYZE_SIMPLE]   - Google API Key 값: {google_api_key[:20]}...")
         
-        # 실제 GitHub API를 사용한 분석
-        github_client = GitHubClient()
-        repo_analyzer = RepositoryAnalyzer()
+        # 실제 GitHub API를 사용한 분석 (헤더에서 받은 토큰 사용)
+        github_client = GitHubClient(github_token)
+        repo_analyzer = RepositoryAnalyzer(github_client)
         
         # 1. 저장소 기본 정보 수집
         repo_info_dict = await github_client.get_repository_info(owner, repo_name)
