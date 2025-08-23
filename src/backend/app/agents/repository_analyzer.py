@@ -89,12 +89,13 @@ class RepositoryAnalyzer:
             "pytest": [r"pytest", r"test_.*\.py"],
         }
     
-    async def analyze_repository(self, repo_url: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    async def analyze_repository(self, repo_url: str, api_keys: Optional[Dict[str, str]] = None, use_advanced: bool = True) -> Dict[str, Any]:
         """저장소 전체 분석 수행"""
         
         print(f"[REPO_ANALYZER] ========== 저장소 분석 시작 ==========")
         print(f"[REPO_ANALYZER] 대상 저장소: {repo_url}")
         print(f"[REPO_ANALYZER] API 키 제공: {api_keys is not None}")
+        print(f"[REPO_ANALYZER] 고급 분석 모드: {use_advanced}")
         
         # API 키를 GitHubClient에 전달
         if api_keys and "github_token" in api_keys:
@@ -130,9 +131,11 @@ class RepositoryAnalyzer:
                 print(f"[REPO_ANALYZER] 3단계 완료 ({step_time:.2f}초): {len(state.file_tree)}개 파일/디렉토리 발견")
                 
                 # 4. 중요 파일 선택 및 내용 수집 (SmartFileImportanceAnalyzer 활용)
-                print(f"[REPO_ANALYZER] 4단계: 중요 파일 선택 및 내용 수집 (스마트 분석)")
+                analysis_mode = "스마트 분석" if use_advanced else "기본 분석"
+                file_target_count = 12 if use_advanced else 8
+                print(f"[REPO_ANALYZER] 4단계: 중요 파일 선택 및 내용 수집 ({analysis_mode})")
                 step_start = time.time()
-                state.important_files = await self._select_important_files(client, repo_url, state.file_tree, target_count=12)
+                state.important_files = await self._select_important_files(client, repo_url, state.file_tree, target_count=file_target_count)
                 step_time = time.time() - step_start
                 print(f"[REPO_ANALYZER] 4단계 완료 ({step_time:.2f}초): {len(state.important_files)}개 중요 파일 선정")
                 

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.interview_repository import InterviewRepository
 from app.models.interview import InterviewSession, InterviewQuestion, InterviewAnswer
+from app.models.repository import RepositoryAnalysis
 from app.agents.mock_interview_agent import MockInterviewAgent
 
 
@@ -216,8 +217,6 @@ async def start_interview(
                 )
         
         # 분석 ID 검증 - Fallback에서 이미 처리되지 않은 경우만 수행
-        from app.models.repository import RepositoryAnalysis
-        
         # 🔧 최적화: Fallback 로직에서 분석 ID가 이미 검증되지 않은 경우만 처리
         if missing_question_ids:
             # Fallback 로직에서 이미 analysis와 analysis_uuid가 설정됨
