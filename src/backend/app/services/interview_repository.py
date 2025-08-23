@@ -39,7 +39,7 @@ class InterviewRepository:
             started_at=datetime.utcnow()
         )
         
-        print(f\"[REPO] 면접 세션 생성: {session.id}, analysis_id: {session.analysis_id}\")
+        print(f"[REPO] 면접 세션 생성: {session.id}, analysis_id: {session.analysis_id}")
         self.db.add(session)
         # commit은 상위 레벨(API)에서 처리하도록 변경
         self.db.flush()  # DB에 반영하지만 commit하지 않음
