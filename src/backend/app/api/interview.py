@@ -293,17 +293,24 @@ async def start_interview(
         
         # InterviewRepository를 사용하여 세션 생성
         repo = InterviewRepository(db)
+        print(f"[DEBUG] InterviewRepository 생성 완료, 세션 생성 시작...")
         session = repo.create_session({
             'analysis_id': analysis_uuid,
             'interview_type': request.interview_type,
             'difficulty_level': request.difficulty_level
         })
+        print(f"[DEBUG] 면접 세션 생성 완료: {session.id}")
         
         # 선택된 질문들을 데이터베이스에 저장 (필요시)
         question_id_mapping = {}  # 원본 ID -> UUID 매핑
+        questions_to_add = []
+        
+        print(f"[DEBUG] 질문 저장 시작: {len(request.question_ids)}개 질문 처리")
         
         for question_data in cached_questions:
             if question_data.id in request.question_ids:
+                print(f"[DEBUG] 질문 처리: {question_data.id}")
+                
                 # 질문 ID가 UUID 형식인지 확인
                 try:
                     question_uuid = uuid.UUID(question_data.id)
@@ -311,15 +318,17 @@ async def start_interview(
                     existing_question = db.query(InterviewQuestion).filter(
                         InterviewQuestion.id == question_uuid
                     ).first()
+                    print(f"[DEBUG] UUID 질문 {question_uuid}: 기존 존재={existing_question is not None}")
                 except ValueError:
                     # UUID 형식이 아니면 새 UUID 생성
                     question_uuid = uuid.uuid4()
                     existing_question = None
+                    print(f"[DEBUG] 문자열 질문 {question_data.id} -> 새 UUID {question_uuid}")
                 
                 question_id_mapping[question_data.id] = question_uuid
                 
                 if not existing_question:
-                    # 새 질문 저장
+                    # 새 질문 저장 준비
                     db_question = InterviewQuestion(
                         id=question_uuid,
                         analysis_id=analysis_uuid,
@@ -328,11 +337,26 @@ async def start_interview(
                         question_text=question_data.question,
                         context={"original_data": question_data.dict(), "original_id": question_data.id}
                     )
-                    db.add(db_question)
+                    questions_to_add.append(db_question)
+                    print(f"[DEBUG] 새 질문 저장 예정: {question_uuid}")
         
-        db.commit()
+        # 질문들을 한번에 추가
+        if questions_to_add:
+            print(f"[DEBUG] {len(questions_to_add)}개 질문을 데이터베이스에 저장 중...")
+            for q in questions_to_add:
+                db.add(q)
         
-        return {
+        print(f"[DEBUG] 데이터베이스 commit 시작...")
+        try:
+            db.commit()
+            print(f"[DEBUG] 데이터베이스 commit 완료")
+        except Exception as commit_e:
+            print(f"[ERROR] 데이터베이스 commit 실패: {commit_e}")
+            db.rollback()
+            raise
+        
+        print(f"[DEBUG] 응답 생성 시작...")
+        response_data = {
             "success": True,
             "message": "면접이 성공적으로 시작되었습니다.",
             "data": {
@@ -346,8 +370,22 @@ async def start_interview(
             }
         }
         
+        print(f"[DEBUG] 면접 시작 완료 - session_id: {session.id}")
+        return response_data
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"면접 시작에 실패했습니다: {str(e)}")
+        print(f"[ERROR] 면접 시작 API 예외 발생: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # 데이터베이스 롤백 시도
+        try:
+            db.rollback()
+            print(f"[ERROR] 데이터베이스 롤백 완료")
+        except Exception as rollback_e:
+            print(f"[ERROR] 롤백 실패: {rollback_e}")
+        
+        raise HTTPException(status_code=500, detail=f"면접 시작에 실패했습니다: {type(e).__name__}: {str(e)}")
 
 
 @router.get("/session/{interview_id}")

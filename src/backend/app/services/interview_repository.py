@@ -39,17 +39,26 @@ class InterviewRepository:
             started_at=datetime.utcnow()
         )
         
+        print(f\"[REPO] 면접 세션 생성: {session.id}, analysis_id: {session.analysis_id}\")
         self.db.add(session)
-        self.db.commit()
-        self.db.refresh(session)
+        # commit은 상위 레벨(API)에서 처리하도록 변경
+        self.db.flush()  # DB에 반영하지만 commit하지 않음
         
         return session
     
     def get_session(self, session_id: uuid.UUID) -> Optional[InterviewSession]:
         """면접 세션 조회"""
-        return self.db.query(InterviewSession).filter(
+        print(f"[REPO] 면접 세션 조회 시도: {session_id}")
+        session = self.db.query(InterviewSession).filter(
             InterviewSession.id == session_id
         ).first()
+        
+        if session:
+            print(f"[REPO] 면접 세션 조회 성공: {session.id}, status: {session.status}")
+        else:
+            print(f"[REPO] 면접 세션 조회 실패: {session_id} - 세션을 찾을 수 없음")
+            
+        return session
     
     def get_session_with_details(self, session_id: uuid.UUID) -> Optional[Dict[str, Any]]:
         """면접 세션 상세 정보 조회 (답변, 대화 포함)"""
