@@ -41,7 +41,7 @@ class InterviewSession(Base):
     __tablename__ = "interview_sessions"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # 게스트 사용자 지원을 위해 nullable 변경
     analysis_id = Column(UUID(as_uuid=True), ForeignKey("repository_analyses.id"), nullable=False)
     interview_type = Column(String(50), nullable=False)  # technical, behavioral, mixed
     difficulty = Column(String(50), nullable=False)  # junior, mid, senior

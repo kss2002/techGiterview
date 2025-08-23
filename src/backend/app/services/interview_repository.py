@@ -31,7 +31,7 @@ class InterviewRepository:
         """새 면접 세션 생성"""
         session = InterviewSession(
             id=uuid.uuid4(),
-            user_id=data.get('user_id', uuid.uuid4()),  # 임시로 새 UUID 생성
+            user_id=data.get('user_id', None),  # 더미 데이터 생성 없이 NULL 사용 (게스트 지원)
             analysis_id=data['analysis_id'],
             interview_type=data.get('interview_type', 'technical'),
             difficulty=data.get('difficulty_level', 'medium'),

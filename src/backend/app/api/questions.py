@@ -837,14 +837,13 @@ async def _save_questions_to_db(analysis_id: str, questions: List[QuestionRespon
             # 🔥 단계별 UPSERT: 기존 질문 ID 조회 후 새 질문 처리
             for question in questions:
                 if is_sqlite:
-                    # SQLite: INSERT OR REPLACE 사용
+                    # SQLite: INSERT OR REPLACE 사용 (updated_at 컬럼 없음)
                     conn.execute(text(
                         """
                         INSERT OR REPLACE INTO interview_questions 
-                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at, updated_at)
+                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at)
                         VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, 
-                                COALESCE((SELECT created_at FROM interview_questions WHERE id = :id), :created_at),
-                                :updated_at)
+                                COALESCE((SELECT created_at FROM interview_questions WHERE id = :id), :created_at))
                         """
                     ), {
                         "id": question.id,
@@ -853,22 +852,20 @@ async def _save_questions_to_db(analysis_id: str, questions: List[QuestionRespon
                         "difficulty": question.difficulty,
                         "question_text": question.question,
                         "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
-                        "created_at": current_time,
-                        "updated_at": current_time
+                        "created_at": current_time
                     })
                 else:
-                    # PostgreSQL: INSERT ... ON CONFLICT DO UPDATE 사용
+                    # PostgreSQL: INSERT ... ON CONFLICT DO UPDATE 사용 (updated_at 컬럼 없음)
                     conn.execute(text(
                         """
                         INSERT INTO interview_questions 
-                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at, updated_at)
-                        VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, :created_at, :updated_at)
+                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at)
+                        VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, :created_at)
                         ON CONFLICT (id) DO UPDATE SET
                             category = EXCLUDED.category,
                             difficulty = EXCLUDED.difficulty,
                             question_text = EXCLUDED.question_text,
-                            expected_points = EXCLUDED.expected_points,
-                            updated_at = EXCLUDED.updated_at
+                            expected_points = EXCLUDED.expected_points
                         """
                     ), {
                         "id": question.id,
@@ -877,8 +874,7 @@ async def _save_questions_to_db(analysis_id: str, questions: List[QuestionRespon
                         "difficulty": question.difficulty,
                         "question_text": question.question,
                         "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
-                        "created_at": current_time,
-                        "updated_at": current_time
+                        "created_at": current_time
                     })
             
             # 🔧 추가 개선: 현재 질문 세트에 없는 기존 질문들은 비활성화 (삭제하지 않음)
