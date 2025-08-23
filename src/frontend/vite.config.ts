@@ -21,7 +21,7 @@ export default defineConfig({
     proxy: {
       // 환경별 API 프록시 설정
       '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'http://localhost:8001',
+        target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:8001',
         changeOrigin: true,
         secure: false,
         // IPv4 강제 설정으로 IPv6 문제 해결
@@ -37,7 +37,7 @@ export default defineConfig({
       },
       // WebSocket 프록시 설정
       '/ws': {
-        target: process.env.VITE_WS_URL || 'ws://localhost:8001',
+        target: process.env.VITE_WS_URL || 'ws://127.0.0.1:8001',
         changeOrigin: true,
         ws: true,
       }
