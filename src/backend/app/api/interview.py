@@ -155,7 +155,6 @@ async def start_interview(
                     raise HTTPException(status_code=404, detail="분석 데이터를 찾을 수 없어 질문 ID 대체가 불가능합니다.")
                 
                 # 데이터베이스에서 해당 analysis_id의 모든 질문 조회
-                from app.models.interview import InterviewQuestion
                 db_questions = db.query(InterviewQuestion).filter(
                     InterviewQuestion.analysis_id == analysis_uuid
                 ).order_by(InterviewQuestion.created_at.desc()).all()
