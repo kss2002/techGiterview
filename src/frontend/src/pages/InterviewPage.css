@@ -580,9 +580,12 @@ body {
   margin-bottom: var(--space-6);
 }
 
-/* 질문 텍스트 내 강조 요소 스타일 */
+/* 질문 텍스트 내 강조 요소 스타일 - 블록 레벨로 개행 표시 */
 .question-text strong,
 .question-text b {
+  display: block; /* 블록 레벨로 만들어 개행 */
+  margin-top: var(--spacing-4); /* 위쪽 여백 */
+  margin-bottom: var(--spacing-2); /* 아래쪽 여백 */
   color: var(--brand-navy-700);
   font-weight: var(--font-bold);
   background: var(--brand-navy-50);
