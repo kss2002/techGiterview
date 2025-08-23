@@ -32,7 +32,7 @@ Base = declarative_base()
 
 
 def init_database_on_startup():
-    """앱 시작시 데이터베이스 자동 초기화 - 테이블 누락 확인 및 생성 (더미데이터 생성 없음)"""
+    """앱 시작시 데이터베이스 자동 초기화 - 테이블 누락 확인 및 생성 + 스키마 검증"""
     try:
         print("[DATABASE] 데이터베이스 초기화 확인 시작...")
         
@@ -66,6 +66,31 @@ def init_database_on_startup():
                 print(f"[DATABASE] 테이블 생성 완료: {created_tables}")
             else:
                 print("[DATABASE] 모든 필요 테이블이 존재합니다.")
+        
+        # 🔧 스키마 검증 및 자동 마이그레이션 실행
+        try:
+            print("[DATABASE] 스키마 검증 및 자동 마이그레이션 시작...")
+            from app.core.schema_validator import auto_validate_schema
+            
+            schema_result = auto_validate_schema()
+            
+            if schema_result['summary']['status'] == 'success':
+                print(f"[DATABASE] ✅ 스키마 검증 완료: {schema_result['summary']}")
+                if schema_result['added_columns']:
+                    print(f"[DATABASE] 자동 추가된 컬럼: {schema_result['added_columns']}")
+            elif schema_result['summary']['status'] == 'partial_success':
+                print(f"[DATABASE] ⚠️  스키마 검증 부분 성공: {schema_result['summary']}")
+                if schema_result['added_columns']:
+                    print(f"[DATABASE] 자동 추가된 컬럼: {schema_result['added_columns']}")
+                if schema_result['errors']:
+                    print(f"[DATABASE] 오류 목록: {schema_result['errors']}")
+            else:
+                print(f"[DATABASE] ❌ 스키마 검증 실패: {schema_result['errors']}")
+                
+        except ImportError as e:
+            print(f"[DATABASE] 스키마 검증 모듈 로드 실패: {e}")
+        except Exception as e:
+            print(f"[DATABASE] 스키마 검증 중 오류 (앱은 계속 실행): {e}")
                 
     except Exception as e:
         print(f"[DATABASE] 초기화 오류 (앱은 계속 실행): {e}")
