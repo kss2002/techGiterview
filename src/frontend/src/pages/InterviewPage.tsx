@@ -127,6 +127,34 @@ interface AnswerFeedbackData {
   technical_accuracy?: string
 }
 
+// 로컬스토리지에서 API 키를 가져오는 헬퍼 함수
+const getApiKeysFromStorage = () => {
+  try {
+    return {
+      githubToken: localStorage.getItem('techgiterview_github_token') || '',
+      googleApiKey: localStorage.getItem('techgiterview_google_api_key') || ''
+    }
+  } catch (error) {
+    return { githubToken: '', googleApiKey: '' }
+  }
+}
+
+// API 헤더 생성 함수
+const createApiHeaders = (includeApiKeys: boolean = false) => {
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  }
+  
+  if (includeApiKeys) {
+    const { githubToken, googleApiKey } = getApiKeysFromStorage()
+    if (githubToken) headers['X-GitHub-Token'] = githubToken
+    if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
+  }
+  
+  return headers
+}
+
 export const InterviewPage: React.FC = () => {
   const { analysisId, interviewId } = useParams<{ analysisId?: string; interviewId: string }>()
   const navigate = useNavigate()
@@ -1034,9 +1062,7 @@ export const InterviewPage: React.FC = () => {
       
       const response = await fetch('/api/v1/interview/answer', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createApiHeaders(true), // localStorage API 키 포함
         body: JSON.stringify(requestBody)
       })
       
