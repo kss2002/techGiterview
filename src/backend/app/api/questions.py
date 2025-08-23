@@ -21,17 +21,7 @@ router = APIRouter()
 question_cache = {}
 
 
-def extract_api_keys_from_headers(
-    github_token: Optional[str] = Header(None, alias="x-github-token"),
-    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
-) -> Dict[str, str]:
-    """요청 헤더에서 API 키 추출"""
-    api_keys = {}
-    if github_token:
-        api_keys["github_token"] = github_token
-    if google_api_key:
-        api_keys["google_api_key"] = google_api_key
-    return api_keys
+# API 키 추출 함수는 app.core.api_utils로 이동됨
 
 
 
@@ -347,6 +337,7 @@ async def generate_questions(
                 )
         
         # 헤더에서 API 키 추출
+        from app.core.api_utils import extract_api_keys_from_headers
         api_keys = extract_api_keys_from_headers(github_token, google_api_key)
         
         # 질문 생성기 초기화

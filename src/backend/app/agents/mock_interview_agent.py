@@ -47,21 +47,27 @@ class InterviewState:
 class MockInterviewAgent:
     """모의면접 진행 에이전트"""
     
-    def __init__(self, github_token: Optional[str] = None, google_api_key: Optional[str] = None):
-        self.github_token = github_token
-        self.google_api_key = google_api_key
-        self.api_key_available = bool(google_api_key)
+    def __init__(self, github_token: Optional[str] = None, google_api_key: Optional[str] = None, api_keys: Optional[Dict[str, str]] = None):
+        # api_keys 딕셔너리가 제공된 경우 우선 사용
+        if api_keys:
+            self.github_token = api_keys.get("github_token")
+            self.google_api_key = api_keys.get("google_api_key")
+        else:
+            self.github_token = github_token
+            self.google_api_key = google_api_key
+            
+        self.api_key_available = bool(self.google_api_key)
         
         self.question_generator = QuestionGenerator()
         # self.vector_db = VectorDBService()  # 미사용으로 주석 처리 (chromadb 의존성 제거)
         
         # Google Gemini LLM 초기화 (동적 API 키 사용)
-        if google_api_key and google_api_key != "your_google_api_key_here":
-            print(f"[MOCK_INTERVIEW] Google API Key provided: {google_api_key[:20]}...")
+        if self.google_api_key and self.google_api_key != "your_google_api_key_here":
+            print(f"[MOCK_INTERVIEW] Google API Key provided: {self.google_api_key[:20]}...")
             # 동적 API 키로 Gemini 초기화 시도
             try:
                 from app.core.gemini_client import get_gemini_llm_with_key
-                self.llm = get_gemini_llm_with_key(google_api_key)
+                self.llm = get_gemini_llm_with_key(self.google_api_key)
                 if self.llm:
                     self.llm.temperature = 0.3
                     print("[MOCK_INTERVIEW] Google Gemini LLM initialized with provided API key")
@@ -631,16 +637,24 @@ class MockInterviewAgent:
         
         try:
             if not self.api_key_available:
-                # API 키가 없는 경우 명확한 안내 메시지
+                # API 키가 없는 경우 기본 피드백 제공 (서비스 연속성 확보)
                 return {
-                    "success": False,
-                    "error": "API_KEY_REQUIRED",
-                    "message": "AI 피드백 생성을 위해 Google API 키가 필요합니다.",
-                    "suggestion": "API 키를 설정한 후 다시 시도해주세요.",
+                    "success": True,
+                    "error": None,
+                    "message": "기본 피드백이 제공되었습니다. 더 상세한 분석을 위해서는 API 키 설정이 필요합니다.",
                     "data": {
-                        "overall_score": 0.0,
-                        "feedback": "Google API 키가 설정되지 않아 상세한 피드백을 제공할 수 없습니다.",
-                        "suggestions": ["API 키 설정 후 다시 시도해주세요."]
+                        "overall_score": 6.0,
+                        "criteria_scores": {
+                            "technical_accuracy": 6.0,
+                            "problem_solving": 6.0,
+                            "communication": 6.0
+                        },
+                        "feedback": "답변해 주셔서 감사합니다. API 키가 설정되지 않아 기본 피드백만 제공됩니다. 더 상세한 분석과 개인화된 피드백을 원하신다면 Google API 키를 설정해주세요.",
+                        "suggestions": [
+                            "답변에 더 구체적인 예시를 포함해보세요.",
+                            "관련 기술의 장단점을 설명해보세요.",
+                            "실제 경험이나 프로젝트 사례를 언급해보세요."
+                        ]
                     }
                 }
             

@@ -654,24 +654,16 @@ async def submit_answer(
         elif not question:
             raise HTTPException(status_code=404, detail="데이터베이스에서 질문을 찾을 수 없습니다.")
         
-        # Mock Interview Agent를 사용하여 피드백 생성 (우선순위 적용된 API 키 전달)
-        from app.core.config import settings
+        # Mock Interview Agent를 사용하여 피드백 생성 (통합된 API 키 처리)
+        from app.core.api_utils import get_effective_api_keys
         
-        # GitHub Token 우선순위 적용
-        effective_github_token = None
-        if settings.github_token and settings.github_token != "your_github_token_here":
-            effective_github_token = settings.github_token
-        elif github_token:
-            effective_github_token = github_token
-            
-        # Google API Key 우선순위 적용  
-        effective_google_api_key = None
-        if settings.google_api_key and settings.google_api_key != "your_google_api_key_here":
-            effective_google_api_key = settings.google_api_key
-        elif google_api_key:
-            effective_google_api_key = google_api_key
-            
-        interview_agent = MockInterviewAgent(github_token=effective_github_token, google_api_key=effective_google_api_key)
+        # API 키 추출 및 우선순위 적용
+        api_keys = get_effective_api_keys(
+            github_token=github_token,
+            google_api_key=google_api_key
+        )
+        
+        interview_agent = MockInterviewAgent(api_keys=api_keys)
         
         # 피드백 생성 (답변 횟수 정보 포함)
         feedback_result = await interview_agent.evaluate_answer(
@@ -686,18 +678,23 @@ async def submit_answer(
         )
         
         print(f"[FEEDBACK_RESULT] 피드백 생성 결과:", feedback_result)
-        if feedback_result and feedback_result.get("success"):
+        
+        # 안전한 피드백 처리
+        feedback_data = None
+        if feedback_result and isinstance(feedback_result, dict) and feedback_result.get("success"):
             feedback_data = feedback_result.get("data", {})
             print(f"[FEEDBACK_DATA] 피드백 데이터:")
             print(f"  - overall_score: {feedback_data.get('overall_score', 'N/A')}")
             print(f"  - feedback: {feedback_data.get('feedback', 'N/A')[:50]}...")
             print(f"  - suggestions count: {len(feedback_data.get('suggestions', []))}")
+        else:
+            print(f"[FEEDBACK_RESULT] 피드백 생성 실패 또는 없음 - 기본 응답 사용")
         
         # 답변 및 피드백 저장 (문자열 ID는 메모리만 사용, UUID ID는 데이터베이스에 저장)
         answer_data = {
             "answer": request.answer,
             "time_taken": request.time_taken,
-            "feedback": feedback_result if feedback_result.get("success") else None,
+            "feedback": feedback_data if feedback_data else None,  # 안전한 처리
             "question_id_type": "uuid" if question_id_is_uuid else "string",
             "question_identifier": question_identifier
         }
@@ -743,7 +740,7 @@ async def submit_answer(
             "message": "답변이 성공적으로 제출되었습니다.",
             "data": {
                 "answer_id": saved_answer_id,
-                "feedback": feedback_result.get("data") if feedback_result and feedback_result.get("success") else None,
+                "feedback": feedback_data,  # 이미 안전하게 처리된 데이터 사용
                 "is_completed": is_completed,
                 "next_question_index": answered_questions if not is_completed else None
             }
