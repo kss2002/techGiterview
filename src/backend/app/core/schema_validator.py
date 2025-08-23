@@ -50,7 +50,9 @@ class SchemaValidator:
                 'expected_points': {'type': 'JSON', 'nullable': True},
                 'related_files': {'type': 'JSON', 'nullable': True},
                 'context': {'type': 'JSON', 'nullable': True},
-                'created_at': {'type': 'DATETIME', 'nullable': True}
+                'is_active': {'type': 'BOOLEAN', 'nullable': False, 'default': True},  # 질문 활성화 상태
+                'created_at': {'type': 'DATETIME', 'nullable': True},
+                'updated_at': {'type': 'DATETIME', 'nullable': True}  # 업데이트 시간
             },
             'interview_answers': {
                 'id': {'type': 'UUID', 'nullable': False},
@@ -185,21 +187,28 @@ class SchemaValidator:
                 'INTEGER': 'INTEGER',
                 'NUMERIC': 'NUMERIC(3,2)',
                 'DATETIME': 'DATETIME',
-                'JSON': 'JSON'
+                'JSON': 'JSON',
+                'BOOLEAN': 'BOOLEAN'  # Boolean 타입 추가
             }
             
             column_type = type_mapping.get(column_spec['type'], 'TEXT')
             nullable = 'NULL' if column_spec.get('nullable', True) else 'NOT NULL'
             
-            # 기본값 설정 (JSON 컬럼의 경우)
+            # 기본값 설정 (타입별)
             default_value = ''
             if column_spec['type'] == 'JSON' and column_spec.get('nullable', True):
                 default_value = 'DEFAULT NULL'
+            elif column_spec['type'] == 'BOOLEAN' and column_spec.get('default') is not None:
+                # Boolean 타입의 기본값 처리
+                default_bool = column_spec['default']
+                default_value = f'DEFAULT {str(default_bool).upper()}'
             elif not column_spec.get('nullable', True):
                 if column_spec['type'] in ['VARCHAR', 'TEXT']:
                     default_value = "DEFAULT ''"
                 elif column_spec['type'] in ['INTEGER', 'NUMERIC']:
                     default_value = 'DEFAULT 0'
+                elif column_spec['type'] == 'BOOLEAN':
+                    default_value = 'DEFAULT FALSE'
             
             # ALTER TABLE 문 생성 및 실행
             alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type} {nullable} {default_value}".strip()
@@ -257,7 +266,7 @@ class SchemaValidator:
         """중요한 컬럼들이 누락되었는지 빠른 확인"""
         critical_checks = {
             'interview_sessions': ['feedback'],  # 가장 문제가 되는 컬럼
-            'interview_questions': ['context', 'expected_points'],
+            'interview_questions': ['context', 'expected_points', 'is_active', 'updated_at'],  # 누락된 중요 컬럼 추가
             'interview_answers': ['feedback_details'],
             'interview_conversations': ['extra_metadata']
         }
