@@ -28,6 +28,7 @@ export const HomePage: React.FC = () => {
     error,
     isUsingLocalData,
     hasStoredKeys,
+    refreshStoredKeysState,
     createApiHeaders
   } = usePageInitialization()
   
@@ -115,6 +116,8 @@ export const HomePage: React.FC = () => {
   }
 
   const handleApiKeysSet = () => {
+    // API 키 상태를 즉시 업데이트
+    refreshStoredKeysState()
     setShowApiKeySetup(false)
     // React Query가 자동으로 데이터를 refetch함
   }

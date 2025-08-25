@@ -106,6 +106,12 @@ const getLocalData = (): PageInitData => {
 export const usePageInitialization = () => {
   const [localData] = useState(() => getLocalData())
   
+  // API 키 저장 상태를 추적하는 상태 추가
+  const [hasStoredKeysState, setHasStoredKeysState] = useState(() => {
+    const { githubToken, googleApiKey } = getApiKeysFromStorage()
+    return !!(githubToken && googleApiKey)
+  })
+  
   // React Query로 서버 데이터 가져오기 (백그라운드)
   const {
     data: serverData,
@@ -157,9 +163,14 @@ export const usePageInitialization = () => {
     isUsingLocalData: !serverData,
     
     // 유틸리티
-    hasStoredKeys: () => {
+    hasStoredKeys: () => hasStoredKeysState,
+    
+    // API 키 상태를 수동으로 업데이트하는 함수 추가
+    refreshStoredKeysState: () => {
       const { githubToken, googleApiKey } = getApiKeysFromStorage()
-      return !!(githubToken && googleApiKey)
+      const newState = !!(githubToken && googleApiKey)
+      setHasStoredKeysState(newState)
+      return newState
     },
     
     createApiHeaders
