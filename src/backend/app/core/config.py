@@ -72,6 +72,26 @@ def check_env_file_exists() -> bool:
     return os.path.exists(env_file_name)
 
 
+def is_development_mode_active() -> bool:
+    """
+    개발 모드 활성화 여부 확인
+    
+    .env.dev 파일이 존재하는 경우에만 개발 모드로 간주
+    이를 통해 최근 활동 섹션의 표시 여부를 제어
+    """
+    try:
+        # .env.dev 파일의 절대 경로 확인
+        current_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # src/backend 디렉토리
+        env_dev_path = os.path.join(current_dir, ".env.dev")
+        
+        exists = os.path.exists(env_dev_path)
+        print(f"[CONFIG] 개발 모드 체크 - .env.dev 파일: {env_dev_path} (존재: {exists})")
+        return exists
+    except Exception as e:
+        print(f"[CONFIG] 개발 모드 체크 오류: {e}")
+        return False
+
+
 def update_api_keys(github_token: str, google_api_key: str) -> None:
     """런타임에 API 키 업데이트 및 AI 서비스 재초기화"""
     import logging

@@ -114,7 +114,7 @@ export const useQuickAccessData = (limit: number = 3): UseQuickAccessDataResult 
 }
 
 // Local Storage를 활용한 캐싱 버전
-export const useQuickAccessDataWithCache = (limit: number = 3): UseQuickAccessDataResult => {
+export const useQuickAccessDataWithCache = (limit: number = 3, enabled: boolean = true): UseQuickAccessDataResult => {
   const [data, setData] = useState<QuickAccessData>(() => {
     // 초기 데이터를 localStorage에서 로드
     try {
@@ -140,6 +140,14 @@ export const useQuickAccessDataWithCache = (limit: number = 3): UseQuickAccessDa
   const [error, setError] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
+    // enabled가 false인 경우 API 호출 안함
+    if (!enabled) {
+      setData({ recent_analyses: [], recent_reports: [] })
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
     try {
       setIsLoading(true)
       setError(null)
@@ -185,7 +193,7 @@ export const useQuickAccessDataWithCache = (limit: number = 3): UseQuickAccessDa
     } finally {
       setIsLoading(false)
     }
-  }, [limit])
+  }, [limit, enabled])
 
   useEffect(() => {
     fetchData()

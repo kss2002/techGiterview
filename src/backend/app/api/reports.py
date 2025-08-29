@@ -607,6 +607,19 @@ async def get_detailed_report(interview_id: str):
 async def get_recent_reports(limit: int = 5, db: Session = Depends(get_db)):
     """최근 완료된 면접 리포트 요약 조회 (데이터베이스 기반)"""
     try:
+        # 개발 모드 활성화 여부 확인
+        from app.core.config import is_development_mode_active
+        if not is_development_mode_active():
+            print(f"[RECENT_REPORTS] 개발 모드 비활성화 - 빈 결과 반환")
+            return {
+                "success": True,
+                "data": {
+                    "reports": [],
+                    "total": 0,
+                    "message": "Development mode is disabled. Recent reports are not available."
+                }
+            }
+        
         print(f"[RECENT_REPORTS] 최근 리포트 요청 - limit: {limit}")
         
         # 데이터베이스에서 완료된 면접 세션 조회

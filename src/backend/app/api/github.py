@@ -868,6 +868,16 @@ async def analyze_repository(
 async def get_recent_analyses(limit: int = 5, db: Session = Depends(get_db)):
     """최근 분석 결과 요약 조회 (데이터베이스 기반)"""
     try:
+        # 개발 모드 활성화 여부 확인
+        from app.core.config import is_development_mode_active
+        if not is_development_mode_active():
+            print(f"[RECENT_ANALYSES] 개발 모드 비활성화 - 빈 결과 반환")
+            return {
+                "success": True,
+                "data": [],
+                "message": "Development mode is disabled. Recent analyses are not available."
+            }
+        
         print(f"[RECENT_ANALYSES] 최근 분석 요청 - limit: {limit}")
         
         # 데이터베이스에서 완료된 분석 결과 조회

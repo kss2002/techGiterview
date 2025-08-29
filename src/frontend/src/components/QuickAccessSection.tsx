@@ -12,11 +12,19 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { useQuickAccessDataWithCache } from '../hooks/useQuickAccessData'
+import { usePageInitialization } from '../hooks/usePageInitialization'
 import './QuickAccessSection.css'
 
 export const QuickAccessSection: React.FC = () => {
-  const { data, isLoading, error, refetch } = useQuickAccessDataWithCache(3)
+  const { isDevelopmentActive } = usePageInitialization()
+  const { data, isLoading, error, refetch } = useQuickAccessDataWithCache(3, isDevelopmentActive)
   const navigate = useNavigate()
+
+  // 개발 모드가 비활성화된 경우 컴포넌트를 렌더링하지 않음
+  if (!isDevelopmentActive) {
+    console.log('[QUICK_ACCESS] 개발 모드 비활성화 - 최근 활동 섹션 숨김')
+    return null
+  }
 
   // 개발 모드에서 중복 키 디버깅을 위한 캐시 클리어
   React.useEffect(() => {

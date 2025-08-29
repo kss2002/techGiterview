@@ -44,6 +44,7 @@ interface PageInitData {
     keys_required: boolean
     use_local_storage: boolean
     missing_keys: Record<string, boolean>
+    development_mode_active?: boolean
   }
   providers: AIProvider[]
 }
@@ -90,7 +91,8 @@ const getLocalData = (): PageInitData => {
       missing_keys: {
         github_token: !githubToken,
         google_api_key: !googleApiKey
-      }
+      },
+      development_mode_active: true // 로컬 데이터에서는 기본적으로 활성화
     },
     providers: [{
       id: 'gemini_flash',
@@ -161,6 +163,7 @@ export const usePageInitialization = () => {
     error,
     isSuccess,
     isUsingLocalData: !serverData,
+    isDevelopmentActive: effectiveData.config.development_mode_active ?? true,
     
     // 유틸리티
     hasStoredKeys: () => hasStoredKeysState,

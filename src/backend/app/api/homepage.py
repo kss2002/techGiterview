@@ -38,10 +38,16 @@ async def get_homepage_init_data(
     try:
         # 1. 설정 상태 확인 (기존 로직 재사용)
         config_response = await check_keys_required()
+        
+        # 개발 모드 활성화 여부 확인
+        from app.core.config import is_development_mode_active
+        development_active = is_development_mode_active()
+        
         config_data = {
             "keys_required": config_response.keys_required,
             "use_local_storage": config_response.use_local_storage,
-            "missing_keys": config_response.missing_keys
+            "missing_keys": config_response.missing_keys,
+            "development_mode_active": development_active
         }
         
         # 2. AI 제공업체 목록 (기존 로직 재사용)
