@@ -104,16 +104,9 @@ RUN echo "Installing ChromaDB (this may take longer due to its dependencies)..."
     uv pip install chromadb && \
     echo "ChromaDB installation completed" && \
     echo "Pre-initializing ChromaDB components..." && \
-    .venv/bin/python -c "
-try:
-    import chromadb
-    # Pre-warm ChromaDB to reduce verification time
-    client = chromadb.EphemeralClient()
-    print('✅ ChromaDB pre-initialization successful')
-except Exception as e:
-    print(f'⚠️  ChromaDB pre-initialization failed: {e}')
-    print('ChromaDB will be verified later')
-" || echo "ChromaDB pre-initialization skipped"
+    (.venv/bin/python -c "import chromadb; client = chromadb.EphemeralClient(); print('✅ ChromaDB pre-initialization successful')" && \
+     echo "ChromaDB pre-warm completed") || \
+    echo "⚠️  ChromaDB pre-initialization skipped, will verify later"
 
 # Try uv sync as alternative (faster if uv.lock exists) with fallback
 RUN echo "Attempting uv sync as additional validation..." && \
@@ -133,16 +126,8 @@ RUN echo "🔍 Verifying installations with comprehensive tests..." && \
     timeout 30 .venv/bin/python -c "import google.generativeai; print('✅ Gemini AI OK')" && \
     timeout 30 .venv/bin/python -c "import langchain; print('✅ LangChain OK')" && \
     echo "Testing ChromaDB (may take longer due to complex initialization)..." && \
-    (timeout 120 .venv/bin/python -c "
-import chromadb
-print('✅ ChromaDB import successful')
-try:
-    client = chromadb.EphemeralClient()
-    print('✅ ChromaDB client creation successful')
-except Exception as e:
-    print(f'⚠️  ChromaDB client creation failed: {e}')
-    print('ChromaDB import works, client creation issues may occur at runtime')
-" && echo "✅ ChromaDB verification completed") || \
+    (timeout 120 .venv/bin/python -c "import chromadb; print('✅ ChromaDB import successful'); client = chromadb.EphemeralClient(); print('✅ ChromaDB client creation successful')" && \
+     echo "✅ ChromaDB verification completed") || \
     (echo "⚠️  ChromaDB verification timed out or failed, but continuing build..." && \
      echo "ChromaDB will be tested at runtime") && \
     echo "📦 Package count: $(uv pip list | wc -l) packages installed" && \
