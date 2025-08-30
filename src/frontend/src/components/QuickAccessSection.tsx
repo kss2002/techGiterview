@@ -16,17 +16,12 @@ import { usePageInitialization } from '../hooks/usePageInitialization'
 import './QuickAccessSection.css'
 
 export const QuickAccessSection: React.FC = () => {
+  // 🔧 React Hooks Rules 준수 - 모든 hooks를 항상 같은 순서로 호출
   const { isDevelopmentActive } = usePageInitialization()
   const { data, isLoading, error, refetch } = useQuickAccessDataWithCache(3, isDevelopmentActive)
   const navigate = useNavigate()
 
-  // 개발 모드가 비활성화된 경우 컴포넌트를 렌더링하지 않음
-  if (!isDevelopmentActive) {
-    console.log('[QUICK_ACCESS] 개발 모드 비활성화 - 최근 활동 섹션 숨김')
-    return null
-  }
-
-  // 개발 모드에서 중복 키 디버깅을 위한 캐시 클리어
+  // 개발 모드에서 중복 키 디버깅을 위한 캐시 클리어 (항상 호출)
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       // 페이지 로드 시 캐시 클리어로 중복 데이터 방지
@@ -34,6 +29,12 @@ export const QuickAccessSection: React.FC = () => {
       localStorage.removeItem('quick-access-data-time')
     }
   }, [])
+
+  // ✅ 모든 hooks 호출 후에 조건부 렌더링 수행
+  if (!isDevelopmentActive) {
+    console.log('[QUICK_ACCESS] 개발 모드 비활성화 - 최근 활동 섹션 숨김')
+    return null
+  }
 
 
   const formatDate = (dateString: string) => {
