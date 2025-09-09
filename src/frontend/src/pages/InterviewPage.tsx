@@ -797,12 +797,29 @@ export const InterviewPage: React.FC = () => {
       const sessionData = sessionResult.data
       const questionsData = questionsResult.data.questions
       
-      // 중복 제거를 위한 고유 질문 필터링
-      const uniqueQuestionsData = questionsData.filter((question: any, index: number, array: any[]) => 
-        array.findIndex(q => q.id === question.id) === index
-      );
+      // 중복 제거를 위한 고유 질문 필터링 (ID + 질문 내용 기반)
+      const uniqueQuestionsData = questionsData.filter((question: any, index: number, array: any[]) => {
+        // ID 기반 중복 제거
+        const idIndex = array.findIndex(q => q.id === question.id);
+        if (idIndex !== index) {
+          console.log('[DEDUP] ID 중복 제거:', question.id);
+          return false;
+        }
+        
+        // 질문 내용 기반 중복 제거 (추가 안전장치)
+        const contentIndex = array.findIndex(q => 
+          q.question?.trim() === question.question?.trim()
+        );
+        if (contentIndex !== index) {
+          console.log('[DEDUP] 내용 중복 제거:', question.question?.substring(0, 50) + '...');
+          return false;
+        }
+        
+        return true;
+      });
       
       console.log('[DEDUP] 원본 질문 수:', questionsData.length, '중복 제거 후:', uniqueQuestionsData.length);
+      console.log('[DEDUP] 제거된 질문 수:', questionsData.length - uniqueQuestionsData.length);
       
       // 질문 데이터 형식 변환 (context 객체를 문자열로 변환)
       const transformedQuestions = uniqueQuestionsData.map((q: any) => ({
@@ -823,6 +840,8 @@ export const InterviewPage: React.FC = () => {
       setQuestions(transformedQuestions)
       
       console.log('[UPDATE] 상태 업데이트 완료');
+      console.log('[FINAL_CHECK] 최종 질문 수:', transformedQuestions.length);
+      console.log('[FINAL_CHECK] 질문 ID 목록:', transformedQuestions.map(q => q.id));
       
       // 세션 히스토리 데이터 로딩
       const historyResult = await loadSessionHistory(transformedQuestions, sessionData);

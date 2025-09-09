@@ -440,18 +440,30 @@ async def get_interview_questions(interview_id: str, db: Session = Depends(get_d
     if not session:
         raise HTTPException(status_code=404, detail="면접 세션을 찾을 수 없습니다.")
     
-    # 해당 분석의 모든 질문 조회
+    # 해당 분석의 모든 질문 조회 (중복 제거 및 정렬)
     questions = db.query(InterviewQuestion).filter(
         InterviewQuestion.analysis_id == session.analysis_id
-    ).all()
+    ).order_by(InterviewQuestion.created_at).distinct().all()
+    
+    print(f"[DEBUG] 질문 조회 완료 - analysis_id: {session.analysis_id}, 질문 수: {len(questions)}")
     
     # 답변된 질문 수 확인
     answered_count = db.query(InterviewAnswer).filter(
         InterviewAnswer.session_id == session_uuid
     ).count()
     
+    # 질문 데이터 변환 및 추가 중복 제거
     questions_data = []
+    seen_questions = set()  # 중복 질문 텍스트 추적
+    
     for question in questions:
+        # 질문 텍스트 기반 중복 체크
+        question_hash = hash(question.question_text.strip())
+        if question_hash in seen_questions:
+            print(f"[DEBUG] 중복 질문 제거: {question.id}")
+            continue
+        
+        seen_questions.add(question_hash)
         questions_data.append({
             "id": str(question.id),
             "question": question.question_text,
@@ -459,6 +471,8 @@ async def get_interview_questions(interview_id: str, db: Session = Depends(get_d
             "difficulty": question.difficulty,
             "context": question.context.get("original_data") if question.context else None
         })
+    
+    print(f"[DEBUG] 중복 제거 후 질문 수: {len(questions_data)}")
     
     return {
         "success": True,
