@@ -414,13 +414,15 @@ async def get_performance_analytics(
 
 @router.get("/list")
 async def get_reports_list(
-    status_filter: Optional[str] = Query(None, description="상태 필터 (completed, in_progress)")
+    status_filter: Optional[str] = Query(None, description="상태 필터 (completed, in_progress)"),
+    db: Session = Depends(get_db)
 ):
     """
-    면접 리포트 목록 조회
+    면접 리포트 목록 조회 (데이터베이스 기반)
     
     Args:
         status_filter: 상태별 필터링 옵션
+        db: 데이터베이스 세션
     
     Returns:
         면접 리포트 목록
@@ -428,73 +430,89 @@ async def get_reports_list(
     try:
         print(f"[REPORTS_API] 리포트 목록 요청 - 필터: {status_filter}")
         
-        # 활성 세션에서 리포트 생성
-        active_sessions = interview_agent.active_sessions
+        # 데이터베이스에서 면접 세션 조회
+        from app.models.interview import InterviewSession, InterviewAnswer
+        from app.models.repository import RepositoryAnalysis
+        from sqlalchemy import desc, and_, func
+        
+        # 기본 쿼리 구성
+        query = db.query(InterviewSession)\
+            .join(RepositoryAnalysis, InterviewSession.analysis_id == RepositoryAnalysis.id)
+        
+        # 상태 필터링
+        if status_filter:
+            if status_filter == "completed":
+                query = query.filter(InterviewSession.status == "completed")
+            elif status_filter == "in_progress":
+                query = query.filter(InterviewSession.status == "active")
+        
+        # 시작시간 기준 내림차순 정렬
+        sessions = query.order_by(desc(InterviewSession.started_at)).all()
+        
+        print(f"[REPORTS_API] 데이터베이스에서 {len(sessions)}개 세션 조회됨")
+        
         reports = []
         
-        print(f"[REPORTS_API] 활성 세션 수: {len(active_sessions)}")
-        
-        # 빈 세션일 때 빈 결과 반환 (더미데이터 제거)
-        if not active_sessions:
-            return {
-                "success": True,
-                "data": {
-                    "reports": [],
-                    "total_count": 0,
-                    "filters_applied": {"status": status_filter}
-                },
-                "timestamp": datetime.now().isoformat()
-            }
-        
-        for session_id, session in active_sessions.items():
-            # 상태 필터링
-            if status_filter and session.interview_status != status_filter:
+        for session in sessions:
+            # 연관된 저장소 분석 정보
+            analysis = session.analysis
+            if not analysis:
                 continue
-                
-            # 저장소 이름 추출
-            repo_name = session.repo_url.split('/')[-1] if session.repo_url else "Unknown"
+            
+            # URL에서 저장소 이름 추출
+            url_parts = analysis.repository_url.replace("https://github.com/", "").split("/")
+            repo_name = url_parts[1] if len(url_parts) > 1 else analysis.repository_name or "Unknown"
+            
+            # 답변 개수 조회
+            answers_count = db.query(func.count(InterviewAnswer.id))\
+                .filter(InterviewAnswer.session_id == session.id)\
+                .scalar()
+            
+            # 질문 개수 조회 (분석에서 생성된 질문 수)
+            from app.models.interview import InterviewQuestion
+            questions_count = db.query(func.count(InterviewQuestion.id))\
+                .filter(InterviewQuestion.analysis_id == session.analysis_id)\
+                .scalar()
+            
+            # 면접 지속 시간 계산
+            duration_minutes = 0
+            if session.started_at and session.ended_at:
+                duration_seconds = (session.ended_at - session.started_at).total_seconds()
+                duration_minutes = int(duration_seconds / 60)
+            elif session.started_at and session.status == "active":
+                # 진행 중인 면접의 경우 현재까지의 시간
+                duration_seconds = (datetime.now() - session.started_at).total_seconds()
+                duration_minutes = int(duration_seconds / 60)
+            
+            # 카테고리별 점수 (feedback JSON에서 추출)
+            category_scores = {}
+            if session.feedback and isinstance(session.feedback, dict):
+                category_scores = session.feedback.get("category_scores", {})
+            
+            # 상태 매핑 (DB의 status -> 프론트엔드 예상 형식)
+            status_map = {
+                "active": "in_progress",
+                "completed": "completed",
+                "abandoned": "completed"
+            }
+            frontend_status = status_map.get(session.status, "in_progress")
             
             report = {
-                "id": session_id,
-                "repo_url": session.repo_url,
+                "id": str(session.id),
+                "repo_url": analysis.repository_url,
                 "repo_name": repo_name,
-                "completed_at": session.end_time.isoformat() if session.end_time else None,
-                "total_questions": len(session.questions),
-                "answered_questions": len(session.answers),
-                "overall_score": session.total_score,
-                "category_scores": {},
-                "duration_minutes": 0,
-                "status": session.interview_status
+                "completed_at": session.ended_at.isoformat() if session.ended_at else session.started_at.isoformat(),
+                "total_questions": questions_count,
+                "answered_questions": answers_count,
+                "overall_score": round(float(session.overall_score), 1) if session.overall_score else 0.0,
+                "category_scores": category_scores,
+                "duration_minutes": duration_minutes,
+                "status": frontend_status
             }
-            
-            # 카테고리별 점수 계산
-            if session.evaluations:
-                criteria_totals = {"technical_accuracy": 0, "code_quality": 0, 
-                                 "problem_solving": 0, "communication": 0}
-                for evaluation in session.evaluations:
-                    criteria_scores = evaluation.get("criteria_scores", {})
-                    for criteria, score in criteria_scores.items():
-                        if criteria in criteria_totals:
-                            criteria_totals[criteria] += score
-                
-                # 평균 계산
-                eval_count = len(session.evaluations)
-                if eval_count > 0:
-                    report["category_scores"] = {
-                        criteria: round(total / eval_count, 2)
-                        for criteria, total in criteria_totals.items()
-                    }
-            
-            # 진행 시간 계산
-            if session.start_time:
-                end_time = session.end_time or datetime.now()
-                duration = end_time - session.start_time
-                report["duration_minutes"] = int(duration.total_seconds() / 60)
             
             reports.append(report)
         
-        # 완료시간 기준 내림차순 정렬
-        reports.sort(key=lambda x: x["completed_at"] or "9999", reverse=True)
+        print(f"[REPORTS_API] {len(reports)}개 리포트 반환")
         
         return {
             "success": True,
@@ -507,89 +525,260 @@ async def get_reports_list(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[REPORTS_API] 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # 오류 시 빈 결과 반환 (사용자 경험 개선)
+        return {
+            "success": True,
+            "data": {
+                "reports": [],
+                "total_count": 0,
+                "filters_applied": {"status": status_filter},
+                "error": f"데이터 조회 중 오류가 발생했습니다: {str(e)}"
+            },
+            "timestamp": datetime.now().isoformat()
+        }
 
 
 @router.get("/{interview_id}/detailed")
-async def get_detailed_report(interview_id: str):
+async def get_detailed_report(interview_id: str, db: Session = Depends(get_db)):
     """
-    상세 면접 리포트 조회
+    상세 면접 리포트 조회 (데이터베이스 기반)
     
     Args:
         interview_id: 면접 ID
+        db: 데이터베이스 세션
     
     Returns:
         상세 면접 리포트
     """
     try:
-        # 세션 조회
-        if interview_id not in interview_agent.active_sessions:
-            raise HTTPException(status_code=404, detail="면접 세션을 찾을 수 없습니다.")
+        print(f"[DETAILED_REPORT] 상세 리포트 요청: {interview_id}")
         
-        session = interview_agent.active_sessions[interview_id]
+        # UUID 정규화 (SQLAlchemy UUID 타입용)
+        import uuid
+        try:
+            # 하이픈이 없으면 추가, 있으면 그대로 사용
+            if '-' not in interview_id and len(interview_id) == 32:
+                # 32자 문자열을 UUID 형식으로 변환
+                formatted_id = f"{interview_id[:8]}-{interview_id[8:12]}-{interview_id[12:16]}-{interview_id[16:20]}-{interview_id[20:]}"
+                normalized_uuid = uuid.UUID(formatted_id)
+            else:
+                normalized_uuid = uuid.UUID(interview_id)
+        except ValueError:
+            print(f"[DETAILED_REPORT] UUID 변환 실패: {interview_id}")
+            raise HTTPException(status_code=400, detail="잘못된 UUID 형식입니다.")
+            
+        print(f"[DETAILED_REPORT] UUID 정규화: {interview_id} -> {normalized_uuid}")
         
-        # 기본 리포트 생성
-        report_result = await interview_agent.get_interview_report(interview_id)
-        if not report_result.get("success", False):
-            raise HTTPException(status_code=404, detail="리포트를 생성할 수 없습니다.")
+        # 데이터베이스에서 세션 조회
+        from app.models.interview import InterviewSession, InterviewAnswer, InterviewQuestion
+        from app.models.repository import RepositoryAnalysis
+        from sqlalchemy.orm import joinedload
         
-        # 상세 정보 구성
-        repo_parts = session.repo_url.split('/') if session.repo_url else []
+        try:
+            # 관계 로딩 없이 먼저 세션만 조회
+            session = db.query(InterviewSession)\
+                .filter(InterviewSession.id == normalized_uuid)\
+                .first()
+                
+            if not session:
+                print(f"[DETAILED_REPORT] 세션을 찾을 수 없음: {normalized_uuid}")
+                raise HTTPException(status_code=404, detail="면접 세션을 찾을 수 없습니다.")
+                
+            print(f"[DETAILED_REPORT] 세션 조회 성공: {session.id}, analysis_id: {session.analysis_id}")
+            
+        except Exception as db_error:
+            print(f"[DETAILED_REPORT] DB 쿼리 오류: {db_error}")
+            raise HTTPException(status_code=500, detail=f"데이터베이스 쿼리 오류: {str(db_error)}")
+        
+        # 저장소 분석 정보 별도 조회
+        try:
+            analysis = db.query(RepositoryAnalysis)\
+                .filter(RepositoryAnalysis.id == session.analysis_id)\
+                .first()
+                
+            if not analysis:
+                print(f"[DETAILED_REPORT] 분석 정보가 없음: analysis_id={session.analysis_id}")
+                raise HTTPException(status_code=404, detail="저장소 분석 정보를 찾을 수 없습니다.")
+                
+            print(f"[DETAILED_REPORT] 분석 정보 조회 성공: {analysis.id}")
+            
+        except Exception as analysis_error:
+            print(f"[DETAILED_REPORT] 분석 정보 조회 오류: {analysis_error}")
+            raise HTTPException(status_code=500, detail=f"저장소 분석 정보 조회 오류: {str(analysis_error)}")
+        
+        # 저장소 정보 구성
+        url_parts = analysis.repository_url.replace("https://github.com/", "").split("/")
         repo_info = {
-            "name": repo_parts[-1] if len(repo_parts) > 0 else "Unknown",
-            "owner": repo_parts[-2] if len(repo_parts) > 1 else "Unknown",
-            "description": "GitHub repository analysis",
-            "language": "Multiple"
+            "name": url_parts[1] if len(url_parts) > 1 else analysis.repository_name or "Unknown",
+            "owner": url_parts[0] if len(url_parts) > 0 else "Unknown",
+            "description": "GitHub repository analysis",  # analysis_summary 필드가 없으므로 기본값 사용
+            "language": analysis.primary_language or "Multiple"
         }
         
-        # 질문별 분석
+        # 면접 질문들 조회
+        try:
+            questions = db.query(InterviewQuestion)\
+                .filter(InterviewQuestion.analysis_id == session.analysis_id)\
+                .order_by(InterviewQuestion.created_at)\
+                .all()
+            print(f"[DETAILED_REPORT] 질문 조회 성공: {len(questions)}개")
+        except Exception as q_error:
+            print(f"[DETAILED_REPORT] 질문 조회 오류: {q_error}")
+            questions = []
+        
+        # 답변들 조회
+        try:
+            answers = db.query(InterviewAnswer)\
+                .filter(InterviewAnswer.session_id == session.id)\
+                .order_by(InterviewAnswer.submitted_at)\
+                .all()
+            print(f"[DETAILED_REPORT] 답변 조회 성공: {len(answers)}개")
+        except Exception as a_error:
+            print(f"[DETAILED_REPORT] 답변 조회 오류: {a_error}")
+            answers = []
+        
+        print(f"[DETAILED_REPORT] 총 질문 {len(questions)}개, 답변 {len(answers)}개 조회")
+        
+        # 질문별 분석 구성
         question_analyses = []
-        for i, (question, answer) in enumerate(zip(session.questions, session.answers)):
-            evaluation = session.evaluations[i] if i < len(session.evaluations) else {}
-            
-            analysis = {
-                "question": question.get("content", question.get("question", "질문 없음")),
-                "category": question.get("category", "general"),
-                "difficulty": question.get("difficulty", "medium"),
-                "answer": answer.get("content", answer.get("answer", "")),
-                "score": evaluation.get("overall_score", 0),
-                "feedback": evaluation.get("feedback", "피드백 없음"),
-                "improvement_suggestions": evaluation.get("improvement_suggestions", [])
-            }
-            question_analyses.append(analysis)
+        try:
+            for i, question in enumerate(questions):
+                # 해당 질문에 대한 답변 찾기
+                answer = next((a for a in answers if str(a.question_id) == str(question.id)), None)
+                
+                # 안전한 데이터 접근
+                try:
+                    analysis_item = {
+                        "question": getattr(question, 'question_text', '질문 정보 없음'),
+                        "category": getattr(question, 'category', 'general'),
+                        "difficulty": getattr(question, 'difficulty', 'medium'),
+                        "answer": getattr(answer, 'user_answer', '답변 없음') if answer else "답변 없음",
+                        "score": float(answer.feedback_score) if answer and hasattr(answer, 'feedback_score') and answer.feedback_score else 0.0,
+                        "feedback": getattr(answer, 'feedback_message', '피드백 없음') if answer else "피드백 없음",
+                        "improvement_suggestions": []
+                    }
+                    
+                    # improvement_suggestions 안전한 추출
+                    if answer and hasattr(answer, 'feedback_details') and answer.feedback_details:
+                        if isinstance(answer.feedback_details, dict):
+                            analysis_item["improvement_suggestions"] = answer.feedback_details.get("improvement_suggestions", [])
+                    
+                    question_analyses.append(analysis_item)
+                    
+                except Exception as item_error:
+                    print(f"[DETAILED_REPORT] 질문 {i} 분석 오류: {item_error}")
+                    # 기본 분석 항목 추가
+                    question_analyses.append({
+                        "question": f"질문 {i+1} (데이터 오류)",
+                        "category": "general",
+                        "difficulty": "medium",
+                        "answer": "데이터를 불러올 수 없습니다",
+                        "score": 0.0,
+                        "feedback": "분석 데이터 오류",
+                        "improvement_suggestions": []
+                    })
+                    
+        except Exception as qa_error:
+            print(f"[DETAILED_REPORT] 질문별 분석 구성 오류: {qa_error}")
+            question_analyses = []
+        
+        # 평균 점수 계산
+        try:
+            answered_questions = [q for q in question_analyses if q.get("score", 0) > 0]
+            avg_score = sum(q.get("score", 0) for q in answered_questions) / len(answered_questions) if answered_questions else 0.0
+            print(f"[DETAILED_REPORT] 평균 점수 계산: {avg_score:.2f} (답변된 질문: {len(answered_questions)}개)")
+        except Exception as avg_error:
+            print(f"[DETAILED_REPORT] 평균 점수 계산 오류: {avg_error}")
+            avg_score = 0.0
+        
+        # 카테고리별 점수 계산
+        try:
+            category_scores = {}
+            if hasattr(session, 'feedback') and session.feedback and isinstance(session.feedback, dict):
+                category_scores = session.feedback.get("category_scores", {})
+            print(f"[DETAILED_REPORT] 카테고리별 점수: {category_scores}")
+        except Exception as cat_error:
+            print(f"[DETAILED_REPORT] 카테고리 점수 계산 오류: {cat_error}")
+            category_scores = {}
         
         # 성능 지표 계산
-        performance_metrics = {
-            "response_time_avg": 45.0,  # 실제로는 답변 시간 측정
-            "completeness_score": (len(session.answers) / max(len(session.questions), 1)) * 100,
-            "technical_accuracy": sum(e.get("criteria_scores", {}).get("technical_accuracy", 0) 
-                                    for e in session.evaluations) / max(len(session.evaluations), 1),
-            "communication_clarity": sum(e.get("criteria_scores", {}).get("communication", 0) 
-                                       for e in session.evaluations) / max(len(session.evaluations), 1)
-        }
+        try:
+            performance_metrics = {
+                "response_time_avg": 45.0,  # 실제 답변 시간 계산은 추후 구현
+                "completeness_score": (len(answers) / max(len(questions), 1)) * 100 if questions else 0,
+                "technical_accuracy": category_scores.get("technical_accuracy", avg_score),
+                "communication_clarity": category_scores.get("communication", avg_score)
+            }
+            print(f"[DETAILED_REPORT] 성능 지표: {performance_metrics}")
+        except Exception as perf_error:
+            print(f"[DETAILED_REPORT] 성능 지표 계산 오류: {perf_error}")
+            performance_metrics = {
+                "response_time_avg": 45.0,
+                "completeness_score": 0,
+                "technical_accuracy": 0,
+                "communication_clarity": 0
+            }
         
-        # 종합 평가
+        # 종합 평가 구성
+        try:
+            overall_score = float(session.overall_score) if hasattr(session, 'overall_score') and session.overall_score else avg_score
+            print(f"[DETAILED_REPORT] 종합 점수: {overall_score}")
+        except Exception as overall_error:
+            print(f"[DETAILED_REPORT] 종합 점수 계산 오류: {overall_error}")
+            overall_score = avg_score
         overall_assessment = {
-            "score": session.total_score,
+            "score": round(overall_score, 1),
             "strengths": [],
             "weaknesses": [],
             "recommendations": []
         }
         
-        # 강점과 약점 분석 (기본 로직)
-        if session.total_score >= 8.0:
-            overall_assessment["strengths"].extend(["높은 기술적 이해도", "명확한 의사소통"])
-        if session.total_score < 6.0:
-            overall_assessment["weaknesses"].extend(["기술적 정확성 부족", "문제 해결 능력 개선 필요"])
-            overall_assessment["recommendations"].extend(["추가 학습 권장", "실습 프로젝트 수행"])
+        # 강점과 약점 분석
+        if overall_score >= 8.0:
+            overall_assessment["strengths"].extend([
+                "높은 기술적 이해도",
+                "명확한 의사소통",
+                "체계적인 문제 접근법"
+            ])
+        elif overall_score >= 6.0:
+            overall_assessment["strengths"].extend([
+                "기본적인 개념 이해",
+                "적절한 답변 구조"
+            ])
+        
+        if overall_score < 6.0:
+            overall_assessment["weaknesses"].extend([
+                "기술적 정확성 부족",
+                "문제 해결 능력 개선 필요"
+            ])
+            overall_assessment["recommendations"].extend([
+                "핵심 개념 복습 권장",
+                "실습 프로젝트 수행",
+                "기술 문서 정독"
+            ])
+        elif overall_score < 8.0:
+            overall_assessment["weaknesses"].extend([
+                "세부 구현 이해 부족",
+                "최적화 관점 부족"
+            ])
+            overall_assessment["recommendations"].extend([
+                "심화 학습 권장",
+                "코드 리뷰 경험 증대"
+            ])
         
         detailed_report = {
-            "interview_id": interview_id,
+            "interview_id": str(session.id),
             "repo_info": repo_info,
             "overall_assessment": overall_assessment,
             "question_analyses": question_analyses,
             "performance_metrics": performance_metrics
         }
+        
+        print(f"[DETAILED_REPORT] 상세 리포트 생성 완료")
         
         return {
             "success": True,
@@ -600,6 +789,9 @@ async def get_detailed_report(interview_id: str):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"[DETAILED_REPORT] 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
