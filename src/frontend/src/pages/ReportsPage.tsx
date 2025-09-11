@@ -13,7 +13,12 @@ import {
   Award,
   CheckCircle2,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Brain,
+  Code,
+  Users,
+  Lightbulb,
+  AlertCircle
 } from 'lucide-react'
 import './ReportsPage.css'
 
@@ -58,6 +63,30 @@ interface DetailedReport {
     completeness_score: number
     technical_accuracy: number
     communication_clarity: number
+  }
+  // 새로 추가되는 필드들
+  interview_summary?: {
+    overall_comment: string
+    readiness_score: number
+    key_talking_points: string[]
+  }
+  technical_analysis?: {
+    architecture_understanding: number
+    code_quality_awareness: number
+    problem_solving_approach: string
+    technology_depth: string
+    project_complexity_handling: string
+  }
+  improvement_plan?: {
+    immediate_actions: string[]
+    study_recommendations: Array<{
+      topic: string
+      resource: string
+      priority: 'high' | 'medium' | 'low'
+    }>
+    practice_scenarios: string[]
+    weak_areas: string[]
+    preparation_timeline: string
   }
 }
 
@@ -143,6 +172,31 @@ export const ReportsPage: React.FC = () => {
     if (score >= 50) return 'C+'
     if (score >= 40) return 'C'
     return 'D'
+  }
+
+  const getReadinessClass = (score: number) => {
+    if (score >= 85) return 'readiness-excellent'
+    if (score >= 70) return 'readiness-good'
+    if (score >= 55) return 'readiness-fair'
+    return 'readiness-poor'
+  }
+
+  const getPriorityClass = (priority: 'high' | 'medium' | 'low') => {
+    switch (priority) {
+      case 'high': return 'priority-high'
+      case 'medium': return 'priority-medium'
+      case 'low': return 'priority-low'
+      default: return 'priority-medium'
+    }
+  }
+
+  const getPriorityLabel = (priority: 'high' | 'medium' | 'low') => {
+    switch (priority) {
+      case 'high': return '긴급'
+      case 'medium': return '중요'
+      case 'low': return '선택'
+      default: return '중요'
+    }
   }
 
   const formatDuration = (minutes: number) => {
@@ -302,13 +356,63 @@ export const ReportsPage: React.FC = () => {
               ) : selectedReport ? (
                 <div className="report-detail-content">
                   <div className="detail-header">
-                    <h2><BarChart3 className="icon" /> 상세 분석</h2>
+                    <h2><BarChart3 className="icon" /> 상세 분석 (ID: {selectedReport.interview_id})</h2>
                     <div className="repo-info">
                       <h3>{selectedReport.repo_info.owner}/{selectedReport.repo_info.name}</h3>
                       <p>{selectedReport.repo_info.description}</p>
                       <span className="language-tag">{selectedReport.repo_info.language}</span>
                     </div>
                   </div>
+
+                  {/* AI 면접 총평 섹션 */}
+                  {selectedReport.interview_summary && selectedReport.performance_metrics.completeness_score > 0 ? (
+                    <div className="interview-summary-section">
+                      <h3><Brain className="icon" /> AI 면접 총평</h3>
+                      <div className="summary-card">
+                        <div className="readiness-score">
+                          <span className="score-label">면접 준비도</span>
+                          <span className={`score-value ${getReadinessClass(selectedReport.interview_summary.readiness_score)}`}>
+                            {selectedReport.interview_summary.readiness_score}%
+                          </span>
+                        </div>
+                        <div className="overall-comment">
+                          <p>{selectedReport.interview_summary.overall_comment}</p>
+                        </div>
+                        <div className="talking-points">
+                          <h4><Lightbulb className="icon" /> 핵심 어필 포인트</h4>
+                          <ul>
+                            {selectedReport.interview_summary.key_talking_points.map((point, index) => (
+                              <li key={index}>{point}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="analysis-pending-section">
+                      <h3><Brain className="icon" /> AI 면접 총평</h3>
+                      <div className="pending-message">
+                        {selectedReport.performance_metrics.completeness_score === 0 ? (
+                          <>
+                            <div className="warning-icon">⚠️</div>
+                            <p><strong>면접을 완료해주세요</strong></p>
+                            <p>AI 총평을 위해서는 최소 1개 이상의 질문에 답변해야 합니다.</p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="loading-spinner"></div>
+                            <p>AI 총평이 생성 중입니다. 잠시 후 다시 확인해주세요.</p>
+                            <button 
+                              className="retry-button"
+                              onClick={() => loadDetailedReport(selectedReport.interview_id)}
+                            >
+                              다시 시도
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* 전체 평가 */}
                   <div className="assessment-section">
@@ -395,6 +499,77 @@ export const ReportsPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* 기술적 분석 섹션 */}
+                  {selectedReport.technical_analysis && selectedReport.performance_metrics.completeness_score > 0 ? (
+                    <div className="technical-analysis-section">
+                      <h3><Code className="icon" /> 프로젝트 기술 분석</h3>
+                      <div className="tech-metrics-grid">
+                        <div className="tech-metric">
+                          <span className="metric-label">아키텍처 이해도</span>
+                          <div className="progress-bar">
+                            <div 
+                              className="progress-fill"
+                              style={{ width: `${selectedReport.technical_analysis.architecture_understanding}%` }}
+                            ></div>
+                          </div>
+                          <span className="metric-value">{selectedReport.technical_analysis.architecture_understanding}%</span>
+                        </div>
+                        
+                        <div className="tech-metric">
+                          <span className="metric-label">코드 품질 인식</span>
+                          <div className="progress-bar">
+                            <div 
+                              className="progress-fill"
+                              style={{ width: `${selectedReport.technical_analysis.code_quality_awareness}%` }}
+                            ></div>
+                          </div>
+                          <span className="metric-value">{selectedReport.technical_analysis.code_quality_awareness}%</span>
+                        </div>
+                      </div>
+                      
+                      <div className="analysis-details">
+                        <div className="analysis-item">
+                          <h4><Target className="icon" /> 문제 해결 접근법</h4>
+                          <p>{selectedReport.technical_analysis.problem_solving_approach}</p>
+                        </div>
+                        
+                        <div className="analysis-item">
+                          <h4><Diamond className="icon" /> 기술 스택 이해 깊이</h4>
+                          <p>{selectedReport.technical_analysis.technology_depth}</p>
+                        </div>
+                        
+                        <div className="analysis-item">
+                          <h4><BarChart3 className="icon" /> 프로젝트 복잡도 대응</h4>
+                          <p>{selectedReport.technical_analysis.project_complexity_handling}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="analysis-pending-section">
+                      <h3><Code className="icon" /> 프로젝트 기술 분석</h3>
+                      <div className="pending-message">
+                        {selectedReport.performance_metrics.completeness_score === 0 ? (
+                          <>
+                            <div className="warning-icon">⚠️</div>
+                            <p><strong>면접을 완료해주세요</strong></p>
+                            <p>기술 분석을 위해서는 최소 1개 이상의 질문에 답변해야 합니다.</p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="loading-spinner"></div>
+                            <p>AI 분석이 진행 중입니다. 잠시 후 다시 확인해주세요.</p>
+                            <button 
+                              className="retry-button"
+                              onClick={() => loadDetailedReport(selectedReport.interview_id)}
+                            >
+                              다시 시도
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* 질문별 분석 */}
                   <div className="questions-analysis">
                     <h3><BarChart3 className="icon" /> 질문별 분석</h3>
@@ -447,6 +622,89 @@ export const ReportsPage: React.FC = () => {
                       ))}
                     </div>
                   </div>
+
+                  {/* 개선 액션 플랜 섹션 */}
+                  {selectedReport.improvement_plan && selectedReport.performance_metrics.completeness_score > 0 ? (
+                    <div className="improvement-plan-section">
+                      <h3><Target className="icon" /> 면접 준비 액션 플랜</h3>
+                      
+                      <div className="immediate-actions">
+                        <h4><AlertCircle className="icon" /> 즉시 개선 과제</h4>
+                        <div className="action-checklist">
+                          {selectedReport.improvement_plan.immediate_actions.map((action, index) => (
+                            <div key={index} className="action-item">
+                              <CheckCircle2 className="icon" />
+                              <span>{action}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="study-recommendations">
+                        <h4><BookOpen className="icon" /> 학습 추천</h4>
+                        <div className="study-grid">
+                          {selectedReport.improvement_plan.study_recommendations.map((rec, index) => (
+                            <div key={index} className={`study-card ${getPriorityClass(rec.priority)}`}>
+                              <h5>{rec.topic}</h5>
+                              <p>{rec.resource}</p>
+                              <span className={`priority-badge ${rec.priority}`}>
+                                {getPriorityLabel(rec.priority)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="practice-scenarios">
+                        <h4><Users className="icon" /> 추가 연습 시나리오</h4>
+                        <ul>
+                          {selectedReport.improvement_plan.practice_scenarios.map((scenario, index) => (
+                            <li key={index}>{scenario}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      
+                      <div className="weak-areas">
+                        <h4><ArrowDown className="icon" /> 취약 영역</h4>
+                        <div className="weak-areas-tags">
+                          {selectedReport.improvement_plan.weak_areas.map((area, index) => (
+                            <span key={index} className="weak-area-tag">{area}</span>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="preparation-timeline">
+                        <h4><Clock className="icon" /> 면접 준비 타임라인</h4>
+                        <div className="timeline-content">
+                          <p>{selectedReport.improvement_plan.preparation_timeline}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="analysis-pending-section">
+                      <h3><Target className="icon" /> 면접 준비 액션 플랜</h3>
+                      <div className="pending-message">
+                        {selectedReport.performance_metrics.completeness_score === 0 ? (
+                          <>
+                            <div className="warning-icon">⚠️</div>
+                            <p><strong>면접을 완료해주세요</strong></p>
+                            <p>개선 플랜을 위해서는 최소 1개 이상의 질문에 답변해야 합니다.</p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="loading-spinner"></div>
+                            <p>AI 개선 플랜이 생성 중입니다. 잠시 후 다시 확인해주세요.</p>
+                            <button 
+                              className="retry-button"
+                              onClick={() => loadDetailedReport(selectedReport.interview_id)}
+                            >
+                              다시 시도
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="no-selection">

@@ -816,12 +816,461 @@
   .report-detail-content {
     padding: 20px;
   }
-  
-  .big-score {
-    font-size: 2.5rem;
+}
+
+/* 새로 추가되는 섹션들의 스타일 */
+
+/* AI 면접 총평 섹션 */
+.interview-summary-section {
+  margin-bottom: 30px;
+}
+
+.summary-card {
+  background: linear-gradient(135deg, var(--primary-50) 0%, var(--accent-50) 100%);
+  border: 2px solid var(--primary-200);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-500), var(--accent-500));
+}
+
+.readiness-score {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.score-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.readiness-score .score-value {
+  font-size: 2rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.readiness-excellent { color: var(--success-600); }
+.readiness-good { color: var(--primary-600); }
+.readiness-fair { color: var(--warning-600); }
+.readiness-poor { color: var(--error-600); }
+
+.overall-comment {
+  margin-bottom: 20px;
+}
+
+.overall-comment p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--gray-700);
+  margin: 0;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.talking-points h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 12px;
+}
+
+.talking-points ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.talking-points li {
+  background: rgba(255, 255, 255, 0.8);
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-500);
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+/* 기술적 분석 섹션 */
+.technical-analysis-section {
+  margin-bottom: 30px;
+}
+
+.tech-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.tech-metric {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.tech-metric .metric-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: 4px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-500), var(--accent-500));
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.tech-metric .metric-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--primary-600);
+}
+
+.analysis-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.analysis-item {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.analysis-item h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 12px;
+}
+
+.analysis-item p {
+  color: var(--gray-600);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 개선 액션 플랜 섹션 */
+.improvement-plan-section {
+  margin-bottom: 30px;
+}
+
+.immediate-actions,
+.study-recommendations,
+.practice-scenarios,
+.weak-areas,
+.preparation-timeline {
+  margin-bottom: 24px;
+}
+
+.immediate-actions h4,
+.study-recommendations h4,
+.practice-scenarios h4,
+.weak-areas h4,
+.preparation-timeline h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 16px;
+}
+
+.action-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--success-50);
+  border: 1px solid var(--success-200);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.action-item:hover {
+  background: var(--success-100);
+  transform: translateY(-1px);
+}
+
+.action-item .icon {
+  color: var(--success-600);
+  flex-shrink: 0;
+}
+
+.action-item span {
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.study-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.study-card {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px solid var(--gray-200);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.study-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.study-card.priority-high {
+  border-color: var(--error-300);
+  background: var(--error-50);
+}
+
+.study-card.priority-medium {
+  border-color: var(--warning-300);
+  background: var(--warning-50);
+}
+
+.study-card.priority-low {
+  border-color: var(--gray-300);
+  background: var(--gray-50);
+}
+
+.study-card h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin: 0 0 8px 0;
+}
+
+.study-card p {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.priority-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.priority-badge.high {
+  background: var(--error-100);
+  color: var(--error-800);
+}
+
+.priority-badge.medium {
+  background: var(--warning-100);
+  color: var(--warning-800);
+}
+
+.priority-badge.low {
+  background: var(--gray-100);
+  color: var(--gray-800);
+}
+
+.practice-scenarios ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.practice-scenarios li {
+  padding: 12px 16px;
+  background: var(--primary-50);
+  border: 1px solid var(--primary-200);
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-500);
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.weak-areas-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.weak-area-tag {
+  padding: 6px 12px;
+  background: var(--warning-100);
+  color: var(--warning-800);
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.timeline-content {
+  background: var(--gray-50);
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid var(--accent-500);
+}
+
+.timeline-content p {
+  margin: 0;
+  color: var(--gray-700);
+  line-height: 1.6;
+}
+
+/* 반응형 디자인 확장 */
+@media (max-width: 768px) {
+  .tech-metrics-grid {
+    grid-template-columns: 1fr;
   }
   
-  .question-info {
-    flex-wrap: wrap;
+  .study-grid {
+    grid-template-columns: 1fr;
   }
+  
+  .action-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .readiness-score {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* 기본 스타일들 */
+.big-score {
+  font-size: 2.5rem;
+}
+
+.question-info {
+  flex-wrap: wrap;
+}
+
+/* AI 분석 진행 중 상태 스타일 */
+.analysis-pending-section {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.analysis-pending-section h3 {
+  color: #6c757d;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.pending-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e9ecef;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pending-message p {
+  color: #6c757d;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.retry-button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.retry-button:hover {
+  background: #0056b3;
+}
+
+.warning-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.analysis-pending-section strong {
+  color: #dc3545;
 }
