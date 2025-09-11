@@ -15,6 +15,10 @@ from app.agents.repository_analyzer import RepositoryAnalyzer
 from app.agents.question_generator import QuestionGenerator
 from app.services.vector_db import VectorDBService
 from app.core.database import get_db
+from app.models.interview import (
+    InterviewSession, InterviewAnswer, InterviewQuestion, 
+    InterviewReport, ProjectTechnicalAnalysis, InterviewImprovementPlan
+)
 from sqlalchemy.orm import Session
 
 router = APIRouter()
@@ -469,7 +473,6 @@ async def get_reports_list(
                 .scalar()
             
             # 질문 개수 조회 (분석에서 생성된 질문 수)
-            from app.models.interview import InterviewQuestion
             questions_count = db.query(func.count(InterviewQuestion.id))\
                 .filter(InterviewQuestion.analysis_id == session.analysis_id)\
                 .scalar()
@@ -770,6 +773,16 @@ async def get_detailed_report(interview_id: str, db: Session = Depends(get_db)):
                 "코드 리뷰 경험 증대"
             ])
         
+        # AI 인사이트 생성 및 확장된 분석 데이터 조회
+        try:
+            enhanced_insights = await _generate_and_store_insights(
+                session, questions, answers, analysis, db
+            )
+            print(f"[DETAILED_REPORT] AI 인사이트 생성 완료")
+        except Exception as insight_error:
+            print(f"[DETAILED_REPORT] AI 인사이트 생성 실패: {insight_error}")
+            enhanced_insights = None
+
         detailed_report = {
             "interview_id": str(session.id),
             "repo_info": repo_info,
@@ -777,6 +790,66 @@ async def get_detailed_report(interview_id: str, db: Session = Depends(get_db)):
             "question_analyses": question_analyses,
             "performance_metrics": performance_metrics
         }
+        
+        # 새로운 인사이트 섹션들 추가 (실제 AI 분석이 성공한 경우에만)
+        if enhanced_insights:
+            detailed_report.update({
+                "interview_summary": enhanced_insights.get("interview_summary"),
+                "technical_analysis": enhanced_insights.get("technical_analysis"),
+                "improvement_plan": enhanced_insights.get("improvement_plan")
+            })
+        else:
+            # 답변이 없는 경우 AI 분석 섹션 제외
+            if len(answers) == 0:
+                print(f"[DETAILED_REPORT] 답변 없음 - AI 분석 섹션 제외")
+            else:
+                # AI 분석 실패 시 데이터베이스에서 직접 조회
+                existing_report = db.query(InterviewReport)\
+                    .filter(InterviewReport.session_id == session.id)\
+                    .first()
+                
+                if existing_report and existing_report.is_ai_generated:
+                    # 데이터베이스에 실제 AI 분석 데이터가 있는 경우
+                    detailed_report.update({
+                        "interview_summary": {
+                            "overall_comment": existing_report.overall_summary,
+                            "readiness_score": existing_report.interview_readiness_score,
+                            "key_talking_points": existing_report.key_talking_points
+                        }
+                    })
+                    
+                    # 기술 분석 데이터 조회
+                    technical_analysis = db.query(ProjectTechnicalAnalysis)\
+                        .filter(ProjectTechnicalAnalysis.report_id == existing_report.id)\
+                        .filter(ProjectTechnicalAnalysis.is_ai_generated == True)\
+                        .first()
+                    
+                    if technical_analysis:
+                        detailed_report["technical_analysis"] = {
+                            "architecture_understanding": technical_analysis.architecture_understanding,
+                            "code_quality_awareness": technical_analysis.code_quality_awareness,
+                            "problem_solving_approach": technical_analysis.problem_solving_approach,
+                            "technology_depth": technical_analysis.technology_depth,
+                            "project_complexity_handling": technical_analysis.project_complexity_handling
+                        }
+                    
+                    # 개선 플랜 데이터 조회
+                    improvement_plan = db.query(InterviewImprovementPlan)\
+                        .filter(InterviewImprovementPlan.report_id == existing_report.id)\
+                        .filter(InterviewImprovementPlan.is_ai_generated == True)\
+                        .first()
+                    
+                    if improvement_plan:
+                        detailed_report["improvement_plan"] = {
+                            "immediate_actions": improvement_plan.immediate_actions,
+                            "study_recommendations": improvement_plan.study_recommendations,
+                            "practice_scenarios": improvement_plan.practice_scenarios,
+                            "weak_areas": improvement_plan.weak_areas,
+                            "preparation_timeline": improvement_plan.preparation_timeline
+                        }
+                else:
+                    # AI 분석 데이터가 없는 경우 - 빈 섹션으로 표시하거나 분석 진행 중 표시
+                    print(f"[DETAILED_REPORT] AI 분석 데이터 없음 - 빈 인사이트 섹션")
         
         print(f"[DETAILED_REPORT] 상세 리포트 생성 완료")
         
@@ -815,7 +888,6 @@ async def get_recent_reports(limit: int = 5, db: Session = Depends(get_db)):
         print(f"[RECENT_REPORTS] 최근 리포트 요청 - limit: {limit}")
         
         # 데이터베이스에서 완료된 면접 세션 조회
-        from app.models.interview import InterviewSession, InterviewReport
         from app.models.repository import RepositoryAnalysis
         from sqlalchemy import desc, and_
         
@@ -1117,3 +1189,225 @@ def _recommend_learning_resources(report: Dict[str, Any]) -> Dict[str, List[str]
                 recommended[category] = resources[category]
     
     return recommended
+
+
+# 새로 추가되는 AI 인사이트 관련 함수들
+
+async def _generate_and_store_insights(session, questions, answers, analysis, db):
+    """AI 인사이트 생성 및 데이터베이스 저장"""
+    from app.agents.report_generator_agent import get_report_generator
+    import uuid
+    
+    try:
+        # ReportGenerator 에이전트 인스턴스 가져오기
+        report_generator = get_report_generator()
+        
+        # 프로젝트 컨텍스트 구성
+        project_context = {
+            "repository_url": analysis.repository_url,
+            "tech_stack": analysis.tech_stack or {},
+            "complexity_score": float(analysis.complexity_score) if analysis.complexity_score else 5.0,
+            "primary_language": analysis.primary_language
+        }
+        
+        # 면접 데이터 구성
+        interview_data = {
+            "questions": [
+                {
+                    "question": q.question_text,
+                    "category": q.category,
+                    "difficulty": q.difficulty
+                } for q in questions
+            ],
+            "answers": [
+                {
+                    "answer": a.user_answer,
+                    "score": float(a.feedback_score) if a.feedback_score else 0.0,
+                    "feedback": a.feedback_message
+                } for a in answers
+            ]
+        }
+        
+        print(f"[INSIGHTS] AI 인사이트 생성 시작 - 질문 {len(questions)}개, 답변 {len(answers)}개")
+        
+        # 답변이 없는 경우 AI 분석 생성하지 않음
+        if len(answers) == 0:
+            print(f"[INSIGHTS] 답변이 없어 AI 분석 생성 중단")
+            return None
+        
+        # AI 인사이트 생성
+        insights = await report_generator.generate_interview_insights(
+            project_context=project_context,
+            interview_data=interview_data
+        )
+        
+        # AI 생성 성공 여부 확인 (폴백 데이터가 아닌 실제 AI 분석인지 검증)
+        is_real_ai_analysis = _validate_real_ai_analysis(insights)
+        print(f"[INSIGHTS] AI 인사이트 생성 완료 - 실제 AI 분석: {is_real_ai_analysis}")
+        
+        # InterviewReport 조회 또는 생성
+        existing_report = db.query(InterviewReport)\
+            .filter(InterviewReport.session_id == session.id)\
+            .first()
+        
+        if existing_report:
+            # 기존 리포트 업데이트 (실제 AI 분석인 경우에만)
+            if is_real_ai_analysis:
+                existing_report.overall_summary = insights["interview_summary"]["overall_comment"]
+                existing_report.interview_readiness_score = insights["interview_summary"]["readiness_score"]
+                existing_report.key_talking_points = insights["interview_summary"]["key_talking_points"]
+                existing_report.is_ai_generated = True
+            else:
+                existing_report.is_ai_generated = False
+            report_id = existing_report.id
+            print(f"[INSIGHTS] 기존 리포트 업데이트: {report_id} (AI 분석: {is_real_ai_analysis})")
+        else:
+            # 새 리포트 생성
+            new_report = InterviewReport(
+                session_id=session.id,
+                overall_score=5.0,  # 기본값
+                category_scores={"general": 5.0},
+                overall_summary=insights["interview_summary"]["overall_comment"] if is_real_ai_analysis else None,
+                interview_readiness_score=insights["interview_summary"]["readiness_score"] if is_real_ai_analysis else None,
+                key_talking_points=insights["interview_summary"]["key_talking_points"] if is_real_ai_analysis else None,
+                is_ai_generated=is_real_ai_analysis
+            )
+            db.add(new_report)
+            db.flush()  # ID 생성을 위해 flush
+            report_id = new_report.id
+            print(f"[INSIGHTS] 새 리포트 생성: {report_id} (AI 분석: {is_real_ai_analysis})")
+        
+        # ProjectTechnicalAnalysis 저장/업데이트
+        existing_technical = db.query(ProjectTechnicalAnalysis)\
+            .filter(ProjectTechnicalAnalysis.report_id == report_id)\
+            .first()
+            
+        tech_analysis_data = insights["technical_analysis"]
+        
+        if existing_technical:
+            # 업데이트 (실제 AI 분석인 경우에만)
+            if is_real_ai_analysis:
+                existing_technical.architecture_understanding = tech_analysis_data["architecture_understanding"]
+                existing_technical.code_quality_awareness = tech_analysis_data["code_quality_awareness"]
+                existing_technical.problem_solving_approach = tech_analysis_data["problem_solving_approach"]
+                existing_technical.technology_depth = tech_analysis_data["technology_depth"]
+                existing_technical.project_complexity_handling = tech_analysis_data["project_complexity_handling"]
+                existing_technical.is_ai_generated = True
+            else:
+                existing_technical.is_ai_generated = False
+            print(f"[INSIGHTS] 기술 분석 업데이트 완료 (AI 분석: {is_real_ai_analysis})")
+        else:
+            # 생성
+            technical_analysis = ProjectTechnicalAnalysis(
+                report_id=report_id,
+                architecture_understanding=tech_analysis_data["architecture_understanding"] if is_real_ai_analysis else None,
+                code_quality_awareness=tech_analysis_data["code_quality_awareness"] if is_real_ai_analysis else None,
+                problem_solving_approach=tech_analysis_data["problem_solving_approach"] if is_real_ai_analysis else None,
+                technology_depth=tech_analysis_data["technology_depth"] if is_real_ai_analysis else None,
+                project_complexity_handling=tech_analysis_data["project_complexity_handling"] if is_real_ai_analysis else None,
+                is_ai_generated=is_real_ai_analysis
+            )
+            db.add(technical_analysis)
+            print(f"[INSIGHTS] 새 기술 분석 생성 완료 (AI 분석: {is_real_ai_analysis})")
+        
+        # InterviewImprovementPlan 저장/업데이트
+        existing_plan = db.query(InterviewImprovementPlan)\
+            .filter(InterviewImprovementPlan.report_id == report_id)\
+            .first()
+            
+        improvement_data = insights["improvement_plan"]
+        
+        if existing_plan:
+            # 업데이트 (실제 AI 분석인 경우에만)
+            if is_real_ai_analysis:
+                existing_plan.immediate_actions = improvement_data["immediate_actions"]
+                existing_plan.study_recommendations = improvement_data["study_recommendations"]
+                existing_plan.practice_scenarios = improvement_data["practice_scenarios"]
+                existing_plan.weak_areas = improvement_data["weak_areas"]
+                existing_plan.preparation_timeline = improvement_data["preparation_timeline"]
+                existing_plan.is_ai_generated = True
+            else:
+                existing_plan.is_ai_generated = False
+            print(f"[INSIGHTS] 개선 플랜 업데이트 완료 (AI 분석: {is_real_ai_analysis})")
+        else:
+            # 생성
+            improvement_plan = InterviewImprovementPlan(
+                report_id=report_id,
+                immediate_actions=improvement_data["immediate_actions"] if is_real_ai_analysis else None,
+                study_recommendations=improvement_data["study_recommendations"] if is_real_ai_analysis else None,
+                practice_scenarios=improvement_data["practice_scenarios"] if is_real_ai_analysis else None,
+                weak_areas=improvement_data["weak_areas"] if is_real_ai_analysis else None,
+                preparation_timeline=improvement_data["preparation_timeline"] if is_real_ai_analysis else None,
+                is_ai_generated=is_real_ai_analysis
+            )
+            db.add(improvement_plan)
+            print(f"[INSIGHTS] 새 개선 플랜 생성 완료 (AI 분석: {is_real_ai_analysis})")
+        
+        # 데이터베이스 커밋
+        db.commit()
+        print(f"[INSIGHTS] 데이터베이스 저장 완료")
+        
+        # 실제 AI 분석이 성공한 경우에만 인사이트 반환
+        if is_real_ai_analysis:
+            return insights
+        else:
+            print(f"[INSIGHTS] 폴백 데이터 사용됨 - 인사이트 반환하지 않음")
+            return None
+        
+    except Exception as e:
+        print(f"[INSIGHTS] 오류 발생: {e}")
+        db.rollback()
+        raise e
+
+
+def _validate_real_ai_analysis(insights: dict) -> bool:
+    """
+    AI 분석이 실제 분석인지 폴백 데이터인지 검증
+    폴백 데이터의 특정 패턴을 감지하여 판단
+    """
+    try:
+        # 1. 폴백 데이터의 고정 점수값 확인
+        tech_analysis = insights.get("technical_analysis", {})
+        arch_score = tech_analysis.get("architecture_understanding", 0)
+        quality_score = tech_analysis.get("code_quality_awareness", 0)
+        
+        # 폴백 데이터의 정확한 점수값들 (65, 60)
+        fallback_scores = [65, 60]
+        if arch_score in fallback_scores and quality_score in fallback_scores:
+            print(f"[VALIDATION] 폴백 점수 패턴 감지: {arch_score}, {quality_score}")
+            return False
+        
+        # 2. 폴백 데이터의 고정 문구 확인
+        summary = insights.get("interview_summary", {})
+        overall_comment = summary.get("overall_comment", "")
+        
+        fallback_phrases = [
+            "프로젝트에 대한 기본적인 이해도를 보여주었으나",
+            "기술적 세부사항과 구현 경험에 대한 더 깊은 설명이 필요합니다"
+        ]
+        
+        for phrase in fallback_phrases:
+            if phrase in overall_comment:
+                print(f"[VALIDATION] 폴백 문구 감지: {phrase}")
+                return False
+        
+        # 3. 개선 플랜의 고정 액션 확인
+        improvement_plan = insights.get("improvement_plan", {})
+        immediate_actions = improvement_plan.get("immediate_actions", [])
+        
+        fallback_actions = [
+            "답변 시 STAR 방법론(Situation, Task, Action, Result) 활용",
+            "기술 용어 사용 시 구체적인 예시와 함께 설명"
+        ]
+        
+        for action in fallback_actions:
+            if action in immediate_actions:
+                print(f"[VALIDATION] 폴백 액션 감지: {action}")
+                return False
+        
+        print(f"[VALIDATION] 실제 AI 분석으로 판정")
+        return True
+        
+    except Exception as e:
+        print(f"[VALIDATION] 검증 중 오류: {e} - 폴백으로 판정")
+        return False
