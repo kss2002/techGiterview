@@ -40,7 +40,7 @@ class InterviewState:
     feedback: List[str] = field(default_factory=list)
     conversation_history: List[Dict[str, Any]] = field(default_factory=list)
     follow_up_count: int = 0
-    time_per_question: int = 600  # 10분 기본값
+    time_per_question: int = 1800  # 30분 기본값
     error: Optional[str] = None
 
 
@@ -138,7 +138,7 @@ class MockInterviewAgent:
         user_id: str,
         difficulty_level: str = "medium",
         question_count: int = 5,
-        time_per_question: int = 600
+        time_per_question: int = 60
     ) -> Dict[str, Any]:
         """모의면접 시작"""
         

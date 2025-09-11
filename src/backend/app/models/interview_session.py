@@ -207,7 +207,7 @@ class InterviewSessionManager:
             analysis_id=analysis_id,
             repo_url=repo_url,
             question_ids=question_ids,
-            expected_duration=len(question_ids) * 5,  # 질문당 5분
+            expected_duration=len(question_ids) * 30,  # 질문당 30분
             **kwargs
         )
         self._sessions[interview_id] = session
