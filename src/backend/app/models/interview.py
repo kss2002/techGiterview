@@ -122,6 +122,13 @@ class InterviewReport(Base):
     improvements = Column(JSON, nullable=True)  # 개선점들 (리스트)
     recommendations = Column(JSON, nullable=True)  # 학습 추천사항
     detailed_feedback = Column(Text, nullable=True)
+    
+    # 새로 추가되는 필드들 - 면접 총평 및 세부 기능
+    overall_summary = Column(Text, nullable=True)  # AI 생성 총평
+    interview_readiness_score = Column(Integer, nullable=True)  # 면접 준비도 점수 (0-100)
+    key_talking_points = Column(JSON, nullable=True)  # 면접에서 강조할 포인트들
+    is_ai_generated = Column(Boolean, default=False, nullable=False)  # AI 인사이트 성공 여부
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
@@ -129,3 +136,47 @@ class InterviewReport(Base):
     
     def __repr__(self):
         return f"<InterviewReport(id={self.id}, overall_score={self.overall_score})>"
+
+
+class ProjectTechnicalAnalysis(Base):
+    """프로젝트 기술 분석 모델"""
+    
+    __tablename__ = "project_technical_analysis"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_id = Column(UUID(as_uuid=True), ForeignKey("interview_reports.id"), nullable=False)
+    architecture_understanding = Column(Integer, nullable=True)  # 아키텍처 이해도 점수 (0-100)
+    code_quality_awareness = Column(Integer, nullable=True)  # 코드 품질 인식 점수 (0-100)
+    problem_solving_approach = Column(Text, nullable=True)  # 문제 해결 접근법 분석
+    technology_depth = Column(Text, nullable=True)  # 기술 스택 이해 깊이
+    project_complexity_handling = Column(Text, nullable=True)  # 프로젝트 복잡도 대응 능력
+    is_ai_generated = Column(Boolean, default=False, nullable=False)  # AI 분석 성공 여부
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    report = relationship("InterviewReport", backref="technical_analysis", uselist=False)
+    
+    def __repr__(self):
+        return f"<ProjectTechnicalAnalysis(id={self.id}, report_id={self.report_id})>"
+
+
+class InterviewImprovementPlan(Base):
+    """면접 개선 액션 플랜 모델"""
+    
+    __tablename__ = "interview_improvement_plans"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_id = Column(UUID(as_uuid=True), ForeignKey("interview_reports.id"), nullable=False)
+    immediate_actions = Column(JSON, nullable=True)  # ["답변 시 구체적 예시 제시", "기술 용어 정확한 사용"]
+    study_recommendations = Column(JSON, nullable=True)  # [{"topic": "React Hooks", "resource": "...", "priority": "high"}, ...]
+    practice_scenarios = Column(JSON, nullable=True)  # ["프로젝트 아키텍처 설명 연습", ...]
+    weak_areas = Column(JSON, nullable=True)  # ["데이터베이스 설계", "테스트 코드 작성"]
+    preparation_timeline = Column(Text, nullable=True)  # 면접 준비 타임라인
+    is_ai_generated = Column(Boolean, default=False, nullable=False)  # AI 생성 성공 여부
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    report = relationship("InterviewReport", backref="improvement_plan", uselist=False)
+    
+    def __repr__(self):
+        return f"<InterviewImprovementPlan(id={self.id}, report_id={self.report_id})>"
