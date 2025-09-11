@@ -64,7 +64,7 @@ const InterviewInterface: React.FC = () => {
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   
   // 타이머 관련
-  const [timeRemaining, setTimeRemaining] = useState(600); // 10분 기본값
+  const [timeRemaining, setTimeRemaining] = useState(60); // 1분 기본값 (빠른 테스트용)
   const [isTimerActive, setIsTimerActive] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -211,7 +211,7 @@ const InterviewInterface: React.FC = () => {
     setIsSubmitting(true);
     setShowEvaluation(false);
     
-    const timeTaken = timeRemaining > 0 ? (600 - timeRemaining) : 600;
+    const timeTaken = timeRemaining > 0 ? (60 - timeRemaining) : 60;
 
     wsRef.current?.send(JSON.stringify({
       type: 'submit_answer',

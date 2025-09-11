@@ -172,7 +172,7 @@ export const InterviewPage: React.FC = () => {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [wsConnected, setWsConnected] = useState(false)
-  const [timeRemaining, setTimeRemaining] = useState(30 * 60) // 30분
+  const [timeRemaining, setTimeRemaining] = useState(60) // 1분 (빠른 테스트용)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [fontSize, setFontSize] = useState('medium')
