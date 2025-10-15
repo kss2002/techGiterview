@@ -20,7 +20,12 @@ body {
 }
 
 /* 헤딩 요소 */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-sans);
   font-weight: var(--font-semibold);
   line-height: var(--leading-tight);
@@ -28,30 +33,30 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: var(--spacing-4);
 }
 
-h1 { 
-  font-size: var(--text-4xl); 
+h1 {
+  font-size: var(--text-4xl);
   font-weight: var(--font-bold);
   letter-spacing: var(--tracking-tight);
 }
-h2 { 
-  font-size: var(--text-3xl); 
+h2 {
+  font-size: var(--text-3xl);
   font-weight: var(--font-semibold);
   letter-spacing: var(--tracking-tight);
 }
-h3 { 
-  font-size: var(--text-2xl); 
+h3 {
+  font-size: var(--text-2xl);
   font-weight: var(--font-semibold);
 }
-h4 { 
-  font-size: var(--text-xl); 
+h4 {
+  font-size: var(--text-xl);
   font-weight: var(--font-medium);
 }
-h5 { 
-  font-size: var(--text-lg); 
+h5 {
+  font-size: var(--text-lg);
   font-weight: var(--font-medium);
 }
-h6 { 
-  font-size: var(--text-base); 
+h6 {
+  font-size: var(--text-base);
   font-weight: var(--font-medium);
 }
 
@@ -215,7 +220,11 @@ a:hover {
 }
 
 .btn-error:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--error-600) 0%, var(--error-700) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--error-600) 0%,
+    var(--error-700) 100%
+  );
   transform: translateY(-2px);
 }
 
@@ -268,7 +277,11 @@ a:hover {
 .card-header {
   padding: var(--spacing-5) var(--spacing-6);
   border-bottom: 1px solid var(--primary-200);
-  background: linear-gradient(135deg, var(--primary-50) 0%, var(--secondary-50) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--primary-50) 0%,
+    var(--secondary-50) 100%
+  );
 }
 
 .card-header h3 {
@@ -1030,7 +1043,7 @@ a:hover {
   font-size: var(--text-xl);
   font-weight: var(--font-medium);
   line-height: var(--leading-relaxed);
-  color: var(--brand-green-700);
+  color: var(--brand-navy-950);
   margin-bottom: var(--spacing-3);
 }
 
@@ -1081,19 +1094,19 @@ a:hover {
   .heading-1 {
     font-size: var(--text-3xl);
   }
-  
+
   .heading-2 {
     font-size: var(--text-2xl);
   }
-  
+
   .heading-3 {
     font-size: var(--text-xl);
   }
-  
+
   .text-subtitle {
     font-size: var(--text-lg);
   }
-  
+
   .text-lead {
     font-size: var(--text-base);
   }
@@ -1244,16 +1257,21 @@ a:hover {
 }
 
 @keyframes bounce {
-  0%, 20%, 53%, 80%, 100% {
-    animation-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
-    transform: translate3d(0,0,0);
+  0%,
+  20%,
+  53%,
+  80%,
+  100% {
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+    transform: translate3d(0, 0, 0);
   }
-  40%, 43% {
-    animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+  40%,
+  43% {
+    animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
     transform: translate3d(0, -30px, 0);
   }
   70% {
-    animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+    animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
     transform: translate3d(0, -15px, 0);
   }
   90% {
@@ -1262,7 +1280,8 @@ a:hover {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -1292,7 +1311,7 @@ a:hover {
   .hover-scale-lg {
     transition: none;
   }
-  
+
   .hover-lift:hover,
   .hover-lift-sm:hover,
   .hover-lift-lg:hover,
@@ -1301,7 +1320,7 @@ a:hover {
   .hover-scale-lg:hover {
     transform: none;
   }
-  
+
   .animate-fade-in,
   .animate-fade-in-up,
   .animate-bounce,
@@ -1391,7 +1410,11 @@ a:hover {
 
 /* 홈페이지 푸터 */
 .homepage-footer {
-  background: linear-gradient(135deg, var(--brand-navy-900) 0%, var(--brand-navy-800) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--brand-navy-900) 0%,
+    var(--brand-navy-800) 100%
+  );
   color: var(--white);
   padding: var(--spacing-16) 0 var(--spacing-8);
   margin-top: var(--spacing-20);

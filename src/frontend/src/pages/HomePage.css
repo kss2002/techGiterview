@@ -16,6 +16,7 @@
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
   overflow-x: hidden;
+  position: relative;
 }
 
 /* 홈페이지 섹션 간 마진 조정 */
@@ -257,14 +258,14 @@
     border-radius: var(--radius-xl);
     overflow: hidden;
   }
-  
+
   /* 모바일에서도 붙은 상태 유지 */
   .url-input-group .form-input {
     border-radius: 0;
     border-right: 1px solid var(--gray-300); /* 모바일에서는 오른쪽 테두리 복원 */
     border-bottom: none; /* 아래쪽 테두리 제거하여 버튼과 붙임 */
   }
-  
+
   .url-input-group .btn {
     border-radius: 0;
     margin-left: 0;
