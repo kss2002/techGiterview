@@ -47,9 +47,11 @@ export const HomePage: React.FC = () => {
     showApiKeySetup: false,
   });
 
-  // API 키 설정 모달 표시 여부 결정
-  const shouldShowApiKeySetup =
-    state.showApiKeySetup || (config.keys_required && !hasStoredKeys());
+  // API 키 설정 모달 표시 여부 결정 - 사용자가 버튼 클릭 시에만 표시
+  const shouldShowApiKeySetup = state.showApiKeySetup;
+
+  // 키가 없을 때 버튼 강조 여부
+  const needsApiKeySetup = config.keys_required && !hasStoredKeys();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,6 +133,7 @@ export const HomePage: React.FC = () => {
               isUsingLocalData={isUsingLocalData}
               error={error}
               isLoading={isLoading}
+              needsSetup={needsApiKeySetup}
             />
 
             {/* AI 모델 선택 및 분석 시작 통합 섹션 */}
@@ -167,7 +170,12 @@ export const HomePage: React.FC = () => {
       </AnimatedContent>
 
       {/* API 키 설정 모달 */}
-      {shouldShowApiKeySetup && <ApiKeySetup onApiKeysSet={handleApiKeysSet} />}
+      {shouldShowApiKeySetup && (
+        <ApiKeySetup
+          onApiKeysSet={handleApiKeysSet}
+          onClose={() => updateState({ showApiKeySetup: false })}
+        />
+      )}
 
       {/* 푸터 */}
       <HomePageFooter />
