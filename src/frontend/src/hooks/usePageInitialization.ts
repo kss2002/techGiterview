@@ -7,10 +7,11 @@ const getApiKeysFromStorage = () => {
   try {
     return {
       githubToken: localStorage.getItem('techgiterview_github_token') || '',
-      googleApiKey: localStorage.getItem('techgiterview_google_api_key') || ''
+      googleApiKey: localStorage.getItem('techgiterview_google_api_key') || '',
+      upstageApiKey: localStorage.getItem('techgiterview_upstage_api_key') || ''
     }
   } catch (error) {
-    return { githubToken: '', googleApiKey: '' }
+    return { githubToken: '', googleApiKey: '', upstageApiKey: '' }
   }
 }
 
@@ -22,9 +23,10 @@ const createApiHeaders = (includeApiKeys: boolean = false) => {
   }
 
   if (includeApiKeys) {
-    const { githubToken, googleApiKey } = getApiKeysFromStorage()
+    const { githubToken, googleApiKey, upstageApiKey } = getApiKeysFromStorage()
     if (githubToken) headers['X-GitHub-Token'] = githubToken
     if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
+    if (upstageApiKey) headers['X-Upstage-API-Key'] = upstageApiKey
   }
 
   return headers
@@ -81,8 +83,9 @@ const fetchPageInitData = async (): Promise<PageInitData> => {
 
 // 로컬스토리지에서 즉시 사용 가능한 데이터 생성
 const getLocalData = (): PageInitData => {
-  const { githubToken, googleApiKey } = getApiKeysFromStorage()
-  const hasKeys = !!(githubToken && googleApiKey)
+  const { githubToken, upstageApiKey } = getApiKeysFromStorage()
+  // Upstage를 기본 AI로 사용하므로 GitHub + Upstage 키 체크
+  const hasKeys = !!(githubToken && upstageApiKey)
 
   return {
     config: {
@@ -90,7 +93,7 @@ const getLocalData = (): PageInitData => {
       use_local_storage: true,
       missing_keys: {
         github_token: !githubToken,
-        google_api_key: !googleApiKey
+        upstage_api_key: !upstageApiKey
       },
       development_mode_active: true // 로컬 데이터에서는 기본적으로 활성화
     },
@@ -110,8 +113,8 @@ export const usePageInitialization = () => {
 
   // API 키 저장 상태를 추적하는 상태 추가
   const [hasStoredKeysState, setHasStoredKeysState] = useState(() => {
-    const { githubToken, googleApiKey } = getApiKeysFromStorage()
-    return !!(githubToken && googleApiKey)
+    const { githubToken, upstageApiKey } = getApiKeysFromStorage()
+    return !!(githubToken && upstageApiKey)
   })
 
   // React Query로 서버 데이터 가져오기 (백그라운드)
@@ -170,8 +173,8 @@ export const usePageInitialization = () => {
 
     // API 키 상태를 수동으로 업데이트하는 함수 추가
     refreshStoredKeysState: () => {
-      const { githubToken, googleApiKey } = getApiKeysFromStorage()
-      const newState = !!(githubToken && googleApiKey)
+      const { githubToken, upstageApiKey } = getApiKeysFromStorage()
+      const newState = !!(githubToken && upstageApiKey)
       setHasStoredKeysState(newState)
       return newState
     },

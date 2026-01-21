@@ -13,6 +13,7 @@ import {
   TestTube,
   Copy,
   RefreshCw,
+  X,
 } from 'lucide-react';
 import { apiFetch } from '../utils/apiUtils';
 import './ApiKeySetup.css';
@@ -21,14 +22,18 @@ import './ApiKeySetup.css';
 const STORAGE_KEYS = {
   GITHUB_TOKEN: 'techgiterview_github_token',
   GOOGLE_API_KEY: 'techgiterview_google_api_key',
+  UPSTAGE_API_KEY: 'techgiterview_upstage_api_key',
+  SELECTED_AI_PROVIDER: 'techgiterview_selected_ai_provider',
 } as const;
 
 // 로컬스토리지 유틸리티 함수들
 const storageUtils = {
-  saveApiKeys: (githubToken: string, googleApiKey: string) => {
+  saveApiKeys: (githubToken: string, googleApiKey: string, upstageApiKey: string, selectedProvider: string) => {
     try {
       localStorage.setItem(STORAGE_KEYS.GITHUB_TOKEN, githubToken);
       localStorage.setItem(STORAGE_KEYS.GOOGLE_API_KEY, googleApiKey);
+      localStorage.setItem(STORAGE_KEYS.UPSTAGE_API_KEY, upstageApiKey);
+      localStorage.setItem(STORAGE_KEYS.SELECTED_AI_PROVIDER, selectedProvider);
       console.log('API 키가 로컬스토리지에 저장되었습니다.');
     } catch (error) {
       console.warn('로컬스토리지 저장 실패:', error);
@@ -40,10 +45,12 @@ const storageUtils = {
       return {
         githubToken: localStorage.getItem(STORAGE_KEYS.GITHUB_TOKEN) || '',
         googleApiKey: localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || '',
+        upstageApiKey: localStorage.getItem(STORAGE_KEYS.UPSTAGE_API_KEY) || '',
+        selectedProvider: localStorage.getItem(STORAGE_KEYS.SELECTED_AI_PROVIDER) || 'upstage',
       };
     } catch (error) {
       console.warn('로컬스토리지 로드 실패:', error);
-      return { githubToken: '', googleApiKey: '' };
+      return { githubToken: '', googleApiKey: '', upstageApiKey: '', selectedProvider: 'upstage' };
     }
   },
 
@@ -51,6 +58,8 @@ const storageUtils = {
     try {
       localStorage.removeItem(STORAGE_KEYS.GITHUB_TOKEN);
       localStorage.removeItem(STORAGE_KEYS.GOOGLE_API_KEY);
+      localStorage.removeItem(STORAGE_KEYS.UPSTAGE_API_KEY);
+      localStorage.removeItem(STORAGE_KEYS.SELECTED_AI_PROVIDER);
       console.log('저장된 API 키가 삭제되었습니다.');
     } catch (error) {
       console.warn('로컬스토리지 삭제 실패:', error);
@@ -60,8 +69,15 @@ const storageUtils = {
   hasStoredKeys: () => {
     try {
       const githubToken = localStorage.getItem(STORAGE_KEYS.GITHUB_TOKEN);
-      const googleApiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY);
-      return !!(githubToken && googleApiKey);
+      const selectedProvider = localStorage.getItem(STORAGE_KEYS.SELECTED_AI_PROVIDER) || 'upstage';
+      // 선택된 AI에 따라 필요한 키 확인
+      if (selectedProvider === 'upstage') {
+        const upstageApiKey = localStorage.getItem(STORAGE_KEYS.UPSTAGE_API_KEY);
+        return !!(githubToken && upstageApiKey);
+      } else {
+        const googleApiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY);
+        return !!(githubToken && googleApiKey);
+      }
     } catch (error) {
       return false;
     }
@@ -70,6 +86,7 @@ const storageUtils = {
 
 interface ApiKeySetupProps {
   onApiKeysSet: () => void;
+  onClose?: () => void;
 }
 
 interface KeysRequiredResponse {
@@ -81,9 +98,11 @@ interface KeysRequiredResponse {
   };
 }
 
-export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
+export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet, onClose }) => {
   const [githubToken, setGithubToken] = useState('');
   const [googleApiKey, setGoogleApiKey] = useState('');
+  const [upstageApiKey, setUpstageApiKey] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<'upstage' | 'gemini'>('upstage');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [saveToLocalStorage, setSaveToLocalStorage] = useState(true);
@@ -92,6 +111,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
   // 디버깅 및 가시성 관련 상태
   const [showGithubToken, setShowGithubToken] = useState(false);
   const [showGoogleApiKey, setShowGoogleApiKey] = useState(false);
+  const [showUpstageApiKey, setShowUpstageApiKey] = useState(false);
   const [debugInfo, setDebugInfo] = useState('');
   const [isTestingApi, setIsTestingApi] = useState(false);
   const [showDebugSection, setShowDebugSection] = useState(false);
@@ -116,9 +136,11 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
           // 로컬스토리지 모드인 경우에만 저장된 키 로드
           if (data.use_local_storage) {
             const storedKeys = storageUtils.loadApiKeys();
-            if (storedKeys.githubToken && storedKeys.googleApiKey) {
+            if (storedKeys.githubToken) {
               setGithubToken(storedKeys.githubToken);
               setGoogleApiKey(storedKeys.googleApiKey);
+              setUpstageApiKey(storedKeys.upstageApiKey);
+              setSelectedProvider(storedKeys.selectedProvider as 'upstage' | 'gemini');
               console.log('저장된 API 키를 로드했습니다.');
             }
           }
@@ -134,9 +156,11 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
 
         // 저장된 키가 있으면 자동 로드
         const storedKeys = storageUtils.loadApiKeys();
-        if (storedKeys.githubToken && storedKeys.googleApiKey) {
+        if (storedKeys.githubToken) {
           setGithubToken(storedKeys.githubToken);
           setGoogleApiKey(storedKeys.googleApiKey);
+          setUpstageApiKey(storedKeys.upstageApiKey);
+          setSelectedProvider(storedKeys.selectedProvider as 'upstage' | 'gemini');
           console.log('오프라인 모드: 저장된 API 키를 로드했습니다.');
         }
       }
@@ -144,6 +168,18 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
 
     checkMode();
   }, []);
+
+  // ESC 키로 닫기
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => document.removeEventListener('keydown', handleEscKey);
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,18 +193,24 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
 
         // 로컬스토리지에 저장 (선택사항)
         if (saveToLocalStorage) {
-          storageUtils.saveApiKeys(githubToken, googleApiKey);
+          storageUtils.saveApiKeys(githubToken, googleApiKey, upstageApiKey, selectedProvider);
           console.log('API 키가 로컬스토리지에 저장되었습니다.');
         }
 
         // API 키 유효성을 테스트하기 위해 AI providers 호출
+        const testHeaders: Record<string, string> = {
+          Accept: 'application/json',
+          'X-GitHub-Token': githubToken,
+        };
+        // 선택된 AI에 따라 해당 키 전송
+        if (selectedProvider === 'upstage') {
+          testHeaders['X-Upstage-API-Key'] = upstageApiKey;
+        } else {
+          testHeaders['X-Google-API-Key'] = googleApiKey;
+        }
         const testResponse = await apiFetch('/api/v1/ai/providers', {
           method: 'GET',
-          headers: {
-            Accept: 'application/json',
-            'X-GitHub-Token': githubToken,
-            'X-Google-API-Key': googleApiKey,
-          },
+          headers: testHeaders,
         });
 
         if (!testResponse.ok) {
@@ -208,7 +250,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
 
         // 서버 모드에서도 로컬스토리지 저장 옵션 제공
         if (saveToLocalStorage) {
-          storageUtils.saveApiKeys(githubToken, googleApiKey);
+          storageUtils.saveApiKeys(githubToken, googleApiKey, upstageApiKey, selectedProvider);
         }
       }
 
@@ -224,8 +266,30 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
   };
 
   return (
-    <div className="api-key-setup-overlay">
+    <div className="api-key-setup-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className="api-key-setup-modal">
+        {/* 닫기 버튼 */}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-ghost"
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              padding: '8px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            title="닫기 (ESC)"
+          >
+            <X className="icon" style={{ width: '20px', height: '20px' }} />
+          </button>
+        )}
+
         <div className="setup-header">
           <h2 className="setup-title">
             API 키의 설정이 필요합니다.
@@ -234,7 +298,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
           <p className="setup-description">
             TechGiterview를 사용하려면
             <br />
-            GitHub 토큰과 Google API 키가 필요합니다.
+            GitHub 토큰과 AI API 키가 필요합니다.
             <br />
             {useLocalStorageMode ? (
               <>
@@ -246,6 +310,65 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
               '서버 모드: 키는 현재 세션에서 사용되며 로컬스토리지에도 저장할 수 있습니다.'
             )}
           </p>
+        </div>
+
+        {/* AI 모델 선택 */}
+        <div className="form-group" style={{ marginBottom: '20px' }}>
+          <label className="form-label" style={{ marginBottom: '12px', display: 'block' }}>
+            🤖 AI 모델 선택
+          </label>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 16px',
+                border: selectedProvider === 'upstage' ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backgroundColor: selectedProvider === 'upstage' ? '#eff6ff' : 'white',
+                flex: 1
+              }}
+            >
+              <input
+                type="radio"
+                name="ai-provider"
+                value="upstage"
+                checked={selectedProvider === 'upstage'}
+                onChange={() => setSelectedProvider('upstage')}
+              />
+              <div>
+                <strong>Upstage Solar Pro 2</strong>
+                <div style={{ fontSize: '12px', color: '#6b7280' }}>추천 - 빠르고 정확한 한국어 지원</div>
+              </div>
+            </label>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 16px',
+                border: selectedProvider === 'gemini' ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backgroundColor: selectedProvider === 'gemini' ? '#eff6ff' : 'white',
+                flex: 1
+              }}
+            >
+              <input
+                type="radio"
+                name="ai-provider"
+                value="gemini"
+                checked={selectedProvider === 'gemini'}
+                onChange={() => setSelectedProvider('gemini')}
+              />
+              <div>
+                <strong>Google Gemini 2.0 Flash</strong>
+                <div style={{ fontSize: '12px', color: '#6b7280' }}>강력한 멀티모달 AI</div>
+              </div>
+            </label>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="api-key-form">
@@ -323,68 +446,134 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="google-api-key" className="form-label">
-              <Globe className="icon" /> Google API Key (Gemini)
-              <button
-                type="button"
-                onClick={() => setShowGoogleApiKey(!showGoogleApiKey)}
-                className="btn btn-ghost btn-sm"
-                style={{ marginLeft: '8px' }}
-                title={showGoogleApiKey ? '키 숨기기' : '키 보기'}
-              >
-                {showGoogleApiKey ? (
-                  <EyeOff className="icon" />
-                ) : (
-                  <Eye className="icon" />
-                )}
-              </button>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showGoogleApiKey ? 'text' : 'password'}
-                id="google-api-key"
-                value={googleApiKey}
-                onChange={(e) => setGoogleApiKey(e.target.value)}
-                placeholder="AIzaxxxxxxxxxxxxxxxxxxxxxxxx"
-                className="form-input"
-                autoComplete="new-password"
-                required
-                disabled={isLoading}
-              />
-              {googleApiKey && (
+          {/* 선택된 AI에 따른 API 키 입력 필드 */}
+          {selectedProvider === 'upstage' ? (
+            <div className="form-group">
+              <label htmlFor="upstage-api-key" className="form-label">
+                <Globe className="icon" /> Upstage API Key
                 <button
                   type="button"
-                  onClick={() => navigator.clipboard.writeText(googleApiKey)}
+                  onClick={() => setShowUpstageApiKey(!showUpstageApiKey)}
                   className="btn btn-ghost btn-sm"
-                  style={{
-                    position: 'absolute',
-                    right: '8px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                  }}
-                  title="클립보드에 복사"
+                  style={{ marginLeft: '8px' }}
+                  title={showUpstageApiKey ? '키 숨기기' : '키 보기'}
                 >
-                  <Copy
-                    className="icon"
-                    style={{ width: '16px', height: '16px' }}
-                  />
+                  {showUpstageApiKey ? (
+                    <EyeOff className="icon" />
+                  ) : (
+                    <Eye className="icon" />
+                  )}
                 </button>
-              )}
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showUpstageApiKey ? 'text' : 'password'}
+                  id="upstage-api-key"
+                  value={upstageApiKey}
+                  onChange={(e) => setUpstageApiKey(e.target.value)}
+                  placeholder="up_xxxxxxxxxxxxxxxxxxxx"
+                  className="form-input"
+                  autoComplete="new-password"
+                  required
+                  disabled={isLoading}
+                />
+                {upstageApiKey && (
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(upstageApiKey)}
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                    }}
+                    title="클립보드에 복사"
+                  >
+                    <Copy
+                      className="icon"
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                  </button>
+                )}
+              </div>
+              <div className="form-help">
+                <a
+                  href="https://console.upstage.ai/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="help-link"
+                >
+                  Upstage 콘솔에서 키 생성하기 ↗
+                </a>
+                <br />
+                <small>Solar Pro 2 API 사용을 위한 키가 필요합니다</small>
+              </div>
             </div>
-            <div className="form-help">
-              <a
-                href="https://aistudio.google.com/app/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="help-link"
-              >
-                Google AI Studio에서 키 생성하기 ↗
-              </a>
-              <br />
-              <small>Gemini API 사용을 위한 키가 필요합니다</small>
+          ) : (
+            <div className="form-group">
+              <label htmlFor="google-api-key" className="form-label">
+                <Globe className="icon" /> Google API Key (Gemini)
+                <button
+                  type="button"
+                  onClick={() => setShowGoogleApiKey(!showGoogleApiKey)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ marginLeft: '8px' }}
+                  title={showGoogleApiKey ? '키 숨기기' : '키 보기'}
+                >
+                  {showGoogleApiKey ? (
+                    <EyeOff className="icon" />
+                  ) : (
+                    <Eye className="icon" />
+                  )}
+                </button>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showGoogleApiKey ? 'text' : 'password'}
+                  id="google-api-key"
+                  value={googleApiKey}
+                  onChange={(e) => setGoogleApiKey(e.target.value)}
+                  placeholder="AIzaxxxxxxxxxxxxxxxxxxxxxxxx"
+                  className="form-input"
+                  autoComplete="new-password"
+                  required
+                  disabled={isLoading}
+                />
+                {googleApiKey && (
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(googleApiKey)}
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                    }}
+                    title="클립보드에 복사"
+                  >
+                    <Copy
+                      className="icon"
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                  </button>
+                )}
+              </div>
+              <div className="form-help">
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="help-link"
+                >
+                  Google AI Studio에서 키 생성하기 ↗
+                </a>
+                <br />
+                <small>Gemini API 사용을 위한 키가 필요합니다</small>
+              </div>
             </div>
-          </div>
+          )}
 
           {(useLocalStorageMode || !useLocalStorageMode) && (
             <div className="form-group">
@@ -556,10 +745,8 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
                     if (response.ok) {
                       const userData = await response.json();
                       setDebugInfo(
-                        `✅ GitHub API 연결 성공!\\n사용자: ${
-                          userData.login
-                        }\\n이름: ${
-                          userData.name || 'N/A'
+                        `✅ GitHub API 연결 성공!\\n사용자: ${userData.login
+                        }\\n이름: ${userData.name || 'N/A'
                         }\\nAPI 호출 제한: ${response.headers.get(
                           'X-RateLimit-Remaining'
                         )}/${response.headers.get('X-RateLimit-Limit')}`
@@ -572,8 +759,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
                     }
                   } catch (error) {
                     setDebugInfo(
-                      `❌ GitHub API 테스트 오류: ${
-                        error instanceof Error ? error.message : String(error)
+                      `❌ GitHub API 테스트 오류: ${error instanceof Error ? error.message : String(error)
                       }`
                     );
                   } finally {
