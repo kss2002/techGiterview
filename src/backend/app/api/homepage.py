@@ -26,7 +26,8 @@ class HomePageInitResponse(BaseModel):
 @router.get("/init", response_model=HomePageInitResponse)
 async def get_homepage_init_data(
     github_token: Optional[str] = Header(None, alias="x-github-token"),
-    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key"),
+    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key")
 ):
     """
     홈페이지 초기화에 필요한 모든 데이터를 단일 요청으로 제공
@@ -51,7 +52,7 @@ async def get_homepage_init_data(
         }
         
         # 2. AI 제공업체 목록 (기존 로직 재사용)
-        providers_data = await get_available_providers(github_token, google_api_key)
+        providers_data = await get_available_providers(github_token, google_api_key, upstage_api_key)
         providers_list = [provider.dict() for provider in providers_data]
         
         # 3. 캐싱 정보
@@ -96,9 +97,9 @@ async def get_homepage_init_data(
                 }
             },
             "providers": [{
-                "id": "gemini_flash",
-                "name": "Google Gemini 2.0 Flash (기본)",
-                "model": "gemini-2.0-flash-exp",
+                "id": "upstage_solar",
+                "name": "Upstage Solar Pro 2 (기본)",
+                "model": "solar-pro2-preview",
                 "status": "available",
                 "recommended": True
             }],

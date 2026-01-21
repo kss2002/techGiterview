@@ -13,7 +13,8 @@ router = APIRouter(prefix="/api/v1/ai", tags=["ai-settings"])
 
 def extract_api_keys_from_headers(
     github_token: Optional[str] = Header(None, alias="x-github-token"),
-    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key"),
+    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key")
 ) -> Dict[str, str]:
     """요청 헤더에서 API 키 추출"""
     api_keys = {}
@@ -21,6 +22,8 @@ def extract_api_keys_from_headers(
         api_keys["github_token"] = github_token
     if google_api_key:
         api_keys["google_api_key"] = google_api_key
+    if upstage_api_key:
+        api_keys["upstage_api_key"] = upstage_api_key
     return api_keys
 
 
@@ -35,14 +38,24 @@ def get_effective_providers(api_keys: Dict[str, str]) -> List[Dict[str, Any]]:
         # 배포 환경(.env.dev 없음): 헤더의 키를 기반으로 동적 생성
         providers = []
         
+        # Upstage API 키가 있으면 Upstage Solar Pro 2 추가 (우선 추천)
+        if "upstage_api_key" in api_keys and api_keys["upstage_api_key"]:
+            providers.append({
+                "id": AIProvider.UPSTAGE_SOLAR.value,
+                "name": "Upstage Solar Pro 2 (추천)",
+                "model": "solar-pro2-preview",
+                "status": "ready",
+                "recommended": True
+            })
+        
         # Google API 키가 있으면 Gemini 추가
         if "google_api_key" in api_keys and api_keys["google_api_key"]:
             providers.append({
                 "id": AIProvider.GEMINI_FLASH.value,
-                "name": "Google Gemini 2.0 Flash (추천)",
+                "name": "Google Gemini 2.0 Flash",
                 "model": "gemini-2.0-flash",
                 "status": "ready",
-                "recommended": True
+                "recommended": len(providers) == 0  # Upstage 없으면 Gemini 추천
             })
         
         # 배포 환경에서 API 키가 없으면 빈 목록 반환
