@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { 
-  LayoutDashboard, 
-  Github, 
-  Lightbulb, 
-  Tag, 
-  FileText, 
-  Star, 
-  GitFork, 
-  Code, 
-  Clock, 
+import {
+  LayoutDashboard,
+  Github,
+  Lightbulb,
+  Tag,
+  FileText,
+  Star,
+  GitFork,
+  Code,
+  Clock,
   CheckCircle,
   ArrowRight,
   Folder,
@@ -176,13 +176,13 @@ const createApiHeaders = (includeApiKeys: boolean = false) => {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   }
-  
+
   if (includeApiKeys) {
     const { githubToken, googleApiKey } = getApiKeysFromStorage()
     if (githubToken) headers['X-GitHub-Token'] = githubToken
     if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
   }
-  
+
   return headers
 }
 
@@ -190,7 +190,7 @@ const createApiHeaders = (includeApiKeys: boolean = false) => {
 const getFileIcon = (filePath: string): React.ReactNode => {
   const extension = filePath.split('.').pop()?.toLowerCase()
   const fileName = filePath.split('/').pop()?.toLowerCase() || ''
-  
+
   // 특수 파일명 먼저 처리
   if (fileName === 'dockerfile' || fileName.startsWith('dockerfile')) {
     return <Monitor className="file-icon file-icon-monitor" />
@@ -210,7 +210,7 @@ const getFileIcon = (filePath: string): React.ReactNode => {
   if (fileName === 'package-lock.json' || fileName === 'yarn.lock') {
     return <Archive className="file-icon file-icon-archive" />
   }
-  
+
   // 확장자별 처리
   switch (extension) {
     case 'js':
@@ -287,11 +287,11 @@ export const DashboardPage: React.FC = () => {
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false)
   const [questionsGenerated, setQuestionsGenerated] = useState(false)
-  
+
   // 전체 분석 목록을 위한 상태
   const [allAnalyses, setAllAnalyses] = useState<RecentAnalysis[]>([])
   const [isLoadingAllAnalyses, setIsLoadingAllAnalyses] = useState(false)
-  
+
   // 질문 상태 변경 추적을 위한 래퍼 함수
   const setQuestions = (newQuestions: Question[]) => {
     console.log('[Questions State] Updating questions state:', {
@@ -318,7 +318,7 @@ export const DashboardPage: React.FC = () => {
 
   // 컴포넌트 상태 추적 (개발 모드에서만)
   if (process.env.NODE_ENV === 'development') {
-    console.log('[Dashboard] 렌더링:', { 
+    console.log('[Dashboard] 렌더링:', {
       analysisId,
       hasResult: !!analysisResult,
       questionsCount: questions.length,
@@ -330,19 +330,19 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     const forceFileTreeAlignment = () => {
       console.log('[CSS Force] 파일 트리 정렬 강제 적용 시작')
-      
+
       // 모든 파일 트리 관련 요소에 강제 스타일 적용
       const fileTreeContent = document.querySelector('.file-tree-content')
       const fileTreeItems = document.querySelectorAll('.file-tree-item')
       const folderChildren = document.querySelectorAll('.folder-children')
-      
+
       if (fileTreeContent) {
         const contentEl = fileTreeContent as HTMLElement
         contentEl.style.setProperty('text-align', 'left', 'important')
         contentEl.style.setProperty('display', 'block', 'important')
         console.log('[CSS Force] .file-tree-content 정렬 강제 적용 완료')
       }
-      
+
       fileTreeItems.forEach((item, index) => {
         const itemEl = item as HTMLElement
         itemEl.style.setProperty('display', 'flex', 'important')
@@ -353,7 +353,7 @@ export const DashboardPage: React.FC = () => {
         itemEl.style.setProperty('padding-left', '0', 'important')
         itemEl.style.setProperty('margin-left', '0', 'important')
       })
-      
+
       folderChildren.forEach((child, index) => {
         const childEl = child as HTMLElement
         childEl.style.setProperty('display', 'block', 'important')
@@ -363,7 +363,7 @@ export const DashboardPage: React.FC = () => {
         childEl.style.setProperty('padding-left', '0', 'important')
         childEl.style.setProperty('margin-left', '0', 'important')
       })
-      
+
       // 모든 파일 트리 노드의 들여쓰기 강제 제거
       const allNodes = document.querySelectorAll('.file-tree-node, .file-tree-node-simple')
       allNodes.forEach((node) => {
@@ -372,45 +372,45 @@ export const DashboardPage: React.FC = () => {
         nodeEl.style.setProperty('margin-left', '0', 'important')
         nodeEl.style.setProperty('text-align', 'left', 'important')
       })
-      
+
       console.log('[CSS Force] 파일 트리 정렬 강제 적용 완료:', {
         fileTreeContent: !!fileTreeContent,
         fileTreeItems: fileTreeItems.length,
         folderChildren: folderChildren.length
       })
     }
-    
+
     // 컴포넌트 마운트 시 즉시 적용
     forceFileTreeAlignment()
-    
+
     // DOM 변경 감지하여 지속적으로 적용
     const observer = new MutationObserver((mutations) => {
       let shouldReapply = false
       mutations.forEach(mutation => {
         if (mutation.type === 'childList' && mutation.target) {
           const target = mutation.target as Element
-          if (target.classList?.contains('file-tree-content') || 
-              target.closest('.file-tree-content')) {
+          if (target.classList?.contains('file-tree-content') ||
+            target.closest('.file-tree-content')) {
             shouldReapply = true
           }
         }
       })
-      
+
       if (shouldReapply) {
         setTimeout(forceFileTreeAlignment, 100)
       }
     })
-    
+
     const targetNode = document.querySelector('.file-tree-content')
     if (targetNode) {
-      observer.observe(targetNode, { 
-        childList: true, 
+      observer.observe(targetNode, {
+        childList: true,
         subtree: true,
         attributes: true,
         attributeFilter: ['style', 'class']
       })
     }
-    
+
     return () => {
       observer.disconnect()
     }
@@ -455,18 +455,18 @@ export const DashboardPage: React.FC = () => {
     console.log('[Dashboard] Loading all analyses...')
     setIsLoadingAllAnalyses(true)
     setError(null)
-    
+
     try {
       const response = await fetch('/api/v1/repository/analysis/recent?limit=50') // 더 많은 결과 가져오기
       console.log('[Dashboard] All analyses response received:', response.status)
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const data = await response.json()
       console.log('[Dashboard] All analyses data:', data)
-      
+
       if (data.success) {
         setAllAnalyses(data.data || [])
         console.log(`[Dashboard] Loaded ${data.data?.length || 0} analyses`)
@@ -485,10 +485,10 @@ export const DashboardPage: React.FC = () => {
   const loadAnalysisResult = async (analysisId: string) => {
     console.log('[Dashboard] Starting loadAnalysisResult for ID:', analysisId)
     console.log('[Dashboard] API URL will be:', `/api/v1/repository/analysis/${analysisId}`)
-    
+
     setIsLoadingAnalysis(true)
     setError(null)
-    
+
     try {
       console.log('[Dashboard] Making fetch request...')
       const response = await fetch(`/api/v1/repository/analysis/${analysisId}`)
@@ -498,7 +498,7 @@ export const DashboardPage: React.FC = () => {
         url: response.url,
         headers: Object.fromEntries(response.headers.entries())
       })
-      
+
       if (response.status === 202) {
         // 분석이 아직 진행 중
         const result = await response.json()
@@ -506,7 +506,7 @@ export const DashboardPage: React.FC = () => {
         setError(`분석이 진행 중입니다. 상태: ${result.detail}`)
         return
       }
-      
+
       if (!response.ok) {
         const errorText = await response.text()
         console.error('[Dashboard] API error response:', {
@@ -527,7 +527,7 @@ export const DashboardPage: React.FC = () => {
         has_smart_analysis: !!result.smart_file_analysis
       })
       setAnalysisResult(result)
-      
+
       // 자동으로 전체 파일 목록 로드
       try {
         const filesResponse = await fetch(`/api/v1/repository/analysis/${result.analysis_id}/all-files?max_depth=3&max_files=500`)
@@ -536,11 +536,19 @@ export const DashboardPage: React.FC = () => {
           setAllFiles(files)
           setFilteredFiles(files)
           setShowAllFiles(true)
+          // 최상위 폴더만 펼치기 (스크롤 압박 해소)
+          const topLevelFolders = new Set<string>()
+          files.forEach((node: FileTreeNode) => {
+            if (node.type === 'dir') {
+              topLevelFolders.add(node.path)
+            }
+          })
+          setExpandedFolders(topLevelFolders)
         }
       } catch (error) {
         console.error('Error loading all files:', error)
       }
-      
+
       // 질문이 아직 생성되지 않았다면 자동 로드/생성
       if (!questionsGenerated) {
         console.log('[Dashboard] Auto-loading questions...')
@@ -562,18 +570,18 @@ export const DashboardPage: React.FC = () => {
 
   const loadOrGenerateQuestions = async (analysisToUse: AnalysisResult) => {
     console.log('[Questions] Starting loadOrGenerateQuestions for analysis:', analysisToUse.analysis_id)
-    console.log('[Questions] Current questions state:', { 
-      questionsCount: questions.length, 
-      questionsGenerated, 
-      isLoadingQuestions 
+    console.log('[Questions] Current questions state:', {
+      questionsCount: questions.length,
+      questionsGenerated,
+      isLoadingQuestions
     })
-    
+
     setIsLoadingQuestions(true)
     try {
       // 먼저 이미 생성된 질문이 있는지 확인
       const checkUrl = `/api/v1/questions/analysis/${analysisToUse.analysis_id}`
       console.log('[Questions] Fetching existing questions from:', checkUrl)
-      
+
       const checkResponse = await fetch(checkUrl, {
         method: 'GET',
         headers: createApiHeaders(false) // 질문 조회는 API 키 불필요
@@ -584,7 +592,7 @@ export const DashboardPage: React.FC = () => {
         ok: checkResponse.ok,
         url: checkResponse.url
       })
-      
+
       if (checkResponse.ok) {
         const checkResult = await checkResponse.json()
         console.log('[Questions] Parsed check result:', {
@@ -594,7 +602,7 @@ export const DashboardPage: React.FC = () => {
           analysisId: checkResult.analysis_id,
           error: checkResult.error
         })
-        
+
         if (checkResult.success && checkResult.questions && checkResult.questions.length > 0) {
           // 이미 생성된 질문이 있음
           console.log('[Questions] Found existing questions, setting state:', checkResult.questions.length)
@@ -611,7 +619,7 @@ export const DashboardPage: React.FC = () => {
           statusText: checkResponse.statusText
         })
       }
-      
+
       // 질문이 없으면 새로 생성
       console.log('[Questions] Generating new questions...')
       const generatePayload = {
@@ -621,7 +629,7 @@ export const DashboardPage: React.FC = () => {
         difficulty: "medium"
       }
       console.log('[Questions] Generation payload:', generatePayload)
-      
+
       const generateResponse = await fetch('/api/v1/questions/generate', {
         method: 'POST',
         headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
@@ -648,7 +656,7 @@ export const DashboardPage: React.FC = () => {
         analysisId: generateResult.analysis_id,
         error: generateResult.error
       })
-      
+
       if (generateResult.success) {
         console.log('[Questions] Generated questions successfully, setting state:', generateResult.questions?.length || 0)
         setQuestions(generateResult.questions || [])
@@ -674,7 +682,7 @@ export const DashboardPage: React.FC = () => {
 
   const regenerateQuestions = async () => {
     if (!analysisResult) return
-    
+
     setIsLoadingQuestions(true)
     try {
       // 강제 재생성 옵션을 사용하여 질문 생성
@@ -709,11 +717,11 @@ export const DashboardPage: React.FC = () => {
 
   const loadAllFiles = async () => {
     if (!analysisResult || !analysisId) return
-    
+
     setIsLoadingAllFiles(true)
     try {
       const response = await fetch(`/api/v1/repository/analysis/${analysisId}/all-files?max_depth=3&max_files=500`)
-      
+
       if (!response.ok) {
         throw new Error('전체 파일 목록을 불러올 수 없습니다.')
       }
@@ -749,7 +757,7 @@ export const DashboardPage: React.FC = () => {
         const filteredChildren = filterFiles(node.children || [], term)
         const hasMatchingChildren = filteredChildren.length > 0
         const nameMatches = node.name.toLowerCase().includes(term.toLowerCase())
-        
+
         if (nameMatches || hasMatchingChildren) {
           filtered.push({
             ...node,
@@ -806,20 +814,20 @@ export const DashboardPage: React.FC = () => {
 
   const renderFileTree = (nodes: FileTreeNode[], depth: number = 0): JSX.Element[] => {
     // 구조 개선된 파일 트리 렌더링 - 올바른 들여쓰기 적용
-    
+
     return nodes.map((node, index) => {
       const nodeKey = node.path
       const isExpanded = expandedFolders.has(node.path)
-      
+
       return (
         <React.Fragment key={nodeKey}>
           {/* 현재 노드 렌더링 */}
-          <div 
+          <div
             className="file-tree-node"
-            style={{paddingLeft: `${depth * 20}px`}}
+            style={{ paddingLeft: `${depth * 20}px` }}
           >
             {node.type === 'dir' ? (
-              <button 
+              <button
                 className="folder-toggle"
                 onClick={() => toggleFolder(node.path)}
               >
@@ -828,7 +836,7 @@ export const DashboardPage: React.FC = () => {
                 <span className="folder-name">{node.name}</span>
               </button>
             ) : (
-              <div 
+              <div
                 className="file-item-tree"
                 onClick={() => handleFileClick(node)}
               >
@@ -842,7 +850,7 @@ export const DashboardPage: React.FC = () => {
               </div>
             )}
           </div>
-          
+
           {/* 하위 폴더가 있고 확장된 경우에만 렌더링 */}
           {node.type === 'dir' && isExpanded && node.children && (
             renderFileTree(node.children, depth + 1)
@@ -854,7 +862,7 @@ export const DashboardPage: React.FC = () => {
 
   const startInterview = async () => {
     if (!analysisResult) return
-    
+
     // 질문이 로드되지 않았으면 먼저 로드
     if (questions.length === 0) {
       console.log('질문이 없습니다. 질문을 먼저 생성합니다.')
@@ -863,14 +871,14 @@ export const DashboardPage: React.FC = () => {
         throw new Error('질문 생성에 실패했습니다.')
       }
     }
-    
+
     console.log('면접 시작 요청:', {
       repo_url: `https://github.com/${analysisResult.repo_info.owner}/${analysisResult.repo_info.name}`,
       analysis_id: analysisResult.analysis_id,
       question_ids: questions.map(q => q.id),
       questions_count: questions.length
     })
-    
+
     try {
       // API 키 헤더 포함하여 면접 시작 요청
       const apiHeaders = createApiHeaders(true)
@@ -879,7 +887,7 @@ export const DashboardPage: React.FC = () => {
         githubToken: localStorage.getItem('techgiterview_github_token') ? '설정됨' : '없음',
         googleApiKey: localStorage.getItem('techgiterview_google_api_key') ? '설정됨' : '없음'
       })
-      
+
       const response = await fetch('/api/v1/interview/start', {
         method: 'POST',
         headers: apiHeaders,
@@ -889,7 +897,7 @@ export const DashboardPage: React.FC = () => {
           question_ids: questions.map(q => q.id)
         })
       })
-      
+
       console.log('[DASHBOARD] 면접 시작 응답 상태:', response.status, response.statusText)
 
       if (!response.ok) {
@@ -918,25 +926,25 @@ export const DashboardPage: React.FC = () => {
   const getCategoryIcon = (category: string): React.ReactNode => {
     if (!category) return <Code className="category-icon category-icon-default" />
     switch (category.toLowerCase()) {
-      case 'technical': 
+      case 'technical':
         return <Terminal className="category-icon category-icon-technical" />
-      case 'architectural': 
+      case 'architectural':
         return <Monitor className="category-icon category-icon-architectural" />
-      case 'scenario': 
+      case 'scenario':
         return <MessageSquare className="category-icon category-icon-scenario" />
-      case 'algorithm': 
+      case 'algorithm':
         return <Zap className="category-icon category-icon-algorithm" />
-      case 'data-structure': 
+      case 'data-structure':
         return <Database className="category-icon category-icon-datastructure" />
-      case 'system-design': 
+      case 'system-design':
         return <TrendingUp className="category-icon category-icon-systemdesign" />
-      case 'code-review': 
+      case 'code-review':
         return <CheckCircle className="category-icon category-icon-codereview" />
-      case 'best-practices': 
+      case 'best-practices':
         return <Star className="category-icon category-icon-bestpractices" />
-      case 'debugging': 
+      case 'debugging':
         return <AlertTriangle className="category-icon category-icon-debugging" />
-      default: 
+      default:
         return <Code className="category-icon category-icon-default" />
     }
   }
@@ -966,7 +974,7 @@ export const DashboardPage: React.FC = () => {
   const getFileTypeReason = (filePath: string): string => {
     const fileName = filePath.split('/').pop()?.toLowerCase() || ''
     const extension = fileName.split('.').pop()?.toLowerCase() || ''
-    
+
     if (fileName === 'package.json') return '프로젝트 설정 및 의존성 관리 파일'
     if (fileName === 'readme.md') return '프로젝트 문서화 및 가이드 파일'
     if (fileName.includes('config') || fileName.includes('settings')) return '프로젝트 설정 파일'
@@ -1008,11 +1016,42 @@ export const DashboardPage: React.FC = () => {
     console.log('[Dashboard] Rendering loading state')
     return (
       <div className="dashboard-loading">
-        <div className="spinner-large"></div>
-        <p>{analysisId ? '분석 결과를 불러오는 중...' : '분석 목록을 불러오는 중...'}</p>
+        <div className="loading-content">
+          <div className="progress-container">
+            <div className="spinner-large"></div>
+            <div className="progress-info">
+              <h3 className="progress-title">
+                {analysisId ? '📊 분석 결과 로딩 중' : '📋 분석 목록 로딩 중'}
+              </h3>
+              <div className="progress-steps">
+                <div className="progress-step active">
+                  <div className="step-indicator"></div>
+                  <span>저장소 정보 조회</span>
+                </div>
+                <div className="progress-step">
+                  <div className="step-indicator"></div>
+                  <span>파일 구조 분석</span>
+                </div>
+                <div className="progress-step">
+                  <div className="step-indicator"></div>
+                  <span>AI 질문 생성</span>
+                </div>
+              </div>
+              <p className="progress-time">⏱️ 예상 소요 시간: 1~3분</p>
+              <p className="progress-hint">큰 저장소일수록 더 오래 걸릴 수 있습니다.</p>
+              <button
+                className="btn btn-outline btn-cancel"
+                onClick={() => navigate('/')}
+              >
+                취소하고 홈으로
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
+
 
   // analysisId가 없는 경우 - 분석 목록 표시
   if (!analysisId) {
@@ -1029,86 +1068,109 @@ export const DashboardPage: React.FC = () => {
             <p className="analysis-id">총 {allAnalyses.length}개의 분석 결과가 있습니다</p>
           </div>
         </div>
-        
+
         <div className="dashboard-content">
 
-        {allAnalyses.length === 0 && !error ? (
-          <div className="analyses-empty">
-            <div className="empty-state">
-              <LayoutDashboard className="empty-icon" />
-              <h3>분석 결과가 없습니다</h3>
-              <p>GitHub 저장소를 분석해보세요!</p>
-              <button onClick={() => navigate('/')} className="btn btn-primary">
-                🏠 홈으로 가기
-              </button>
+          {/* 검색 및 정렬 */}
+          <div className="dashboard-filters">
+            <div className="search-container">
+              <Search className="search-icon" />
+              <input
+                type="text"
+                placeholder="저장소 이름으로 검색..."
+                className="search-input"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
-        ) : (
-          <div className="analyses-grid">
-            {allAnalyses.map((analysis) => (
-              <div 
-                key={analysis.analysis_id} 
-                className="card analysis-card"
-                onClick={() => navigate(`/dashboard/${analysis.analysis_id}`)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && navigate(`/dashboard/${analysis.analysis_id}`)}
-              >
-                <div className="analysis-header">
-                  <div className="repo-info">
-                    <Github className="repo-icon" />
-                    <h3>{analysis.repository_owner}/{analysis.repository_name}</h3>
-                  </div>
-                  <div className="analysis-meta">
-                    <div className="analysis-date">
-                      <Clock className="date-icon" />
-                      <span>{new Date(analysis.created_at).toLocaleDateString('ko-KR', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="analysis-content">
-                  <div className="analysis-details">
-                    <div className="detail-item">
-                      <Code className="detail-icon" />
-                      <span className="detail-label">주언어</span>
-                      <span className="detail-value">{analysis.primary_language}</span>
-                    </div>
-                    <div className="detail-item">
-                      <FileText className="detail-icon" />
-                      <span className="detail-label">파일 수</span>
-                      <span className="detail-value">{analysis.file_count}개</span>
-                    </div>
-                  </div>
-                  
-                  <div className="tech-stack-section">
-                    <h4 className="tech-stack-title">기술 스택</h4>
-                    <div className="tech-stack">
-                      {analysis.tech_stack.slice(0, 4).map((tech, idx) => (
-                        <span key={idx} className="tech-tag">{tech}</span>
-                      ))}
-                      {analysis.tech_stack.length > 4 && (
-                        <span className="tech-more">+{analysis.tech_stack.length - 4}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="analysis-footer">
-                  <div className="analysis-actions">
-                    <ArrowRight className="action-icon" />
-                    <span>상세 분석 보기</span>
-                  </div>
+
+          {(() => {
+            // 검색어로 필터링
+            const filteredAnalyses = allAnalyses.filter(analysis =>
+              searchTerm === '' ||
+              `${analysis.repository_owner}/${analysis.repository_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              analysis.primary_language?.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+
+            return filteredAnalyses.length === 0 && !error ? (
+              <div className="analyses-empty">
+                <div className="empty-state">
+                  <LayoutDashboard className="empty-icon" />
+                  <h3>{searchTerm ? '검색 결과가 없습니다' : '분석 결과가 없습니다'}</h3>
+                  <p>{searchTerm ? `"${searchTerm}"에 해당하는 저장소가 없습니다` : 'GitHub 저장소를 분석해보세요!'}</p>
+                  <button onClick={() => searchTerm ? setSearchTerm('') : navigate('/')} className="btn btn-primary">
+                    {searchTerm ? '검색 초기화' : '🏠 홈으로 가기'}
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="analyses-grid">
+                {filteredAnalyses.map((analysis) => (
+                  <div
+                    key={analysis.analysis_id}
+                    className="card analysis-card"
+                    onClick={() => navigate(`/dashboard/${analysis.analysis_id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && navigate(`/dashboard/${analysis.analysis_id}`)}
+                  >
+                    <div className="analysis-header">
+                      <div className="repo-info">
+                        <Github className="repo-icon" />
+                        <h3>{analysis.repository_owner}/{analysis.repository_name}</h3>
+                      </div>
+                      <div className="analysis-meta">
+                        <div className="analysis-date">
+                          <Clock className="date-icon" />
+                          <span>{new Date(analysis.created_at).toLocaleDateString('ko-KR', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="analysis-content">
+                      <div className="analysis-details">
+                        <div className="detail-item">
+                          <Code className="detail-icon" />
+                          <span className="detail-label">주언어</span>
+                          <span className="detail-value">{analysis.primary_language}</span>
+                        </div>
+                        <div className="detail-item">
+                          <FileText className="detail-icon" />
+                          <span className="detail-label">파일 수</span>
+                          <span className="detail-value">{analysis.file_count}개</span>
+                        </div>
+                      </div>
+
+                      <div className="tech-stack-section">
+                        <h4 className="tech-stack-title">기술 스택</h4>
+                        <div className="tech-stack">
+                          {analysis.tech_stack.slice(0, 4).map((tech, idx) => (
+                            <span key={idx} className="tech-tag">{tech}</span>
+                          ))}
+                          {analysis.tech_stack.length > 4 && (
+                            <span className="tech-more">+{analysis.tech_stack.length - 4}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="analysis-footer">
+                      <div className="analysis-actions">
+                        <ArrowRight className="action-icon" />
+                        <span>상세 분석 보기</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
         </div>
       </div>
     )
@@ -1116,8 +1178,8 @@ export const DashboardPage: React.FC = () => {
 
   // 분석 결과가 없거나 오류가 있는 경우 (특정 analysisId가 있을 때만)
   if (!analysisResult || error) {
-    console.log('[Dashboard] Rendering error state:', { 
-      hasAnalysisResult: !!analysisResult, 
+    console.log('[Dashboard] Rendering error state:', {
+      hasAnalysisResult: !!analysisResult,
       error,
       analysisId
     })
@@ -1138,11 +1200,11 @@ export const DashboardPage: React.FC = () => {
             <button onClick={() => navigate('/dashboard')} className="btn btn-primary">
               📊 전체 분석 보기
             </button>
-            <button 
+            <button
               onClick={() => {
                 setError(null)
                 if (analysisId) loadAnalysisResult(analysisId)
-              }} 
+              }}
               className="btn btn-ghost"
             >
               다시 시도
@@ -1164,6 +1226,16 @@ export const DashboardPage: React.FC = () => {
             https://github.com/{analysisResult.repo_info.owner}/{analysisResult.repo_info.name}
           </p>
           <p className="analysis-id">분석 ID: {analysisResult.analysis_id}</p>
+        </div>
+        <div className="header-actions">
+          <button
+            className="btn btn-primary btn-lg interview-cta"
+            onClick={startInterview}
+            disabled={isLoadingQuestions || questions.length === 0}
+          >
+            <Play className="btn-icon" />
+            {isLoadingQuestions ? '질문 로딩 중...' : '면접 시작하기'}
+          </button>
         </div>
       </div>
 
@@ -1228,7 +1300,7 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div className="tech-stack-grid">
             {Object.entries(analysisResult.tech_stack || {})
-              .sort(([,a], [,b]) => b - a) // 점수 순으로 정렬
+              .sort(([, a], [, b]) => b - a) // 점수 순으로 정렬
               .map(([tech, score], index) => (
                 <span key={index} className="tech-tag">
                   {tech} ({(score * 100).toFixed(1)}%)
@@ -1244,7 +1316,7 @@ export const DashboardPage: React.FC = () => {
             <h2><FileText className="section-icon" /> 주요 파일</h2>
             <div className="file-actions">
               {!showAllFiles && (
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   onClick={loadAllFiles}
                   disabled={isLoadingAllFiles}
@@ -1254,7 +1326,7 @@ export const DashboardPage: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           {!showAllFiles ? (
             <div className="files-loading">
               <div className="spinner"></div>
@@ -1274,7 +1346,7 @@ export const DashboardPage: React.FC = () => {
                       <div className="file-tree-header">
                         <div className="file-tree-info">
                           <p>
-                            {searchTerm ? 
+                            {searchTerm ?
                               `"${searchTerm}" 검색 결과: ${filteredFiles.length}개 항목` :
                               `${allFiles.length}개의 최상위 항목`
                             }
@@ -1282,22 +1354,22 @@ export const DashboardPage: React.FC = () => {
                         </div>
                         <div className="file-tree-controls">
                           <div className="relative">
-                            <Search className="section-icon" style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', zIndex: 10}} />
+                            <Search className="section-icon" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }} />
                             <input
                               type="text"
                               placeholder="파일 검색..."
                               value={searchTerm}
                               onChange={(e) => handleSearch(e.target.value)}
                               className="form-input form-input-sm"
-                              style={{paddingLeft: 'var(--spacing-10)'}}
+                              style={{ paddingLeft: 'var(--spacing-10)' }}
                             />
                           </div>
-                          <button 
+                          <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => setExpandedFolders(new Set())}
-                            style={{display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)'}}
+                            style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}
                           >
-                            <Minus className="section-icon" style={{width: '0.75rem', height: '0.75rem'}} />
+                            <Minus className="section-icon" style={{ width: '0.75rem', height: '0.75rem' }} />
                             모두 접기
                           </button>
                         </div>
@@ -1325,31 +1397,31 @@ export const DashboardPage: React.FC = () => {
               </p>
             )}
             <div className="question-actions">
-              <button 
+              <button
                 className="btn btn-outline"
                 onClick={regenerateQuestions}
                 disabled={isLoadingQuestions}
               >
                 {isLoadingQuestions ? '생성 중...' : '질문 재생성'}
               </button>
-              <button 
+              <button
                 className="btn btn-primary btn-lg"
                 onClick={startInterview}
                 disabled={questions.length === 0 || isLoadingQuestions}
-                style={{display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', justifyContent: 'center'}}
+                style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', justifyContent: 'center' }}
               >
-                <Play className="section-icon" style={{width: '1rem', height: '1rem'}} />
+                <Play className="section-icon" style={{ width: '1rem', height: '1rem' }} />
                 {isLoadingQuestions ? '준비 중...' : '모의면접 시작'}
               </button>
             </div>
           </div>
-          
+
           {isLoadingQuestions ? (
             <div className="questions-loading">
               <div className="spinner"></div>
               <p>
-                {questionsGenerated ? 
-                  'AI가 새로운 질문을 생성하고 있습니다...' : 
+                {questionsGenerated ?
+                  'AI가 새로운 질문을 생성하고 있습니다...' :
                   'AI가 맞춤형 질문을 확인하고 있습니다...'
                 }
               </p>
@@ -1359,9 +1431,9 @@ export const DashboardPage: React.FC = () => {
               {/* 중요 파일 미리보기 섹션 - questions-grid 상단에 추가 */}
               {(() => {
                 // smart_file_analysis가 있으면 사용, 없으면 key_files를 변환해서 사용
-                const criticalFiles = analysisResult?.smart_file_analysis?.critical_files 
+                const criticalFiles = analysisResult?.smart_file_analysis?.critical_files
                   || (analysisResult?.key_files ? convertKeyFilesToSmartAnalysis(analysisResult.key_files) : [])
-                
+
                 console.log('[DEBUG] CriticalFilesPreview 렌더링 조건:', {
                   hasSmartAnalysis: !!analysisResult?.smart_file_analysis?.critical_files,
                   hasKeyFiles: !!analysisResult?.key_files,
@@ -1375,9 +1447,9 @@ export const DashboardPage: React.FC = () => {
                     importance_score: file.importance_score
                   }))
                 })
-                
+
                 return criticalFiles.length > 0 ? (
-                  <CriticalFilesPreview 
+                  <CriticalFilesPreview
                     criticalFiles={criticalFiles}
                     onFileClick={(filePath: string) => {
                       setSelectedFilePath(filePath)
@@ -1386,117 +1458,117 @@ export const DashboardPage: React.FC = () => {
                   />
                 ) : null
               })()}
-              
+
               <div className="questions-grid">
-              {questions.length === 0 ? (
-                <div className="questions-empty-state">
-                  <div className="empty-state-content">
-                    <MessageSquare className="empty-state-icon" />
-                    <h3>질문을 불러오는 중입니다</h3>
-                    <p>
-                      {questionsGenerated 
-                        ? "질문 생성이 완료되었지만 표시되지 않고 있습니다. 잠시 후 다시 시도해주세요."
-                        : "AI가 저장소를 분석하여 맞춤형 면접 질문을 준비하고 있습니다."
-                      }
-                    </p>
-                    <button 
-                      className="btn btn-outline"
-                      onClick={() => analysisResult && loadOrGenerateQuestions(analysisResult)}
-                      disabled={isLoadingQuestions}
-                    >
-                      {isLoadingQuestions ? '로딩 중...' : '질문 다시 불러오기'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                questions.map((question, index) => (
-                <div 
-                  key={question.id} 
-                  className="question-card"
-                  data-has-real-content={question.code_snippet?.has_real_content ?? 'unknown'}
-                >
-                  <div className="question-header">
-                    <div className="question-meta">
-                      <span className="question-number">Q{index + 1}</span>
-                      {getCategoryIcon(question.type)}
-                      <span className="category-name">{question.type}</span>
-                      {question.parent_question_id && (
-                        <span className="sub-question-indicator">
-                          ({question.sub_question_index}/{question.total_sub_questions})
-                        </span>
-                      )}
-                    </div>
-                    <span 
-                      className="difficulty-badge"
-                      style={{ backgroundColor: getDifficultyColor(question.difficulty) }}
-                    >
-                      {question.difficulty}
-                    </span>
-                  </div>
-                  <div className="question-content">
-                    <div className="question-text">
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
+                {questions.length === 0 ? (
+                  <div className="questions-empty-state">
+                    <div className="empty-state-content">
+                      <MessageSquare className="empty-state-icon" />
+                      <h3>질문을 불러오는 중입니다</h3>
+                      <p>
+                        {questionsGenerated
+                          ? "질문 생성이 완료되었지만 표시되지 않고 있습니다. 잠시 후 다시 시도해주세요."
+                          : "AI가 저장소를 분석하여 맞춤형 면접 질문을 준비하고 있습니다."
+                        }
+                      </p>
+                      <button
+                        className="btn btn-outline"
+                        onClick={() => analysisResult && loadOrGenerateQuestions(analysisResult)}
+                        disabled={isLoadingQuestions}
                       >
-                        {question.question}
-                      </ReactMarkdown>
+                        {isLoadingQuestions ? '로딩 중...' : '질문 다시 불러오기'}
+                      </button>
                     </div>
-                    
-                    {/* 질문 기반 파일 정보 표시 */}
-                    {question.source_file && (
-                      <div className="question-source-file">
-                        {getFileIcon(question.source_file)}
-                        <span className="source-file-text">
-                          <FileText className="section-icon" style={{width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)'}} />
-                          기반 파일: {question.source_file}
-                        </span>
-                        {question.importance && (
-                          <span className={`importance-badge ${question.importance}`}>
-                            {question.importance === 'high' ? '[CORE] 핵심' : '[SUB] 보조'}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    
-                    {question.context && (
-                      <p className="question-context">
-                        <Info className="section-icon" style={{width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)'}} /> 
-                        {question.context}
-                      </p>
-                    )}
-                    {question.technology && (
-                      <p className="question-tech">
-                        <Tag className="section-icon" style={{width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)'}} /> 
-                        기술: {question.technology}
-                      </p>
-                    )}
-                    {question.code_snippet && (
-                      <div className="question-code">
-                        <div className="code-header">
-                          {getFileIcon(question.code_snippet.file_path)}
-                          <span className="code-file-path">
-                            <File className="section-icon" style={{width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-1)'}} /> 
-                            {question.code_snippet.file_path}
-                          </span>
-                          {question.code_snippet.has_real_content === false && (
-                            <span className="content-status warning">
-                              [WARN] 내용 없음 ({question.code_snippet.content_unavailable_reason})
+                  </div>
+                ) : (
+                  questions.map((question, index) => (
+                    <div
+                      key={question.id}
+                      className="question-card"
+                      data-has-real-content={question.code_snippet?.has_real_content ?? 'unknown'}
+                    >
+                      <div className="question-header">
+                        <div className="question-meta">
+                          <span className="question-number">Q{index + 1}</span>
+                          {getCategoryIcon(question.type)}
+                          <span className="category-name">{question.type}</span>
+                          {question.parent_question_id && (
+                            <span className="sub-question-indicator">
+                              ({question.sub_question_index}/{question.total_sub_questions})
                             </span>
                           )}
-                          {question.code_snippet.has_real_content === true && (
-                            <span className="content-status success">[OK] 실제 코드</span>
-                          )}
                         </div>
-                        <pre className="code-snippet">{question.code_snippet.content}</pre>
+                        <span
+                          className="difficulty-badge"
+                          style={{ backgroundColor: getDifficultyColor(question.difficulty) }}
+                        >
+                          {question.difficulty}
+                        </span>
                       </div>
-                    )}
-                    {question.time_estimate && (
-                      <p className="question-time"><Clock className="w-4 h-4 inline mr-2" /> 예상 시간: {question.time_estimate}</p>
-                    )}
-                  </div>
-                </div>
-                ))
-              )}
+                      <div className="question-content">
+                        <div className="question-text">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                          >
+                            {question.question}
+                          </ReactMarkdown>
+                        </div>
+
+                        {/* 질문 기반 파일 정보 표시 */}
+                        {question.source_file && (
+                          <div className="question-source-file">
+                            {getFileIcon(question.source_file)}
+                            <span className="source-file-text">
+                              <FileText className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)' }} />
+                              기반 파일: {question.source_file}
+                            </span>
+                            {question.importance && (
+                              <span className={`importance-badge ${question.importance}`}>
+                                {question.importance === 'high' ? '[CORE] 핵심' : '[SUB] 보조'}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {question.context && (
+                          <p className="question-context">
+                            <Info className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)' }} />
+                            {question.context}
+                          </p>
+                        )}
+                        {question.technology && (
+                          <p className="question-tech">
+                            <Tag className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)' }} />
+                            기술: {question.technology}
+                          </p>
+                        )}
+                        {question.code_snippet && (
+                          <div className="question-code">
+                            <div className="code-header">
+                              {getFileIcon(question.code_snippet.file_path)}
+                              <span className="code-file-path">
+                                <File className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-1)' }} />
+                                {question.code_snippet.file_path}
+                              </span>
+                              {question.code_snippet.has_real_content === false && (
+                                <span className="content-status warning">
+                                  [WARN] 내용 없음 ({question.code_snippet.content_unavailable_reason})
+                                </span>
+                              )}
+                              {question.code_snippet.has_real_content === true && (
+                                <span className="content-status success">[OK] 실제 코드</span>
+                              )}
+                            </div>
+                            <pre className="code-snippet">{question.code_snippet.content}</pre>
+                          </div>
+                        )}
+                        {question.time_estimate && (
+                          <p className="question-time"><Clock className="w-4 h-4 inline mr-2" /> 예상 시간: {question.time_estimate}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </>
           )}

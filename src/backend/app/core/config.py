@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = None  # Deprecated - Use Gemini instead
     anthropic_api_key: Optional[str] = None
     google_api_key: Optional[str] = None  # Required for Gemini
+    upstage_api_key: Optional[str] = None  # Required for Upstage Solar Pro 2
     
     # LangSmith
     langsmith_api_key: Optional[str] = None

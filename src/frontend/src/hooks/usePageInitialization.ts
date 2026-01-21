@@ -20,13 +20,13 @@ const createApiHeaders = (includeApiKeys: boolean = false) => {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   }
-  
+
   if (includeApiKeys) {
     const { githubToken, googleApiKey } = getApiKeysFromStorage()
     if (githubToken) headers['X-GitHub-Token'] = githubToken
     if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
   }
-  
+
   return headers
 }
 
@@ -53,21 +53,21 @@ interface PageInitData {
 const fetchPageInitData = async (): Promise<PageInitData> => {
   try {
     const headers = createApiHeaders(true)
-    
+
     // 새로운 통합 API 호출
-    const response = await apiFetch('/api/v1/homepage/init', { 
+    const response = await apiFetch('/api/v1/homepage/init', {
       headers,
       timeout: 5000 // 5초 타임아웃
     })
-    
+
     if (!response.ok) {
       // 백엔드 연결 실패 시 로컬 데이터로 폴백
       console.warn(`Homepage Init API 연결 실패 (${response.status}), 로컬 모드로 전환`)
       throw new Error(`Backend connection failed: ${response.status}`)
     }
-    
+
     const data = await response.json()
-    
+
     return {
       config: data.config,
       providers: data.providers
@@ -83,7 +83,7 @@ const fetchPageInitData = async (): Promise<PageInitData> => {
 const getLocalData = (): PageInitData => {
   const { githubToken, googleApiKey } = getApiKeysFromStorage()
   const hasKeys = !!(githubToken && googleApiKey)
-  
+
   return {
     config: {
       keys_required: !hasKeys,
@@ -95,9 +95,9 @@ const getLocalData = (): PageInitData => {
       development_mode_active: true // 로컬 데이터에서는 기본적으로 활성화
     },
     providers: [{
-      id: 'gemini_flash',
-      name: 'Google Gemini 2.0 Flash (기본)',
-      model: 'gemini-2.0-flash-exp',
+      id: 'upstage_solar',
+      name: 'Upstage Solar Pro 2 (기본)',
+      model: 'solar-pro2-preview',
       status: 'available',
       recommended: true
     }]
@@ -107,13 +107,13 @@ const getLocalData = (): PageInitData => {
 // 메인 Hook
 export const usePageInitialization = () => {
   const [localData] = useState(() => getLocalData())
-  
+
   // API 키 저장 상태를 추적하는 상태 추가
   const [hasStoredKeysState, setHasStoredKeysState] = useState(() => {
     const { githubToken, googleApiKey } = getApiKeysFromStorage()
     return !!(githubToken && googleApiKey)
   })
-  
+
   // React Query로 서버 데이터 가져오기 (백그라운드)
   const {
     data: serverData,
@@ -132,13 +132,13 @@ export const usePageInitialization = () => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: true, // 네트워크 재연결 시에만 재시도
   })
-  
+
   // 서버 데이터가 있으면 사용, 없으면 로컬 데이터 사용
   const effectiveData = serverData || localData
-  
+
   // AI 제공업체 선택 상태
   const [selectedAI, setSelectedAI] = useState('')
-  
+
   // 추천 AI 자동 선택
   useEffect(() => {
     if (effectiveData.providers.length > 0 && !selectedAI) {
@@ -150,24 +150,24 @@ export const usePageInitialization = () => {
       }
     }
   }, [effectiveData.providers, selectedAI])
-  
+
   return {
     // 데이터
     config: effectiveData.config,
     providers: effectiveData.providers,
     selectedAI,
     setSelectedAI,
-    
+
     // 상태
     isLoading,
     error,
     isSuccess,
     isUsingLocalData: !serverData,
     isDevelopmentActive: effectiveData.config.development_mode_active ?? true,
-    
+
     // 유틸리티
     hasStoredKeys: () => hasStoredKeysState,
-    
+
     // API 키 상태를 수동으로 업데이트하는 함수 추가
     refreshStoredKeysState: () => {
       const { githubToken, googleApiKey } = getApiKeysFromStorage()
@@ -175,7 +175,7 @@ export const usePageInitialization = () => {
       setHasStoredKeysState(newState)
       return newState
     },
-    
+
     createApiHeaders
   }
 }
