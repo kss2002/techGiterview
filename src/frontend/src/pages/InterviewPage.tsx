@@ -145,20 +145,66 @@ const createApiHeaders = (includeApiKeys: boolean = false) => {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   }
-  
+
   if (includeApiKeys) {
     const { githubToken, googleApiKey } = getApiKeysFromStorage()
     if (githubToken) headers['X-GitHub-Token'] = githubToken
     if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
   }
-  
+
   return headers
+}
+
+// 질문 텍스트에서 JSON 형식 또는 불필요한 메타데이터를 제거하는 헬퍼 함수
+const sanitizeQuestionText = (text: string | undefined): string => {
+  if (!text) return ''
+
+  // JSON 형식인지 확인하고 파싱 시도
+  if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text)
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed.question || parsed.text || parsed.content || text
+      }
+      return text
+    } catch {
+      return text
+    }
+  }
+
+  // JSON 객체 패턴 제거 (문자열 내에 포함된 JSON 패턴)
+  const jsonPattern = /\{"id":\s*"[^"]*",\s*"question":\s*"[^"]*"[^}]*\}/g
+  let cleanedText = text.replace(jsonPattern, '')
+
+  // 중복된 공백 및 줄바꿈 정리
+  cleanedText = cleanedText.replace(/\n{3,}/g, '\n\n').trim()
+
+  return cleanedText || text
+}
+
+// context 필드 정제 함수
+const sanitizeContext = (context: string | undefined): string => {
+  if (!context) return ''
+
+  // JSON 형식인 경우 무시
+  if (context.trim().startsWith('{') || context.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(context)
+      if (typeof parsed === 'object') {
+        return parsed.context || parsed.hint || ''
+      }
+    } catch {
+      return ''
+    }
+  }
+
+  return context
 }
 
 export const InterviewPage: React.FC = () => {
   const { analysisId, interviewId } = useParams<{ analysisId?: string; interviewId: string }>()
   const navigate = useNavigate()
-  
+
   const [interview, setInterview] = useState<InterviewData | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
   const [questionGroups, setQuestionGroups] = useState<QuestionGroups>({})
@@ -186,7 +232,7 @@ export const InterviewPage: React.FC = () => {
     originalAnswer: string;
     feedback: AnswerFeedbackData;
   } | null>(null)
-  
+
   const wsRef = useRef<WebSocket | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -203,30 +249,30 @@ export const InterviewPage: React.FC = () => {
 
     // 임시로 WebSocket 없이 진행
     setWsConnected(true)
-    
+
     // const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/interview/${interviewId}`
     // const ws = new WebSocket(wsUrl)
-    
+
     // ws.onopen = () => {
     //   console.log('WebSocket connected')
     //   setWsConnected(true)
     // }
-    
+
     // ws.onmessage = (event) => {
     //   const data = JSON.parse(event.data)
     //   handleWebSocketMessage(data)
     // }
-    
+
     // ws.onclose = () => {
     //   console.log('WebSocket disconnected')
     //   setWsConnected(false)
     // }
-    
+
     // ws.onerror = (error) => {
     //   console.error('WebSocket error:', error)
     //   setWsConnected(false)
     // }
-    
+
     // wsRef.current = ws
 
     return () => {
@@ -245,7 +291,7 @@ export const InterviewPage: React.FC = () => {
       navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')
       return
     }
-    
+
     loadInterview()
   }, [interviewId, navigate])
 
@@ -316,7 +362,7 @@ export const InterviewPage: React.FC = () => {
       if (autoSaveTimer.current) {
         clearTimeout(autoSaveTimer.current)
       }
-      
+
       autoSaveTimer.current = setTimeout(() => {
         saveCurrentAnswer()
       }, 2000) // 2초 후 자동 저장
@@ -336,11 +382,11 @@ export const InterviewPage: React.FC = () => {
       const savedKey = `interview_${interviewId}_${currentQ.id}`
       const saved = localStorage.getItem(savedKey)
       setCurrentAnswer(saved || '')
-      
+
       // 질문 변경 시 높이 기준점 초기화
       previousHeightRef.current = null
       debugLog.debug('height', '질문 변경 - 높이 기준점 초기화')
-      
+
       // 답변 로드 후 textarea 상단으로 스크롤
       setTimeout(() => {
         if (textareaRef.current) {
@@ -360,55 +406,55 @@ export const InterviewPage: React.FC = () => {
   // 안정화된 높이 계산 함수 - 무한 루프 방지 및 디바운싱 적용
   const updateInputHeaderHeight = useCallback(() => {
     if (!questionContainerRef.current || !inputHeaderRef.current) return
-    
+
     // 디바운싱 적용 - 100ms 내 연속 호출 방지
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
-    
+
     debounceTimerRef.current = setTimeout(() => {
       try {
         const questionContainer = questionContainerRef.current
         const inputHeader = inputHeaderRef.current
-        
+
         if (!questionContainer || !inputHeader) return
-        
+
         // 질문 헤더와 콘텐츠 영역 요소 찾기
         const questionHeader = questionContainer.querySelector('.question-header')
         const questionContent = questionContainer.querySelector('.question-content')
         const currentQuestion = questionContainer.querySelector('.current-question')
         const answerHistory = questionContainer.querySelector('.answer-history')
-        
+
         if (!questionHeader || !currentQuestion) return
-        
+
         // 안정화 임계값 정의
         const SCROLL_THRESHOLD = 2          // 2px 이하 스크롤 차이 무시
         const HEIGHT_CHANGE_THRESHOLD = 10  // 10px 이하 높이 변화 무시
-        
+
         // question-container의 실제 상태 측정
         const questionContainerRect = questionContainer.getBoundingClientRect()
         const questionContainerHeight = questionContainerRect.height
         const questionContainerScrollHeight = questionContainer.scrollHeight
-        
+
         // 안정화된 스크롤 감지 - 미세한 차이 무시
         const contentOverflow = questionContainerScrollHeight - questionContainerHeight
         const hasScrollableContent = contentOverflow > SCROLL_THRESHOLD
-        
+
         // 뷰포트 정보
         const viewportHeight = window.innerHeight
-        
+
         let targetHeight
-        
+
         // 첫 번째 답변인지 확인
         const isFirstAnswer = previousHeightRef.current === null
-        
+
         // 통일된 높이 계산 알고리즘
         if (!answerHistory || answerHistory.querySelectorAll('.answer-item').length === 0) {
           // 답변이 없는 경우: question-header 높이를 기준
           const questionHeaderRect = questionHeader.getBoundingClientRect()
           targetHeight = questionHeaderRect.height
-          
-          debugLog.debug('height', '답변 없음 - question-header 기준', { 
+
+          debugLog.debug('height', '답변 없음 - question-header 기준', {
             targetHeight: targetHeight.toFixed(2),
             questionHeaderHeight: questionHeaderRect.height.toFixed(2)
           })
@@ -419,23 +465,23 @@ export const InterviewPage: React.FC = () => {
           const questionContainerRect = questionContainer.getBoundingClientRect()
           const lastAnswerRect = lastAnswer.getBoundingClientRect()
           const questionHeaderRect = questionHeader.getBoundingClientRect()
-          
+
           // answer-item의 컨테이너 내 상대적 시작 위치 계산
           const relativeTop = lastAnswerRect.top - questionContainerRect.top
-          
+
           // input-container가 answer-item과 같은 시작 위치에 오도록 높이 설정
           // 기본 패딩 고려 (var(--space-6) = 24px)
           const headerPadding = 24
           const minBaseHeight = questionHeaderRect.height
           const calculatedHeight = Math.max(relativeTop + headerPadding, minBaseHeight)
-          
+
           // 뷰포트 제한 적용
           if (calculatedHeight > viewportHeight * 0.9) {
             targetHeight = viewportHeight * 0.85  // 85%로 제한
           } else {
             targetHeight = calculatedHeight
           }
-          
+
           debugLog.debug('height', '답변 있음 - 통일된 위치 기반 계산', {
             answerCount: answerItems.length,
             isFirstAnswer,
@@ -452,18 +498,18 @@ export const InterviewPage: React.FC = () => {
             note: '통일된 알고리즘 적용'
           })
         }
-        
+
         // 최소 높이 적용
         const minHeight = 80
         const candidateHeight = Math.max(minHeight, targetHeight)
-        
+
         // 첫 번째 답변인지 확인하여 특별 처리
         const previousHeight = previousHeightRef.current
-        
+
         if (isFirstAnswer) {
           // 첫 번째 답변: 무조건 적용하고 기준점 설정
           const finalHeight = candidateHeight
-          
+
           debugLog.debug('height', '첫 번째 답변 - 기준점 설정', {
             previousHeight: 'null (첫 번째)',
             candidateHeight: candidateHeight.toFixed(2),
@@ -472,26 +518,26 @@ export const InterviewPage: React.FC = () => {
             method: 'question-header 기준점 설정',
             heightSource: answerHistory ? '답변 기반 계산' : 'question-header 직접 사용'
           })
-          
+
           // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정 (애니메이션 제거)
           inputHeader.style.minHeight = `${finalHeight}px`
           inputHeader.style.setProperty('--dynamic-height', `${finalHeight}px`)
-          
+
           // 높이 조정 중 시각적 피드백 (즉시 제거)
           inputHeader.classList.add('adjusting')
           setTimeout(() => {
             inputHeader.classList.remove('adjusting')
           }, 0)
-          
+
           // 이전 높이 업데이트 (기준점 설정)
           previousHeightRef.current = finalHeight
         } else {
           // 두 번째 답변 이후: 기존 로직 사용
           const heightDifference = Math.abs(candidateHeight - (previousHeight || 0))
-          
+
           if (heightDifference > HEIGHT_CHANGE_THRESHOLD || previousHeight === null) {
             const finalHeight = candidateHeight
-            
+
             debugLog.debug('height', '높이 변화 감지 - 임계값 초과', {
               previousHeight: previousHeight?.toFixed(2) || 'null',
               candidateHeight: candidateHeight.toFixed(2),
@@ -502,17 +548,17 @@ export const InterviewPage: React.FC = () => {
               method: '상대적 위치 기반 조정',
               calculation: '통일된 알고리즘 적용됨'
             })
-            
+
             // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정 (애니메이션 제거)
             inputHeader.style.minHeight = `${finalHeight}px`
             inputHeader.style.setProperty('--dynamic-height', `${finalHeight}px`)
-            
+
             // 높이 조정 중 시각적 피드백 (즉시 제거)
             inputHeader.classList.add('adjusting')
             setTimeout(() => {
               inputHeader.classList.remove('adjusting')
             }, 0)
-            
+
             // 이전 높이 업데이트
             previousHeightRef.current = finalHeight
           } else {
@@ -526,12 +572,12 @@ export const InterviewPage: React.FC = () => {
             })
           }
         }
-        
+
       } catch (error) {
         console.warn('[HEIGHT] 높이 계산 중 오류:', error)
       }
     }, 100) // 100ms 디바운스
-    
+
   }, [])
 
   // 동적 높이 조정 - 메시지, 질문 변경 시 (비활성화)
@@ -540,27 +586,27 @@ export const InterviewPage: React.FC = () => {
   //   const timeoutId = setTimeout(() => {
   //     updateInputHeaderHeight()
   //   }, 100)
-    
+
   //   return () => clearTimeout(timeoutId)
   // }, [messages, currentQuestionIndex, updateInputHeaderHeight])
 
   // ResizeObserver로 실시간 높이 변화 감지 - 최적화된 관찰 (비활성화)
   // useEffect(() => {
   //   if (!questionContainerRef.current) return
-    
+
   //   const resizeObserver = new ResizeObserver(() => {
   //     updateInputHeaderHeight()
   //   })
-    
+
   //   const questionContainer = questionContainerRef.current
   //   resizeObserver.observe(questionContainer)
-    
+
   //   // 답변 히스토리 영역도 관찰
   //   const answerHistory = questionContainer.querySelector('.answer-history')
   //   if (answerHistory) {
   //     resizeObserver.observe(answerHistory as Element)
   //   }
-    
+
   //   return () => {
   //     resizeObserver.disconnect()
   //     // 디바운스 타이머 정리
@@ -587,7 +633,7 @@ export const InterviewPage: React.FC = () => {
     try {
       debugLog.info('history', '세션 히스토리 로딩 시작');
       const response = await fetch(`/api/v1/interview/session/${interviewId}/data`)
-      
+
       if (!response.ok) {
         console.warn('[세션 데이터] 불러오기 실패:', response.status)
         // 데이터 로딩 실패 시에도 기본 진행률 표시
@@ -599,19 +645,19 @@ export const InterviewPage: React.FC = () => {
         }])
         return
       }
-      
+
       const { data } = await response.json()
       debugLog.info('history', '세션 데이터 로드 완료', { sessionData: data })
-      
+
       // 답변 히스토리를 메시지로 변환
       const historyMessages: Message[] = []
-      
+
       // 질문별 답변 맵핑 생성
       const answersByQuestion = new Map()
       data.answers.forEach((answer: any) => {
         answersByQuestion.set(answer.question_id, answer)
       })
-      
+
       // 질문 순서대로 답변과 피드백 추가
       questionsList.forEach((question, index) => {
         const answer = answersByQuestion.get(question.id)
@@ -624,12 +670,12 @@ export const InterviewPage: React.FC = () => {
             timestamp: new Date(answer.submitted_at),
             question_id: answer.question_id
           })
-          
+
           // 피드백 메시지 추가 (있는 경우)
           if (answer.feedback && answer.feedback.score) {
             historyMessages.push({
               id: `feedback-${answer.question_id}`,
-              type: 'feedback', 
+              type: 'feedback',
               content: answer.feedback.message || '피드백이 생성되었습니다.',
               timestamp: new Date(answer.feedback.created_at || answer.submitted_at),
               question_id: answer.question_id,
@@ -647,7 +693,7 @@ export const InterviewPage: React.FC = () => {
           }
         }
       })
-      
+
       // 대화 메시지 추가 (최신순으로)
       data.conversations.forEach((conv: any) => {
         if (conv.type === 'user') {
@@ -668,31 +714,31 @@ export const InterviewPage: React.FC = () => {
           })
         }
       })
-      
+
       // 시간순으로 정렬
       historyMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-      
+
       // 저장된 답변들을 상태에 반영
       const answersMap: Record<string, string> = {}
       data.answers.forEach((answer: any) => {
         answersMap[answer.question_id] = answer.user_answer
       })
       setSavedAnswers(answersMap)
-      
+
       // 현재 질문 인덱스 계산 (답변된 질문 수 기준)
       const answeredCount = data.answers.length
       const calculatedCurrentIndex = Math.min(answeredCount, questionsList.length - 1)
       setCurrentQuestionIndex(calculatedCurrentIndex)
-      
+
       console.log('[HISTORY] 전체 히스토리 로드 완료:', {
         answersCount: data.answers.length,
         conversationsCount: data.conversations.length,
         messagesCount: historyMessages.length,
         currentQuestionIndex: calculatedCurrentIndex
       })
-      
+
       return { historyMessages, answeredCount, calculatedCurrentIndex }
-      
+
     } catch (error) {
       console.error('[ERROR] 세션 히스토리 로딩 실패:', error)
       // 에러 발생 시 기본 상태로 시작
@@ -708,9 +754,9 @@ export const InterviewPage: React.FC = () => {
 
   const loadInterview = async () => {
     debugLog.info('interview', 'loadInterview 함수 시작');
-    
+
     setLoadingStates({ session: true, questions: true })
-    
+
     try {
       debugLog.info('api', '면접 세션 및 질문 데이터 로딩 시작');
       // 병렬 API 호출로 성능 개선
@@ -718,15 +764,15 @@ export const InterviewPage: React.FC = () => {
         fetch(`/api/v1/interview/session/${interviewId}`),
         fetch(`/api/v1/interview/session/${interviewId}/questions`)
       ])
-      
+
       console.log('[API] API 응답 상태:', {
         session: sessionResponse.status,
         questions: questionsResponse.status
       });
-      
+
       // 세션 데이터 확인
       setLoadingStates(prev => ({ ...prev, session: false }))
-      
+
       if (!sessionResponse.ok) {
         if (sessionResponse.status === 404) {
           // 404 에러에 대한 사용자 친화적 처리
@@ -736,10 +782,10 @@ export const InterviewPage: React.FC = () => {
             content: '면접 세션을 찾을 수 없습니다. 세션이 만료되었거나 시스템이 업데이트되었을 수 있습니다. 새로운 면접을 시작해주세요.',
             timestamp: new Date()
           }])
-          
+
           setTimeout(() => {
-            navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard', { 
-              state: { 
+            navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard', {
+              state: {
                 message: '이전 면접 세션이 만료되었습니다. 새로운 분석을 시작해주세요.',
                 type: 'warning'
               }
@@ -749,7 +795,7 @@ export const InterviewPage: React.FC = () => {
         }
         throw new Error(`면접 세션을 불러오는데 실패했습니다. (${sessionResponse.status})`)
       }
-      
+
       if (!questionsResponse.ok) {
         if (questionsResponse.status === 404) {
           // 질문 데이터를 찾을 수 없는 경우
@@ -759,10 +805,10 @@ export const InterviewPage: React.FC = () => {
             content: '면접 질문을 찾을 수 없습니다. 분석 데이터가 손실되었거나 시스템이 업데이트되었을 수 있습니다.',
             timestamp: new Date()
           }])
-          
+
           setTimeout(() => {
-            navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard', { 
-              state: { 
+            navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard', {
+              state: {
                 message: '면접 질문 데이터를 찾을 수 없습니다. 새로운 분석을 시작해주세요.',
                 type: 'warning'
               }
@@ -772,7 +818,7 @@ export const InterviewPage: React.FC = () => {
         }
         throw new Error(`면접 질문을 불러오는데 실패했습니다. (${questionsResponse.status})`)
       }
-      
+
       setLoadingStates(prev => ({ ...prev, questions: false }))
 
       console.log('[PARSE] JSON 파싱 시작');
@@ -780,7 +826,7 @@ export const InterviewPage: React.FC = () => {
         sessionResponse.json(),
         questionsResponse.json()
       ])
-      
+
       console.log('[RESULT] API 결과:', {
         sessionSuccess: sessionResult.success,
         questionsSuccess: questionsResult.success,
@@ -791,12 +837,12 @@ export const InterviewPage: React.FC = () => {
       if (!sessionResult.success || !questionsResult.success) {
         throw new Error(sessionResult.message || questionsResult.message || '면접 데이터를 불러오는데 실패했습니다.')
       }
-        
+
       console.log('[SUCCESS] API 결과 검증 통과, 상태 업데이트 시작');
-      
+
       const sessionData = sessionResult.data
       const questionsData = questionsResult.data.questions
-      
+
       // 중복 제거를 위한 고유 질문 필터링 (ID + 질문 내용 기반)
       const uniqueQuestionsData = questionsData.filter((question: any, index: number, array: any[]) => {
         // ID 기반 중복 제거
@@ -805,79 +851,79 @@ export const InterviewPage: React.FC = () => {
           console.log('[DEDUP] ID 중복 제거:', question.id);
           return false;
         }
-        
+
         // 질문 내용 기반 중복 제거 (추가 안전장치)
-        const contentIndex = array.findIndex(q => 
+        const contentIndex = array.findIndex(q =>
           q.question?.trim() === question.question?.trim()
         );
         if (contentIndex !== index) {
           console.log('[DEDUP] 내용 중복 제거:', question.question?.substring(0, 50) + '...');
           return false;
         }
-        
+
         return true;
       });
-      
+
       console.log('[DEDUP] 원본 질문 수:', questionsData.length, '중복 제거 후:', uniqueQuestionsData.length);
       console.log('[DEDUP] 제거된 질문 수:', questionsData.length - uniqueQuestionsData.length);
-      
+
       // 질문 데이터 형식 변환 (context 객체를 문자열로 변환)
       const transformedQuestions = uniqueQuestionsData.map((q: any) => ({
         id: q.id,
         question: q.question,
         category: q.category,
         difficulty: q.difficulty,
-        context: typeof q.context === 'object' ? 
-          (q.context?.original_data?.context || q.context?.context || JSON.stringify(q.context)) : 
+        context: typeof q.context === 'object' ?
+          (q.context?.original_data?.context || q.context?.context || JSON.stringify(q.context)) :
           q.context,
         parent_question_id: q.context?.original_data?.parent_question_id,
         sub_question_index: q.context?.original_data?.sub_question_index,
         total_sub_questions: q.context?.original_data?.total_sub_questions,
         is_compound_question: q.context?.original_data?.is_compound_question
       }))
-      
+
       setInterview(sessionData)
       setQuestions(transformedQuestions)
-      
+
       console.log('[UPDATE] 상태 업데이트 완료');
       console.log('[FINAL_CHECK] 최종 질문 수:', transformedQuestions.length);
       console.log('[FINAL_CHECK] 질문 ID 목록:', transformedQuestions.map(q => q.id));
-      
+
       // 세션 히스토리 데이터 로딩
       const historyResult = await loadSessionHistory(transformedQuestions, sessionData);
-      
+
       // 현재 질문 인덱스 결정 (히스토리에서 계산된 값 우선 사용)
       let actualCurrentIndex = questionsResult.data.current_question_index || 0
       if (historyResult?.calculatedCurrentIndex !== undefined) {
         actualCurrentIndex = historyResult.calculatedCurrentIndex
       }
-      
+
       // 세션 상태에 따른 메시지 설정
       const currentQuestion = transformedQuestions[actualCurrentIndex]
       const isResuming = historyResult && historyResult.historyMessages.length > 0
-      
+
       console.log('[QUESTION] 현재 질문 정보:', {
         index: actualCurrentIndex,
         question: currentQuestion,
         isResuming: isResuming,
         totalQuestions: transformedQuestions.length
       });
-      
+
       // 메시지 설정
       const welcomeMessages: Message[] = []
-      
+
       if (isResuming) {
         // 기존 세션 복원
         welcomeMessages.push({
           id: 'session-restored',
-          type: 'system', 
+          type: 'system',
           content: `이전 면접 세션이 복원되었습니다. (${historyResult.answeredCount}/${transformedQuestions.length} 질문 완료)`,
           timestamp: new Date()
         })
-        
+
         // 히스토리 메시지 추가
         welcomeMessages.push(...historyResult.historyMessages)
-        
+
         // 현재 진행 상황 표시
         if (actualCurrentIndex < transformedQuestions.length) {
           welcomeMessages.push({
@@ -886,7 +932,7 @@ export const InterviewPage: React.FC = () => {
             content: `📍 현재 진행상황: ${actualCurrentIndex + 1}/${transformedQuestions.length} (${Math.round(((actualCurrentIndex + 1) / transformedQuestions.length) * 100)}%)`,
             timestamp: new Date()
           })
-          
+
           // 현재/다음 질문 표시
           if (currentQuestion) {
             welcomeMessages.push({
@@ -914,7 +960,7 @@ export const InterviewPage: React.FC = () => {
           content: '모의면접을 시작합니다! 편안하게 답변해주세요.',
           timestamp: new Date()
         })
-        
+
         if (transformedQuestions.length > 0) {
           welcomeMessages.push({
             id: 'interview-info',
@@ -922,7 +968,7 @@ export const InterviewPage: React.FC = () => {
             content: `총 ${transformedQuestions.length}개의 질문이 준비되었습니다.`,
             timestamp: new Date()
           })
-          
+
           // 첫 번째 질문 표시
           if (currentQuestion) {
             welcomeMessages.push({
@@ -935,27 +981,27 @@ export const InterviewPage: React.FC = () => {
           }
         }
       }
-      
+
       setMessages(welcomeMessages)
       setCurrentQuestionIndex(actualCurrentIndex)
-      
+
       console.log('[DEBUG] loadInterview 완료 - actualCurrentIndex:', actualCurrentIndex);
-      
+
     } catch (error) {
       console.error('[ERROR] Error loading interview:', error)
       const errorMessage = error instanceof Error ? error.message : '면접 데이터를 불러오는데 실패했습니다.'
-      
+
       setMessages([{
         id: 'load-error',
         type: 'system',
         content: `ERROR: ${errorMessage}`,
         timestamp: new Date()
       }])
-      
+
       setTimeout(() => {
         navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')
       }, 3000)
-      
+
     } finally {
       console.log('[UPDATE] setIsLoading(false) 설정');
       setIsLoading(false)
@@ -975,7 +1021,7 @@ export const InterviewPage: React.FC = () => {
           question_id: data.question_id
         }])
         break
-        
+
       case 'feedback':
         setMessages(prev => [...prev, {
           id: `feedback-${Date.now()}`,
@@ -984,7 +1030,7 @@ export const InterviewPage: React.FC = () => {
           timestamp: new Date()
         }])
         break
-        
+
       case 'interview_completed':
         setInterview(prev => prev ? { ...prev, status: 'completed' } : null)
         setMessages(prev => [...prev, {
@@ -1005,13 +1051,13 @@ export const InterviewPage: React.FC = () => {
     console.log('[SUBMIT] currentAnswer.trim().length:', currentAnswer.trim().length);
     console.log('[SUBMIT] conversationMode:', conversationMode);
     console.log('[SUBMIT] isSubmitting:', isSubmitting);
-    
+
     // 이미 제출 중인 경우 중복 실행 방지
     if (isSubmitting) {
       console.log('[BLOCK] 이미 제출 중 - 중복 실행 방지');
       return;
     }
-    
+
     if (!currentAnswer.trim()) {
       console.log('[ERROR] currentAnswer가 비어있음 - 제출 중단');
       alert('답변을 입력해주세요!');
@@ -1043,19 +1089,19 @@ export const InterviewPage: React.FC = () => {
     }
 
     console.log('[SUCCESS] 모든 조건 통과, 답변 제출 시작');
-    
+
     try {
       // 현재 질문 찾기 (progress 대신 실제 currentQuestionIndex 사용)
       const currentQuestion = questions[currentQuestionIndex]
       console.log('[QUESTION] currentQuestion:', currentQuestion);
       console.log('[QUESTION] currentQuestionIndex:', currentQuestionIndex);
-      
+
       if (!currentQuestion) {
         console.log('[ERROR] currentQuestion이 없음 - currentQuestionIndex:', currentQuestionIndex);
         console.log('[ERROR] questions 배열 길이:', questions.length);
         throw new Error('현재 질문을 찾을 수 없습니다. 페이지를 새로고침해보세요.');
       }
-      
+
       // 답변 메시지 추가
       const answerMessageId = `answer-${Date.now()}`;
       const answerMessage: Message = {
@@ -1065,10 +1111,10 @@ export const InterviewPage: React.FC = () => {
         timestamp: new Date(),
         question_id: currentQuestion.id
       }
-      
+
       console.log('[MESSAGE] 답변 메시지 추가:', answerMessage);
       setMessages(prev => [...prev, answerMessage])
-      
+
       // REST API로 답변 전송
       const requestBody = {
         interview_id: interviewId,
@@ -1076,15 +1122,15 @@ export const InterviewPage: React.FC = () => {
         answer: currentAnswer,
         time_taken: 60 // 임시값
       };
-      
+
       console.log('[API] API 요청 시작:', requestBody);
-      
+
       const response = await fetch('/api/v1/interview/answer', {
         method: 'POST',
         headers: createApiHeaders(true), // localStorage API 키 포함
         body: JSON.stringify(requestBody)
       })
-      
+
       console.log('[API] API 응답 상태:', response.status, response.statusText);
 
       if (!response.ok) {
@@ -1095,16 +1141,16 @@ export const InterviewPage: React.FC = () => {
 
       const result = await response.json()
       console.log('[SUCCESS] API 응답 결과:', result);
-      
+
       if (result.success) {
         console.log('[SUCCESS] 답변 제출 성공');
-        
+
         // 피드백 처리 - 답변 메시지에 피드백 데이터 추가
         if (result.data.feedback) {
           console.log('[FEEDBACK] 피드백 데이터 수신:', result.data.feedback);
           console.log('[FEEDBACK] overall_score:', result.data.feedback.overall_score);
           console.log('[FEEDBACK] 전체 구조:', JSON.stringify(result.data.feedback, null, 2));
-          
+
           // 방금 추가한 답변 메시지에 피드백 추가
           setMessages(prev => prev.map(msg => {
             if (msg.id === answerMessageId) {
@@ -1123,7 +1169,7 @@ export const InterviewPage: React.FC = () => {
 
           // 자동 대화 모드 시작 기능 제거됨 - 사용자가 현재 질문에 집중할 수 있도록 함
         }
-        
+
         // 다음 질문으로 이동하거나 완료 처리
         if (result.data.is_completed) {
           console.log('[COMPLETE] 면접 완료');
@@ -1136,26 +1182,26 @@ export const InterviewPage: React.FC = () => {
           }])
         } else {
           console.log('[NEXT] 다음 질문으로 이동 준비');
-          
+
           // 피드백 점수에 따른 안내 메시지
           if (result.data.feedback) {
             const score = result.data.feedback.score
             let guidanceMessage = ''
-            
+
             if (score >= 8.0) {
               guidanceMessage = '훌륭한 답변입니다! 다음 질문으로 자동 진행됩니다.'
-              
+
               // 높은 점수면 자동으로 다음 질문
               setTimeout(async () => {
                 await loadInterview();
               }, 2500);
-              
+
             } else if (score >= 6.0) {
               guidanceMessage = '좋은 답변입니다. 추가 질문이 있으면 언제든 물어보세요. "다음 질문"을 입력하면 계속 진행할 수 있습니다.'
             } else {
               guidanceMessage = '답변에 대해 더 자세히 알아보고 싶다면 추가 질문을 해보세요. 준비가 되면 "다음 질문"을 입력하세요.'
             }
-            
+
             if (guidanceMessage) {
               setMessages(prev => [...prev, {
                 id: `guidance-${Date.now()}`,
@@ -1174,11 +1220,11 @@ export const InterviewPage: React.FC = () => {
             }])
           }
         }
-        
+
         // 성공적으로 처리된 경우에만 답변 입력창 초기화
         console.log('[CLEAR] 답변 입력창 초기화');
         setCurrentAnswer('');
-        
+
         // 답변 제출 후 textarea 상단으로 스크롤
         setTimeout(() => {
           if (textareaRef.current) {
@@ -1189,11 +1235,11 @@ export const InterviewPage: React.FC = () => {
         console.log('[ERROR] API 호출은 성공했지만 result.success가 false');
         throw new Error(result.message || '답변 처리에 실패했습니다.');
       }
-      
+
     } catch (error) {
       console.error('[ERROR] Error submitting answer:', error)
       const errorMessage = error instanceof Error ? error.message : '답변 제출에 실패했습니다.';
-      
+
       // 사용자 친화적인 에러 메시지 표시
       setMessages(prev => [...prev, {
         id: `error-${Date.now()}`,
@@ -1201,10 +1247,10 @@ export const InterviewPage: React.FC = () => {
         content: `ERROR: ${errorMessage}. 잠시 후 다시 시도해주세요.`,
         timestamp: new Date()
       }]);
-      
+
       // 답변 내용은 유지 (사용자가 다시 입력하지 않도록)
       console.log('[PRESERVE] 오류 발생으로 답변 내용 유지');
-      
+
     } finally {
       console.log('[UPDATE] isSubmitting을 false로 설정');
       setIsSubmitting(false)
@@ -1216,7 +1262,7 @@ export const InterviewPage: React.FC = () => {
       const response = await fetch(`/api/v1/interview/${interviewId}/finish`, {
         method: 'POST'
       })
-      
+
       if (response.ok) {
         navigate('/reports')
       }
@@ -1231,7 +1277,7 @@ export const InterviewPage: React.FC = () => {
 
   const navigateQuestion = (direction: number) => {
     if (!questions.length) return
-    
+
     const newIndex = Math.max(0, Math.min(questions.length - 1, currentQuestionIndex + direction))
     setCurrentQuestionIndex(newIndex)
   }
@@ -1243,7 +1289,7 @@ export const InterviewPage: React.FC = () => {
       originalAnswer,
       feedback
     });
-    
+
     // 대화 모드로 전환
     setMessages(prev => [...prev, {
       id: `conversation-start-${Date.now()}`,
@@ -1270,10 +1316,10 @@ export const InterviewPage: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      
+
       // "다음 질문" 키워드 체크
       const isNextQuestionRequest = /다음\s*질문|다음으로|넘어가|다음|next/i.test(currentAnswer.trim());
-      
+
       if (isNextQuestionRequest) {
         // 다음 질문으로 이동
         setMessages(prev => [...prev, {
@@ -1287,19 +1333,19 @@ export const InterviewPage: React.FC = () => {
           content: '네, 다음 질문으로 넘어가겠습니다!',
           timestamp: new Date()
         }]);
-        
+
         // 대화 모드 종료
         setConversationMode(null);
-        
+
         // 다음 질문 로드
         setTimeout(async () => {
           await loadInterview();
         }, 1500);
-        
+
         setCurrentAnswer('');
         return;
       }
-      
+
       // 사용자 질문 메시지 추가
       const userQuestion: Message = {
         id: `conversation-question-${Date.now()}`,
@@ -1308,9 +1354,9 @@ export const InterviewPage: React.FC = () => {
         timestamp: new Date(),
         question_id: conversationMode.questionId
       };
-      
+
       setMessages(prev => [...prev, userQuestion]);
-      
+
       // 백엔드 대화 API 호출
       const response = await fetch('/api/v1/interview/conversation', {
         method: 'POST',
@@ -1324,13 +1370,13 @@ export const InterviewPage: React.FC = () => {
           conversation_question: currentAnswer
         })
       });
-      
+
       if (!response.ok) {
         throw new Error(`대화 요청에 실패했습니다. (${response.status})`);
       }
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         // AI 응답 메시지 추가
         const aiResponse: Message = {
@@ -1339,17 +1385,17 @@ export const InterviewPage: React.FC = () => {
           content: result.data.response,
           timestamp: new Date()
         };
-        
+
         setMessages(prev => [...prev, aiResponse]);
       } else {
         throw new Error(result.message || '대화 처리에 실패했습니다.');
       }
-      
+
       setCurrentAnswer('');
-      
+
     } catch (error) {
       console.error('[ERROR] 대화 처리 중 오류:', error);
-      
+
       // 에러 메시지 표시
       const errorResponse: Message = {
         id: `conversation-error-${Date.now()}`,
@@ -1357,7 +1403,7 @@ export const InterviewPage: React.FC = () => {
         content: `[ERROR] ${error instanceof Error ? error.message : '대화 처리 중 오류가 발생했습니다.'}`,
         timestamp: new Date()
       };
-      
+
       setMessages(prev => [...prev, errorResponse]);
     } finally {
       setIsSubmitting(false);
@@ -1405,7 +1451,7 @@ export const InterviewPage: React.FC = () => {
   const isLastQuestionInGroup = (questionIndex: number): boolean => {
     const question = questions[questionIndex]
     if (!question?.parent_question_id) return true
-    
+
     const groupQuestions = questions.filter(q => q.parent_question_id === question.parent_question_id)
     return question.sub_question_index === groupQuestions.length
   }
@@ -1413,14 +1459,14 @@ export const InterviewPage: React.FC = () => {
   const getNextGroupFirstQuestion = (currentIndex: number): number => {
     const currentQ = questions[currentIndex]
     if (!currentQ?.parent_question_id) return currentIndex + 1
-    
+
     // 현재 그룹의 마지막 질문 찾기
     const currentGroupQuestions = questions.filter(q => q.parent_question_id === currentQ.parent_question_id)
-    const lastQuestionInGroup = questions.findIndex(q => 
-      q.parent_question_id === currentQ.parent_question_id && 
+    const lastQuestionInGroup = questions.findIndex(q =>
+      q.parent_question_id === currentQ.parent_question_id &&
       q.sub_question_index === currentGroupQuestions.length
     )
-    
+
     return lastQuestionInGroup + 1
   }
 
@@ -1522,17 +1568,17 @@ export const InterviewPage: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="header-right">
           <div className="settings-controls">
-            <button 
+            <button
               className={`setting-btn ${isDarkMode ? 'active' : ''}`}
               onClick={() => setIsDarkMode(!isDarkMode)}
               title="다크 모드 (Ctrl+D)"
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            <select 
+            <select
               className="form-input form-input-sm"
               value={fontSize}
               onChange={(e) => setFontSize(e.target.value)}
@@ -1563,13 +1609,13 @@ export const InterviewPage: React.FC = () => {
               <div className="question-header">
                 <div className="question-meta">
                   <span className="question-number">
-                    {currentQuestion.parent_question_id && currentQuestion.sub_question_index 
-                      ? `Q${currentQuestion.sub_question_index}` 
+                    {currentQuestion.parent_question_id && currentQuestion.sub_question_index
+                      ? `Q${currentQuestion.sub_question_index}`
                       : `Q${currentQuestionIndex + 1}`}
                   </span>
                   {getCategoryIcon(currentQuestion.category)}
                   <span className="category-name">{currentQuestion.category}</span>
-                  <span 
+                  <span
                     className="difficulty-badge"
                     style={{ backgroundColor: getDifficultyColor(currentQuestion.difficulty) }}
                   >
@@ -1577,7 +1623,7 @@ export const InterviewPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="question-navigation">
-                  <button 
+                  <button
                     className="nav-btn prev"
                     onClick={() => navigateQuestion(-1)}
                     disabled={currentQuestionIndex === 0}
@@ -1586,7 +1632,7 @@ export const InterviewPage: React.FC = () => {
                     <ChevronLeft className="w-4 h-4 mr-1" />
                     이전
                   </button>
-                  <button 
+                  <button
                     className="nav-btn next"
                     onClick={() => navigateQuestion(1)}
                     disabled={currentQuestionIndex === questions.length - 1}
@@ -1599,7 +1645,7 @@ export const InterviewPage: React.FC = () => {
               </div>
               <div className="question-content">
                 <div className="question-text">
-                  <ReactMarkdown 
+                  <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                       p: ({ children }) => <p className="markdown-paragraph">{children}</p>,
@@ -1607,19 +1653,19 @@ export const InterviewPage: React.FC = () => {
                       pre: ({ children }) => <pre className="markdown-pre">{children}</pre>
                     }}
                   >
-                    {currentQuestion.question}
+                    {sanitizeQuestionText(currentQuestion.question)}
                   </ReactMarkdown>
                 </div>
-                {currentQuestion.context && (
+                {sanitizeContext(currentQuestion.context) && (
                   <div className="question-context">
                     <Lightbulb className="icon inline mr-2" style={{ color: 'var(--brand-lime-600)' }} />
-                    {currentQuestion.context}
+                    {sanitizeContext(currentQuestion.context)}
                   </div>
                 )}
               </div>
             </div>
           )}
-          
+
           {/* 답변 히스토리 */}
           <div className="answer-history">
             {messages.filter(msg => msg.type === 'answer' && msg.question_id === currentQuestion?.id).map((message) => (
@@ -1635,7 +1681,7 @@ export const InterviewPage: React.FC = () => {
                 <div className="answer-content">
                   {message.content}
                 </div>
-                
+
                 {/* 답변별 피드백 표시 (사용자 답변에만) */}
                 {message.type === 'answer' && message.feedback && (
                   <div className="answer-feedback-section">
@@ -1657,7 +1703,7 @@ export const InterviewPage: React.FC = () => {
                           <span className="feedback-score">
                             {(() => {
                               const score = message.feedback?.overall_score || message.feedback?.score || 0;
-                              
+
                               // 개발 환경에서만 중요한 변경사항 로깅
                               if (import.meta.env.DEV && message.feedback && !message.feedback._logged) {
                                 console.log('[DEBUG] 피드백 처리됨:', {
@@ -1668,7 +1714,7 @@ export const InterviewPage: React.FC = () => {
                                 // 중복 로그 방지 플래그
                                 message.feedback._logged = true;
                               }
-                              
+
                               return score;
                             })()}/10
                           </span>
@@ -1693,13 +1739,13 @@ export const InterviewPage: React.FC = () => {
               </div>
             ))}
           </div>
-          
+
           {/* 대화 모드 메시지 */}
           {conversationMode && (
             <div className="conversation-area">
               <div className="conversation-header">[CHAT] AI 멘토와 대화</div>
-              {messages.filter(msg => 
-                msg.type === 'system' && 
+              {messages.filter(msg =>
+                msg.type === 'system' &&
                 msg.question_id === currentQuestion?.id && (
                   msg.content.includes('다음 질문으로 넘어가겠습니다') ||
                   msg.content.includes('좋은 질문이네요') ||
@@ -1715,10 +1761,10 @@ export const InterviewPage: React.FC = () => {
                   <div className="message-content">{message.content}</div>
                 </div>
               ))}
-              
+
               {/* 사용자 대화 질문들 */}
-              {messages.filter(msg => 
-                msg.type === 'answer' && conversationMode && 
+              {messages.filter(msg =>
+                msg.type === 'answer' && conversationMode &&
                 msg.question_id === conversationMode.questionId &&
                 msg.question_id === currentQuestion?.id &&
                 msg.content !== conversationMode.originalAnswer
@@ -1734,15 +1780,15 @@ export const InterviewPage: React.FC = () => {
             </div>
           )}
         </div>
-        
+
         {/* 답변 피드백 */}
         {currentFeedback && (
-          <AnswerFeedback 
+          <AnswerFeedback
             feedback={currentFeedback}
             isVisible={showFeedback}
           />
         )}
-          
+
         {/* 답변 입력 영역 */}
         {interview.status === 'active' && currentQuestion && (
           <div className="answer-input-area">
@@ -1770,7 +1816,7 @@ export const InterviewPage: React.FC = () => {
                 )}
               </div>
             </div>
-            
+
             <div className="input-container">
               <textarea
                 ref={textareaRef}
@@ -1795,13 +1841,13 @@ export const InterviewPage: React.FC = () => {
                     console.log('[KEY] Ctrl+Enter 키보드 단축키로 답변 제출 시도');
                     e.preventDefault();
                     e.stopPropagation();
-                    
+
                     // 이미 제출 중인 경우 무시
                     if (isSubmitting) {
                       console.log('[KEY] 이미 제출 중 - 키보드 이벤트 무시');
                       return;
                     }
-                    
+
                     submitAnswer();
                   }
                 }}
@@ -1837,20 +1883,20 @@ export const InterviewPage: React.FC = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      
+
                       console.log('[CLICK] submit-answer-btn 클릭됨');
                       console.log('[STATUS] 버튼 상태 체크:');
                       console.log('  - currentAnswer.trim():', Boolean(currentAnswer.trim()));
                       console.log('  - isSubmitting:', isSubmitting);
                       console.log('  - wsConnected:', wsConnected);
                       console.log('  - 버튼 disabled:', !currentAnswer.trim() || isSubmitting);
-                      
+
                       // 이미 제출 중인 경우 무시
                       if (isSubmitting) {
                         console.log('[CLICK] 이미 제출 중 - 버튼 클릭 무시');
                         return;
                       }
-                      
+
                       submitAnswer();
                     }}
                     disabled={!currentAnswer.trim() || isSubmitting}
@@ -1873,67 +1919,66 @@ export const InterviewPage: React.FC = () => {
             </div>
           </div>
         )}
-          
-          {/* 면접 완료 */}
-          {interview.status === 'completed' && (
-            <div className="interview-completed">
-              <div className="completion-message">
-                <h3><CheckCircle className="w-6 h-6 mr-2 inline text-green-600" /> 면접이 완료되었습니다!</h3>
-                <p>수고하셨습니다. 결과 리포트를 확인해보세요.</p>
-                <div className="completion-actions">
-                  <button
-                    onClick={() => navigate('/reports')}
-                    className="view-report-btn"
-                  >
-                    결과 보기
-                  </button>
-                  <button
-                    onClick={() => navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')}
-                    className="back-dashboard-btn"
-                  >
-                    대시보드로
-                  </button>
-                </div>
+
+        {/* 면접 완료 */}
+        {interview.status === 'completed' && (
+          <div className="interview-completed">
+            <div className="completion-message">
+              <h3><CheckCircle className="w-6 h-6 mr-2 inline text-green-600" /> 면접이 완료되었습니다!</h3>
+              <p>수고하셨습니다. 결과 리포트를 확인해보세요.</p>
+              <div className="completion-actions">
+                <button
+                  onClick={() => navigate('/reports')}
+                  className="view-report-btn"
+                >
+                  결과 보기
+                </button>
+                <button
+                  onClick={() => navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')}
+                  className="back-dashboard-btn"
+                >
+                  대시보드로
+                </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* 사이드바 */}
-        {!isFocusMode && (
-          <div className="sidebar">
-            <div className="sidebar-section">
-              <h3><FileText className="w-5 h-5 mr-2 inline" /> 질문 목록</h3>
-              <div className="questions-list">
-                {questions.map((question, index) => (
-                  <div 
-                    key={question.id} 
-                    className={`question-item ${
-                      index === currentQuestionIndex ? 'current' : 
-                      index < currentQuestionIndex ? 'completed' : 'pending'
+      {/* 사이드바 */}
+      {!isFocusMode && (
+        <div className="sidebar">
+          <div className="sidebar-section">
+            <h3><FileText className="w-5 h-5 mr-2 inline" /> 질문 목록</h3>
+            <div className="questions-list">
+              {questions.map((question, index) => (
+                <div
+                  key={question.id}
+                  className={`question-item ${index === currentQuestionIndex ? 'current' :
+                    index < currentQuestionIndex ? 'completed' : 'pending'
                     }`}
-                    onClick={() => goToQuestion(index)}
-                  >
-                    <div className="question-number">Q{index + 1}</div>
-                    <div className="question-preview">
-                      <span className="question-text">
-                        {question.question.length > 50 
-                          ? question.question.substring(0, 50) + '...'
-                          : question.question
-                        }
+                  onClick={() => goToQuestion(index)}
+                >
+                  <div className="question-number">Q{index + 1}</div>
+                  <div className="question-preview">
+                    <span className="question-text">
+                      {question.question.length > 50
+                        ? question.question.substring(0, 50) + '...'
+                        : question.question
+                      }
+                    </span>
+                    <div className="question-badges">
+                      <span className="mini-category">{getCategoryIcon(question.category)}</span>
+                      <span className="mini-difficulty" style={{ backgroundColor: getDifficultyColor(question.difficulty) }}>
+                        {question.difficulty}
                       </span>
-                      <div className="question-badges">
-                        <span className="mini-category">{getCategoryIcon(question.category)}</span>
-                        <span className="mini-difficulty" style={{ backgroundColor: getDifficultyColor(question.difficulty) }}>
-                          {question.difficulty}
-                        </span>
-                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          
+          </div>
+
           <div className="sidebar-section">
             <h3><Lightbulb className="w-5 h-5 mr-2 inline" /> 면접 팁</h3>
             <ul className="interview-tips">
@@ -1943,7 +1988,7 @@ export const InterviewPage: React.FC = () => {
               <li>시간을 충분히 활용하세요</li>
             </ul>
           </div>
-          
+
           <div className="sidebar-section">
             <h3><Settings className="w-5 h-5 mr-2 inline" /> 면접 설정</h3>
             <div className="interview-controls">
@@ -1957,7 +2002,7 @@ export const InterviewPage: React.FC = () => {
             </div>
           </div>
         </div>
-        )}
-      </div>
+      )}
+    </div>
   )
 }

@@ -1460,6 +1460,16 @@ export const DashboardPage: React.FC = () => {
               })()}
 
               <div className="questions-grid">
+                {/* Debug: render-time questions state check */}
+                {(() => {
+                  console.log('[Render Debug] questions-grid 렌더 시점:', {
+                    questionsLength: questions.length,
+                    questionsGenerated,
+                    isLoadingQuestions,
+                    firstQuestion: questions[0] ? { id: questions[0].id, question: questions[0].question?.slice(0, 50) } : null
+                  })
+                  return null
+                })()}
                 {questions.length === 0 ? (
                   <div className="questions-empty-state">
                     <div className="empty-state-content">

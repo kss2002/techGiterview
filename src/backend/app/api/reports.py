@@ -477,15 +477,15 @@ async def get_reports_list(
                 .filter(InterviewQuestion.analysis_id == session.analysis_id)\
                 .scalar()
             
-            # 면접 지속 시간 계산
+            # 면접 지속 시간 계산 (최대 10시간 = 600분으로 제한)
             duration_minutes = 0
             if session.started_at and session.ended_at:
                 duration_seconds = (session.ended_at - session.started_at).total_seconds()
-                duration_minutes = int(duration_seconds / 60)
+                duration_minutes = min(int(duration_seconds / 60), 600)  # 최대 600분(10시간)
             elif session.started_at and session.status == "active":
                 # 진행 중인 면접의 경우 현재까지의 시간
                 duration_seconds = (datetime.now() - session.started_at).total_seconds()
-                duration_minutes = int(duration_seconds / 60)
+                duration_minutes = min(int(duration_seconds / 60), 600)  # 최대 600분(10시간)
             
             # 카테고리별 점수 (feedback JSON에서 추출)
             category_scores = {}
@@ -917,11 +917,11 @@ async def get_recent_reports(limit: int = 5, db: Session = Depends(get_db)):
             repo_owner = url_parts[0] if len(url_parts) > 0 else "Unknown"
             repo_name = url_parts[1] if len(url_parts) > 1 else analysis.repository_name or "Unknown"
             
-            # 면접 지속 시간 계산
+            # 면접 지속 시간 계산 (최대 10시간 = 600분으로 제한)
             duration_minutes = 0
             if session.started_at and session.ended_at:
                 duration_seconds = (session.ended_at - session.started_at).total_seconds()
-                duration_minutes = int(duration_seconds / 60)
+                duration_minutes = min(int(duration_seconds / 60), 600)  # 최대 600분(10시간)
             
             # 카테고리별 점수 (feedback JSON에서 추출)
             category_scores = {}
