@@ -12,7 +12,8 @@
 
 .home-page {
   min-height: 100vh;
-  background: var(--color-background-alt);
+  background: var(--gradient-page-bg);
+  background-attachment: fixed;
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
   overflow-x: hidden;
@@ -20,12 +21,12 @@
 }
 
 /* 홈페이지 섹션 간 마진 조정 */
-.home-page .section + .section {
+.home-page .section+.section {
   margin-top: 0.5rem;
 }
 
 /* 카드 간 마진 조정 */
-.home-page .container .card + .card {
+.home-page .container .card+.card {
   margin-top: 0.5rem;
 }
 
@@ -90,23 +91,29 @@
 /* URL 입력 그룹 메인 컨테이너 */
 .url-input-group {
   display: flex;
-  gap: 0; /* gap을 0으로 설정하여 완전히 붙임 */
+  gap: 0;
+  /* gap을 0으로 설정하여 완전히 붙임 */
   align-items: stretch;
   width: 100%;
   margin: 0 auto;
   box-shadow: var(--shadow-sm);
   border-radius: var(--radius-xl);
-  overflow: hidden; /* 자식 요소의 border-radius 제어 */
+  overflow: hidden;
+  /* 자식 요소의 border-radius 제어 */
 }
 
 /* 입력 필드 - flex로 확장 */
 .url-input-group .form-input {
   flex: 1;
-  min-width: 0; /* flex shrink 허용 */
+  min-width: 0;
+  /* flex shrink 허용 */
   height: auto;
-  border-radius: 0; /* 모든 radius 제거 */
-  border-right: none; /* 오른쪽 테두리 제거하여 버튼과 완전히 붙임 */
-  box-shadow: none; /* 개별 그림자 제거 */
+  border-radius: 0;
+  /* 모든 radius 제거 */
+  border-right: none;
+  /* 오른쪽 테두리 제거하여 버튼과 완전히 붙임 */
+  box-shadow: none;
+  /* 개별 그림자 제거 */
 }
 
 /* 버튼 - 고정 크기 유지 */
@@ -114,10 +121,14 @@
   flex-shrink: 0;
   white-space: nowrap;
   min-width: 140px;
-  align-self: stretch; /* 입력 필드와 높이 맞춤 */
-  border-radius: 0; /* 모든 radius 제거 */
-  margin-left: 0; /* margin 제거 */
-  box-shadow: none; /* 개별 그림자 제거 */
+  align-self: stretch;
+  /* 입력 필드와 높이 맞춤 */
+  border-radius: 0;
+  /* 모든 radius 제거 */
+  margin-left: 0;
+  /* margin 제거 */
+  box-shadow: none;
+  /* 개별 그림자 제거 */
 }
 
 /* 연결된 입력 필드와 버튼 스타일 */
@@ -253,7 +264,8 @@
 @media (max-width: 768px) {
   .url-input-group {
     flex-direction: column;
-    gap: 0; /* 모바일에서도 gap 0 유지 */
+    gap: 0;
+    /* 모바일에서도 gap 0 유지 */
     max-width: 100%;
     border-radius: var(--radius-xl);
     overflow: hidden;
@@ -262,8 +274,10 @@
   /* 모바일에서도 붙은 상태 유지 */
   .url-input-group .form-input {
     border-radius: 0;
-    border-right: 1px solid var(--gray-300); /* 모바일에서는 오른쪽 테두리 복원 */
-    border-bottom: none; /* 아래쪽 테두리 제거하여 버튼과 붙임 */
+    border-right: 1px solid var(--gray-300);
+    /* 모바일에서는 오른쪽 테두리 복원 */
+    border-bottom: none;
+    /* 아래쪽 테두리 제거하여 버튼과 붙임 */
   }
 
   .url-input-group .btn {

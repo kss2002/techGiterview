@@ -38,23 +38,28 @@ h1 {
   font-weight: var(--font-bold);
   letter-spacing: var(--tracking-tight);
 }
+
 h2 {
   font-size: var(--text-3xl);
   font-weight: var(--font-semibold);
   letter-spacing: var(--tracking-tight);
 }
+
 h3 {
   font-size: var(--text-2xl);
   font-weight: var(--font-semibold);
 }
+
 h4 {
   font-size: var(--text-xl);
   font-weight: var(--font-medium);
 }
+
 h5 {
   font-size: var(--text-lg);
   font-weight: var(--font-medium);
 }
+
 h6 {
   font-size: var(--text-base);
   font-weight: var(--font-medium);
@@ -121,35 +126,50 @@ a:hover {
   gap: var(--spacing-3);
 }
 
-/* 버튼 스타일 변형 */
+/* 버튼 스타일 변형 - 그라데이션 적용 */
 .btn-primary {
-  background: var(--color-primary);
+  background: var(--gradient-primary);
   color: white;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
+  border: none;
+  box-shadow: 0 4px 15px rgba(24, 22, 119, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-primary:hover:not(:disabled)::before {
+  left: 100%;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-dark);
-  border-color: var(--color-primary-dark);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  background: var(--gradient-primary-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(24, 22, 119, 0.4);
 }
 
 .btn-secondary {
-  background: var(--color-secondary);
+  background: var(--gradient-secondary);
   color: white;
-  border-color: var(--color-secondary);
-  box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
+  border: none;
+  box-shadow: 0 4px 15px rgba(27, 84, 16, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--color-secondary-dark);
-  border-color: var(--color-secondary-dark);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  background: var(--gradient-secondary-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(27, 84, 16, 0.4);
 }
 
 .btn-outline {
@@ -220,11 +240,9 @@ a:hover {
 }
 
 .btn-error:hover:not(:disabled) {
-  background: linear-gradient(
-    135deg,
-    var(--error-600) 0%,
-    var(--error-700) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--error-600) 0%,
+      var(--error-700) 100%);
   transform: translateY(-2px);
 }
 
@@ -245,23 +263,24 @@ a:hover {
 }
 
 /* ============================================
-   카드 컴포넌트 (Card Components)
+   카드 컴포넌트 (Card Components) - 글래스모피즘
    ============================================ */
 
 .card {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid var(--primary-200);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--glass-shadow), var(--glass-inset);
   overflow: hidden;
-  transition: var(--transition-all);
-  backdrop-filter: var(--backdrop-blur-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .card:hover {
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-300);
-  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-hover), var(--glass-inset);
+  border-color: var(--primary-200);
+  transform: translateY(-4px);
 }
 
 .card-interactive {
@@ -269,19 +288,17 @@ a:hover {
 }
 
 .card-interactive:hover {
-  box-shadow: var(--shadow-xl);
-  border-color: var(--primary-400);
-  transform: translateY(-4px);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), var(--glass-inset);
+  border-color: var(--primary-300);
+  transform: translateY(-6px) scale(1.01);
 }
 
 .card-header {
   padding: var(--spacing-5) var(--spacing-6);
   border-bottom: 1px solid var(--primary-200);
-  background: linear-gradient(
-    135deg,
-    var(--primary-50) 0%,
-    var(--secondary-50) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--primary-50) 0%,
+      var(--secondary-50) 100%);
 }
 
 .card-header h3 {
@@ -493,7 +510,8 @@ a:hover {
 
 .badge-sm {
   padding: var(--spacing-0-5) var(--spacing-2);
-  font-size: 0.625rem; /* 10px */
+  font-size: 0.625rem;
+  /* 10px */
 }
 
 .badge-lg {
@@ -563,6 +581,233 @@ a:hover {
   border: 1px solid var(--importance-low-border);
 }
 
+/* 난이도 배지 - 그라데이션 스타일 */
+.badge-easy,
+.difficulty-easy {
+  background: var(--gradient-easy);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.badge-medium,
+.difficulty-medium {
+  background: var(--gradient-medium);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.badge-hard,
+.difficulty-hard {
+  background: var(--gradient-hard);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* ============================================
+   페이지 진입 애니메이션 (Page Entry Animations)
+   ============================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s ease forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease forwards;
+}
+
+/* 순차 애니메이션 딜레이 */
+.stagger-1 {
+  animation-delay: 0.1s;
+}
+
+.stagger-2 {
+  animation-delay: 0.2s;
+}
+
+.stagger-3 {
+  animation-delay: 0.3s;
+}
+
+.stagger-4 {
+  animation-delay: 0.4s;
+}
+
+.stagger-5 {
+  animation-delay: 0.5s;
+}
+
+/* ============================================
+   스켈레톤 로딩 (Skeleton Loading)
+   ============================================ */
+
+.skeleton {
+  background: linear-gradient(90deg,
+      var(--gray-200) 25%,
+      var(--gray-100) 50%,
+      var(--gray-200) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-text {
+  height: 1em;
+  margin-bottom: var(--spacing-2);
+}
+
+.skeleton-text-short {
+  width: 60%;
+}
+
+.skeleton-title {
+  height: 1.5em;
+  width: 40%;
+  margin-bottom: var(--spacing-3);
+}
+
+.skeleton-card {
+  padding: var(--spacing-6);
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--gray-200);
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+}
+
+.skeleton-badge {
+  width: 60px;
+  height: 24px;
+  border-radius: var(--radius-md);
+}
+
+/* ============================================
+   토스트 알림 (Toast Notifications)
+   ============================================ */
+
+.toast-container {
+  position: fixed;
+  bottom: var(--spacing-6);
+  right: var(--spacing-6);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.toast {
+  padding: var(--spacing-4) var(--spacing-6);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: slideInRight 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-width: 280px;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-success {
+  background: var(--gradient-secondary);
+  color: white;
+}
+
+.toast-error {
+  background: var(--gradient-hard);
+  color: white;
+}
+
+.toast-warning {
+  background: var(--gradient-medium);
+  color: white;
+}
+
+.toast-info {
+  background: var(--gradient-primary);
+  color: white;
+}
+
 /* ============================================
    모달 컴포넌트 (Modal Components)
    ============================================ */
@@ -598,6 +843,7 @@ a:hover {
     opacity: 0;
     transform: scale(0.95) translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -703,6 +949,7 @@ a:hover {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -958,6 +1205,7 @@ a:hover {
 
 /* 반응형 그리드 */
 @media (max-width: 768px) {
+
   .grid-2,
   .grid-3,
   .grid-4 {
@@ -1240,6 +1488,7 @@ a:hover {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1250,6 +1499,7 @@ a:hover {
     opacity: 0;
     transform: translateY(var(--spacing-4));
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1257,6 +1507,7 @@ a:hover {
 }
 
 @keyframes bounce {
+
   0%,
   20%,
   53%,
@@ -1265,25 +1516,30 @@ a:hover {
     animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
     transform: translate3d(0, 0, 0);
   }
+
   40%,
   43% {
     animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
     transform: translate3d(0, -30px, 0);
   }
+
   70% {
     animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
     transform: translate3d(0, -15px, 0);
   }
+
   90% {
     transform: translate3d(0, -4px, 0);
   }
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -1293,6 +1549,7 @@ a:hover {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -1300,6 +1557,7 @@ a:hover {
 
 /* 접근성을 위한 모션 감소 */
 @media (prefers-reduced-motion: reduce) {
+
   .transition-fast,
   .transition-normal,
   .transition-slow,
@@ -1410,11 +1668,9 @@ a:hover {
 
 /* 홈페이지 푸터 */
 .homepage-footer {
-  background: linear-gradient(
-    135deg,
-    var(--brand-navy-900) 0%,
-    var(--brand-navy-800) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--brand-navy-900) 0%,
+      var(--brand-navy-800) 100%);
   color: var(--white);
   padding: var(--spacing-16) 0 var(--spacing-8);
   margin-top: var(--spacing-20);
