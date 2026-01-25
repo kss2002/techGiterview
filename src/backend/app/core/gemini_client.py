@@ -60,6 +60,36 @@ class GeminiClient:
         """LangChain 호환 Gemini LLM 반환"""
         return self.llm
     
+    def get_llm_with_tracing(self, 
+                              trace_name: str = "gemini-call",
+                              user_id: Optional[str] = None,
+                              session_id: Optional[str] = None,
+                              metadata: Optional[Dict[str, Any]] = None) -> tuple:
+        """
+        Langfuse 추적이 포함된 LLM과 콜백 반환
+        
+        Returns:
+            tuple: (llm, callbacks) - LLM 인스턴스와 콜백 리스트
+        """
+        callbacks = []
+        
+        # Langfuse 콜백 추가 (가능한 경우)
+        try:
+            from app.core.langfuse_client import get_langfuse_callback
+            langfuse_callback = get_langfuse_callback(
+                trace_name=trace_name,
+                user_id=user_id,
+                session_id=session_id,
+                metadata=metadata
+            )
+            if langfuse_callback:
+                callbacks.append(langfuse_callback)
+                logger.info(f"[GEMINI] Langfuse callback attached for trace: {trace_name}")
+        except Exception as e:
+            logger.debug(f"[GEMINI] Langfuse not available: {e}")
+        
+        return self.llm, callbacks
+    
     def is_available(self) -> bool:
         """Gemini 클라이언트 사용 가능 여부"""
         return self.llm is not None

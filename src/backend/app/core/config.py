@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     langsmith_api_key: Optional[str] = None
     langsmith_project: str = "techgiterview"
     
+    # Langfuse (LLM Observability)
+    langfuse_public_key: Optional[str] = None
+    langfuse_secret_key: Optional[str] = None
+    langfuse_host: str = "http://localhost:3000"
+    
     # Vector Database
     chroma_host: str = "localhost"
     chroma_port: int = 8000  # 8001과 충돌 방지를 위해 8000으로 변경
