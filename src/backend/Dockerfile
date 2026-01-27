@@ -59,44 +59,45 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Install core dependencies first (fastest to install) using uv for speed
 RUN echo "Installing core web dependencies with uv..." && \
     uv pip install \
-        uvicorn[standard] \
-        fastapi \
-        pydantic \
-        pydantic-settings \
-        python-multipart \
-        aiohttp \
-        sqlalchemy \
+    uvicorn[standard] \
+    fastapi \
+    pydantic \
+    pydantic-settings \
+    python-multipart \
+    aiohttp \
+    sqlalchemy \
     && echo "Core web dependencies installed"
 
 # Install database and cache dependencies (medium speed)
 RUN echo "Installing database dependencies with uv..." && \
     uv pip install \
-        aiosqlite \
-        asyncpg \
-        psycopg2-binary \
-        aioredis \
-        redis \
+    aiosqlite \
+    asyncpg \
+    psycopg2-binary \
+    aioredis \
+    redis \
     && echo "Database dependencies installed"
 
 # Install AI dependencies (slowest, most likely to timeout)
 RUN echo "Installing AI dependencies with uv (this may take a while)..." && \
     uv pip install \
-        google-generativeai \
-        langchain \
-        langchain-core \
-        langchain-google-genai \
-        langgraph \
-        langsmith \
-        tiktoken \
+    google-generativeai \
+    langchain \
+    langchain-core \
+    langchain-google-genai \
+    langgraph \
+    langsmith \
+    langfuse \
+    tiktoken \
     && echo "AI dependencies installed"
 
 # Install analysis and utility dependencies (except ChromaDB)
 RUN echo "Installing analysis dependencies with uv..." && \
     uv pip install \
-        scipy \
-        networkx \
-        lizard \
-        chardet \
+    scipy \
+    networkx \
+    lizard \
+    chardet \
     && echo "Analysis dependencies installed"
 
 # Install ChromaDB separately for better caching and error handling
@@ -105,15 +106,11 @@ RUN echo "Installing ChromaDB (this may take longer due to its dependencies)..."
     echo "ChromaDB installation completed" && \
     echo "Pre-initializing ChromaDB components..." && \
     (.venv/bin/python -c "import chromadb; client = chromadb.EphemeralClient(); print('✅ ChromaDB pre-initialization successful')" && \
-     echo "ChromaDB pre-warm completed") || \
+    echo "ChromaDB pre-warm completed") || \
     echo "⚠️  ChromaDB pre-initialization skipped, will verify later"
 
-# Try uv sync as alternative (faster if uv.lock exists) with fallback
-RUN echo "Attempting uv sync as additional validation..." && \
-    (uv sync --frozen && echo "✅ uv sync successful") || \
-    (echo "⚠️  uv sync failed, verifying uv pip installation is working..." && \
-     uv pip list | head -10 && \
-     echo "✅ uv pip installation confirmed working")
+# uv sync removed to prevent uninstalling packages not in lockfile
+RUN echo "Skipping uv sync to preserve explicitly installed packages"
 
 # Comprehensive verification with timeout protection and fallback testing
 RUN echo "🔍 Verifying installations with comprehensive tests..." && \
@@ -127,9 +124,9 @@ RUN echo "🔍 Verifying installations with comprehensive tests..." && \
     timeout 30 .venv/bin/python -c "import langchain; print('✅ LangChain OK')" && \
     echo "Testing ChromaDB (may take longer due to complex initialization)..." && \
     (timeout 120 .venv/bin/python -c "import chromadb; print('✅ ChromaDB import successful'); client = chromadb.EphemeralClient(); print('✅ ChromaDB client creation successful')" && \
-     echo "✅ ChromaDB verification completed") || \
+    echo "✅ ChromaDB verification completed") || \
     (echo "⚠️  ChromaDB verification timed out or failed, but continuing build..." && \
-     echo "ChromaDB will be tested at runtime") && \
+    echo "ChromaDB will be tested at runtime") && \
     echo "📦 Package count: $(uv pip list | wc -l) packages installed" && \
     echo "✅ Critical dependencies verification completed"
 

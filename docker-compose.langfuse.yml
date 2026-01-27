@@ -1,0 +1,124 @@
+version: '3.8'
+
+# Langfuse LLM Observability Stack (v3)
+# 사용법: sudo docker-compose -f docker-compose.langfuse.yml up -d
+
+services:
+  # ClickHouse for Langfuse v3 (Required)
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: langfuse-clickhouse
+    environment:
+      CLICKHOUSE_DB: langfuse
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: langfuse_ch_123
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - langfuse_clickhouse:/var/lib/clickhouse
+      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+    healthcheck:
+      test: [ "CMD", "clickhouse-client", "--query", "SELECT 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - langfuse-network
+
+  # PostgreSQL for Langfuse
+  langfuse-db:
+    image: postgres:15-alpine
+    container_name: langfuse-db
+    environment:
+      POSTGRES_DB: langfuse
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse_secret_123
+    volumes:
+      - langfuse_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U langfuse -d langfuse" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - langfuse-network
+
+  # Redis for Langfuse
+  langfuse-redis:
+    image: redis:7-alpine
+    container_name: langfuse-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - langfuse_redis:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - langfuse-network
+
+  # Langfuse Server (v3)
+  langfuse:
+    image: langfuse/langfuse:latest
+    container_name: langfuse
+    ports:
+      - "3000:3000"
+    environment:
+      # Database (PostgreSQL)
+      DATABASE_URL: postgresql://langfuse:langfuse_secret_123@langfuse-db:5432/langfuse
+
+      # ClickHouse (Required for v3)
+      CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse:langfuse_ch_123@langfuse-clickhouse:9000/langfuse
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: langfuse_ch_123
+
+      # Redis
+      REDIS_HOST: langfuse-redis
+      REDIS_PORT: 6379
+
+      # Authentication
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: techgiterview-langfuse-secret-key-2024
+      SALT: techgiterview-salt-key-2024
+
+      # Security
+      ENCRYPTION_KEY: 0
+
+      # Optional settings
+      TELEMETRY_ENABLED: "false"
+      NEXT_PUBLIC_SIGN_UP_DISABLED: "false"
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:3000/api/public/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - langfuse-network
+
+networks:
+  langfuse-network:
+    driver: bridge
+
+volumes:
+  langfuse_postgres:
+    driver: local
+  langfuse_clickhouse:
+    driver: local
+  langfuse_clickhouse_logs:
+    driver: local
+  langfuse_redis:
+    driver: local

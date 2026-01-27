@@ -15,7 +15,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -23,10 +23,10 @@ services:
 
   # Backend API Server - Development Configuration
   backend:
-    build: 
+    build:
       context: ./src/backend
       dockerfile: Dockerfile
-      target: development  # Use development stage
+      target: development # Use development stage
       args:
         BUILDKIT_INLINE_CACHE: 1
     ports:
@@ -38,6 +38,10 @@ services:
       - REDIS_URL=redis://redis:6379
       - PYTHONUNBUFFERED=1
       - COMPOSE_HTTP_TIMEOUT=300
+      # Langfuse LLM Observability
+      - LANGFUSE_PUBLIC_KEY=pk-lf-69cb4f34-6880-45d2-a22d-666188005ee2
+      - LANGFUSE_SECRET_KEY=sk-lf-7cf1284a-1ad4-4a59-bd29-9c2a5ba467e3
+      - LANGFUSE_HOST=http://192.168.50.225:3000
     depends_on:
       redis:
         condition: service_healthy
@@ -52,11 +56,11 @@ services:
       - backend_data:/app/data
     # Optimized health check with longer startup period
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8002/health || exit 1" ]
       interval: 45s
       timeout: 30s
       retries: 5
-      start_period: 120s  # Allow 2 minutes for startup
+      start_period: 120s # Allow 2 minutes for startup
     restart: unless-stopped
     deploy:
       resources:

@@ -15,6 +15,13 @@ except ImportError:
     GOOGLE_AI_AVAILABLE = False
 
 from app.core.config import settings
+
+# Langfuse 추적 import
+try:
+    from app.core.langfuse_client import get_langfuse_client, traced
+    LANGFUSE_AVAILABLE = True
+except ImportError:
+    LANGFUSE_AVAILABLE = False
     
 logger = logging.getLogger(__name__)
 
@@ -246,7 +253,7 @@ class AIService:
                               provider: Optional[AIProvider] = None,
                               max_retries: int = 3,
                               api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-        """AI를 사용하여 분석 생성 (Rate limiting 및 재시도 포함)"""
+        """AI를 사용하여 분석 생성 (Rate limiting, 재시도, Langfuse 추적 포함)"""
         
         # 제공업체가 지정되지 않은 경우 우선순위에 따라 선택
         if provider is None:
@@ -273,20 +280,81 @@ class AIService:
         # Rate limiting 적용
         await self._wait_for_rate_limit(provider)
         
+        # Langfuse 추적 시작
+        trace = None
+        generation = None
+        start_time = time.time()
+        
+        if LANGFUSE_AVAILABLE:
+            try:
+                langfuse_client = get_langfuse_client()
+                if langfuse_client.is_enabled():
+                    trace = langfuse_client.create_trace(
+                        name="ai_analysis",
+                        metadata={
+                            "provider": provider.value if provider else "unknown",
+                            "max_retries": max_retries
+                        }
+                    )
+                    if trace:
+                        # Langfuse v3: use start_generation instead of generation
+                        generation = trace.start_generation(
+                            name=f"{provider.value if provider else 'unknown'}_generation",
+                            model=self.available_providers.get(provider, {}).get("model", "unknown"),
+                            input=prompt[:1000] + "..." if len(prompt) > 1000 else prompt,
+                            metadata={"provider": provider.value if provider else "unknown"}
+                        )
+                        logger.info(f"[LANGFUSE] Trace started for {provider}")
+            except Exception as e:
+                logger.debug(f"[LANGFUSE] Failed to start trace: {e}")
+        
         # 재시도 로직
         last_exception = None
+        result = None
         for attempt in range(max_retries):
             try:
                 if provider == AIProvider.UPSTAGE_SOLAR:
-                    return await self._generate_with_upstage(prompt, api_keys)
+                    result = await self._generate_with_upstage(prompt, api_keys)
                 elif provider == AIProvider.GEMINI_FLASH:
-                    return await self._generate_with_gemini(prompt, api_keys)
+                    result = await self._generate_with_gemini(prompt, api_keys)
                 elif provider == AIProvider.OPENAI_GPT:
-                    return await self._generate_with_openai(prompt, api_keys)
+                    result = await self._generate_with_openai(prompt, api_keys)
                 elif provider == AIProvider.ANTHROPIC_CLAUDE:
-                    return await self._generate_with_anthropic(prompt, api_keys)
+                    result = await self._generate_with_anthropic(prompt, api_keys)
                 else:
                     raise ValueError(f"지원되지 않는 AI 제공업체: {provider}")
+                
+                # Langfuse 추적 완료 (성공)
+                if generation:
+                    try:
+                        generation.end(
+                            output=result.get("content", "")[:1000] + "..." if len(result.get("content", "")) > 1000 else result.get("content", ""),
+                            usage={
+                                "input": result.get("usage", {}).get("prompt_tokens", 0),
+                                "output": result.get("usage", {}).get("completion_tokens", 0)
+                            },
+                            level="DEFAULT"
+                        )
+                        logger.info(f"[LANGFUSE] Generation completed for {provider}")
+                    except Exception as e:
+                        logger.debug(f"[LANGFUSE] Failed to end generation: {e}")
+                
+                # End the trace (root span)
+                if trace:
+                    try:
+                        trace.end()
+                    except Exception as e:
+                        logger.debug(f"[LANGFUSE] Failed to end trace: {e}")
+
+                # Langfuse flush
+                if LANGFUSE_AVAILABLE:
+                    try:
+                        langfuse_client = get_langfuse_client()
+                        langfuse_client.flush()
+                    except Exception as e:
+                        logger.debug(f"[LANGFUSE] Failed to flush: {e}")
+                
+                return result
                     
             except Exception as e:
                 last_exception = e
@@ -307,6 +375,34 @@ class AIService:
                     
                 # 일반적인 재시도 대기
                 await asyncio.sleep(2 ** attempt)  # 지수 백오프: 1초, 2초, 4초
+        
+        # Langfuse 추적 완료 (실패)
+        if generation:
+            try:
+                generation.end(
+                    output=str(last_exception),
+                    level="ERROR",
+                    status_message=str(last_exception)
+                )
+            except Exception as e:
+                logger.debug(f"[LANGFUSE] Failed to end generation with error: {e}")
+        
+        # End the trace (root span) on failure
+        if trace:
+            try:
+                trace.end(
+                    status_message=str(last_exception),
+                    level="ERROR"
+                )
+            except Exception as e:
+                logger.debug(f"[LANGFUSE] Failed to end trace on error: {e}")
+
+        if LANGFUSE_AVAILABLE:
+            try:
+                langfuse_client = get_langfuse_client()
+                langfuse_client.flush()
+            except Exception:
+                pass
         
         # 모든 재시도 실패
         logger.error(f"AI 분석 생성 최종 실패 ({provider}): {last_exception}")

@@ -138,3 +138,7 @@ def get_settings() -> Settings:
 
 # 전역 설정 인스턴스
 settings = get_settings()
+
+# Debug: Print Langfuse settings
+print(f"[CONFIG] Loaded settings: env={settings.env}")
+print(f"[CONFIG] Langfuse: public_key={'Set' if settings.langfuse_public_key else 'None'}, secret_key={'Set' if settings.langfuse_secret_key else 'None'}, host={settings.langfuse_host}")

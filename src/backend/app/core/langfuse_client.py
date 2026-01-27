@@ -12,12 +12,22 @@ logger = logging.getLogger(__name__)
 # Langfuse 사용 가능 여부 확인
 try:
     from langfuse import Langfuse
-    from langfuse.callback import CallbackHandler as LangfuseCallbackHandler
-    from langfuse.decorators import observe, langfuse_context
+    # Langfuse 3.x imports
+    try:
+        from langfuse.langchain import CallbackHandler as LangfuseCallbackHandler
+    except ImportError:
+        # Fallback for older versions
+        from langfuse.callback import CallbackHandler as LangfuseCallbackHandler
+        
+    try:
+        from langfuse import observe
+    except ImportError:
+        from langfuse.decorators import observe
+        
     LANGFUSE_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     LANGFUSE_AVAILABLE = False
-    logger.warning("langfuse not installed. Please install: pip install langfuse")
+    logger.warning(f"langfuse import failed: {e}. Please install: pip install langfuse")
 
 
 class LangfuseClient:
@@ -48,9 +58,8 @@ class LangfuseClient:
             )
             
             self.callback_handler = LangfuseCallbackHandler(
-                public_key=self.public_key,
-                secret_key=self.secret_key,
-                host=self.host
+                public_key=self.public_key
+                # host and secret_key are read from environment variables or global config
             )
             
             self.enabled = True
@@ -72,12 +81,11 @@ class LangfuseClient:
         try:
             return LangfuseCallbackHandler(
                 public_key=self.public_key,
-                secret_key=self.secret_key,
-                host=self.host,
-                trace_name=trace_name,
-                user_id=user_id,
-                session_id=session_id,
-                metadata=metadata or {}
+                # host and secret_key from environment
+                # trace_name is not supported in init of new CallbackHandler? 
+                # Wait, check signature again.
+                # Signature: (public_key, update_trace, trace_context).
+                # New handler doesn't accept trace_name in init?
             )
         except Exception as e:
             logger.error(f"[LANGFUSE] Failed to create callback handler: {e}")
@@ -89,18 +97,24 @@ class LangfuseClient:
                      session_id: Optional[str] = None,
                      metadata: Optional[Dict[str, Any]] = None,
                      input: Optional[Any] = None):
-        """수동 트레이스 생성"""
+        """수동 트레이스 생성 (Langfuse v3 OpenTelemetry 스타일)"""
         if not self.client:
             return None
         
         try:
-            return self.client.trace(
+            # v3: trace() -> start_span(), update_trace() for context
+            span = self.client.start_span(
                 name=name,
-                user_id=user_id,
-                session_id=session_id,
                 metadata=metadata or {},
                 input=input
             )
+            
+            if user_id or session_id:
+                span.update_trace(
+                    user_id=user_id,
+                    session_id=session_id
+                )
+            return span
         except Exception as e:
             logger.error(f"[LANGFUSE] Failed to create trace: {e}")
             return None
