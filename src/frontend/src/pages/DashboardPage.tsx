@@ -43,6 +43,7 @@ import {
 } from 'lucide-react'
 import { FileContentModal } from '../components/FileContentModal'
 import { CriticalFilesPreview } from '../components/CriticalFilesPreview'
+import CodeGraphViewer from '../components/CodeGraphViewer'
 import './DashboardPage-CLEAN.css'
 
 // TypeScript 타입 확장
@@ -288,6 +289,10 @@ export const DashboardPage: React.FC = () => {
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false)
   const [questionsGenerated, setQuestionsGenerated] = useState(false)
 
+  // Graph State
+  const [graphData, setGraphData] = useState<any>(null)
+  const [isLoadingGraph, setIsLoadingGraph] = useState(false)
+
   // 전체 분석 목록을 위한 상태
   const [allAnalyses, setAllAnalyses] = useState<RecentAnalysis[]>([])
   const [isLoadingAllAnalyses, setIsLoadingAllAnalyses] = useState(false)
@@ -528,6 +533,9 @@ export const DashboardPage: React.FC = () => {
       })
       setAnalysisResult(result)
 
+      // Load Graph Data
+      fetchGraphData(result.analysis_id)
+
       // 자동으로 전체 파일 목록 로드
       try {
         const filesResponse = await fetch(`/api/v1/repository/analysis/${result.analysis_id}/all-files?max_depth=3&max_files=500`)
@@ -565,6 +573,21 @@ export const DashboardPage: React.FC = () => {
     } finally {
       console.log('[Dashboard] Analysis loading finished, setting isLoadingAnalysis to false')
       setIsLoadingAnalysis(false)
+    }
+  }
+
+  const fetchGraphData = async (id: string) => {
+    setIsLoadingGraph(true)
+    try {
+      const res = await fetch(`/api/v1/repository/analysis/${id}/graph`)
+      if (res.ok) {
+        const data = await res.json()
+        setGraphData(data)
+      }
+    } catch (e) {
+      console.error("Failed to fetch graph data", e)
+    } finally {
+      setIsLoadingGraph(false)
     }
   }
 
@@ -1307,6 +1330,29 @@ export const DashboardPage: React.FC = () => {
                 </span>
               ))
             }
+          </div>
+        </div>
+
+        {/* 코드 흐름 그래프 */}
+        <div className="card card-lg" style={{ minHeight: '400px' }}>
+          <div className="card-header">
+            <h2><GitFork className="section-icon" /> 코드 흐름 그래프</h2>
+            {isLoadingGraph && <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginLeft: '1rem' }}>로딩 중...</span>}
+          </div>
+          <div className="card-body" style={{ padding: 0, overflow: 'hidden' }}>
+            {graphData ? (
+              <div style={{ width: '100%', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+                <CodeGraphViewer graphData={graphData} width={800} height={500} />
+              </div>
+            ) : (
+              <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                {isLoadingGraph ? (
+                  <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
+                ) : (
+                  <p>표시할 그래프 데이터가 없습니다.</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
