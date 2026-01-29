@@ -540,15 +540,22 @@ class DependencyAnalyzer:
         
         return local_deps
     
-    def build_code_dependency_graph(self, file_contents: Dict[str, str]) -> nx.DiGraph:
-        """코드 레벨 의존성 그래프 구성"""
+    def build_code_dependency_graph(self, file_contents: Dict[str, str], all_repo_files: Optional[List[str]] = None) -> nx.DiGraph:
+        """
+        코드 레벨 의존성 그래프 구성
+        
+        Args:
+            file_contents: 파일 경로와 내용의 매핑
+            all_repo_files: 저장소의 모든 파일 경로 리스트 (Ghost Node 해결용)
+        """
         print(f"[DEPENDENCY_ANALYZER] {len(file_contents)}개 파일의 코드 의존성 그래프 구성 시작")
         
         code_graph = nx.DiGraph()
         file_imports = {}
         
         # 1단계: 모든 파일의 import 정보 수집
-        all_files = list(file_contents.keys())
+        # all_repo_files가 제공되지 않으면 file_contents의 키만 사용 (기존 동작 호환)
+        all_files = all_repo_files if all_repo_files else list(file_contents.keys())
         
         for file_path, content in file_contents.items():
             if not content or content.startswith('# File'):
@@ -577,17 +584,17 @@ class DependencyAnalyzer:
         # 2단계: 의존성 엣지 추가
         for file_path, import_info in file_imports.items():
             for dep_file in import_info['local_dependencies']:
-                if dep_file in file_contents:
-                    code_graph.add_edge(file_path, dep_file)
+                # 내용이 없는 파일(Ghost Node)이라도 의존성 관계가 있으면 그래프에 추가
+                code_graph.add_edge(file_path, dep_file)
         
         print(f"[DEPENDENCY_ANALYZER] 코드 의존성 그래프 구성 완료: {code_graph.number_of_nodes()}개 노드, {code_graph.number_of_edges()}개 엣지")
         return code_graph
     
-    def calculate_code_centrality_metrics(self, code_graph: nx.DiGraph, file_paths: List[str]) -> Dict[str, float]:
+    def calculate_code_centrality_metrics(self, code_graph: nx.DiGraph, file_paths: Optional[List[str]] = None) -> Dict[str, float]:
         """코드 레벨 중심성 메트릭 계산"""
         if not code_graph.nodes():
             print("[DEPENDENCY_ANALYZER] 빈 코드 의존성 그래프 - 기본값 반환")
-            return {fp: 0.1 for fp in file_paths}
+            return {fp: 0.1 for fp in (file_paths or [])}
         
         centrality_scores = {}
         
@@ -614,8 +621,11 @@ class DependencyAnalyzer:
             print(f"[DEPENDENCY_ANALYZER] - Betweenness 범위: {min(betweenness_scores.values()):.3f} ~ {max(betweenness_scores.values()):.3f}")
             print(f"[DEPENDENCY_ANALYZER] - In-degree 범위: 0 ~ {max_in_degree}")
             
+            # 점수 계산 대상: 지정된 파일 목록이 있으면 그것만, 없으면 그래프의 모든 노드
+            target_nodes = file_paths if file_paths is not None else list(code_graph.nodes())
+            
             # 통합 중심성 점수 계산
-            for file_path in file_paths:
+            for file_path in target_nodes:
                 if file_path not in code_graph.nodes():
                     centrality_scores[file_path] = 0.05  # 최소값
                     continue

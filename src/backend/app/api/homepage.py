@@ -52,7 +52,7 @@ async def get_homepage_init_data(
         }
         
         # 2. AI 제공업체 목록 (기존 로직 재사용)
-        providers_data = await get_available_providers(github_token, google_api_key, upstage_api_key)
+        providers_data = await get_available_providers(github_token, google_api_key)
         providers_list = [provider.dict() for provider in providers_data]
         
         # 3. 캐싱 정보

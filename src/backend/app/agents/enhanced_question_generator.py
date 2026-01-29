@@ -24,6 +24,9 @@ except ImportError:
 from app.core.ai_service import ai_service
 from app.services.file_importance_analyzer import SmartFileImportanceAnalyzer
 from app.services.file_content_extractor import FileContentExtractor
+from app.services.flow_graph_analyzer import FlowGraphAnalyzer
+from app.services.flow_analysis_service import FlowAnalysisService
+from app.agents.graph_context_builder import GraphContextBuilder
 
 
 @dataclass
@@ -428,6 +431,41 @@ class EnhancedQuestionGenerator:
         
         questions = []
         
+        # [Graph RAG] Build Flow Context
+        flow_context = ""
+        try:
+            if state.file_contents:
+                # 1. Prepare file dict {path: content}
+                file_map = {
+                    path: data["content"] 
+                    for path, data in state.file_contents.items() 
+                    if data.get("success") and data.get("content")
+                }
+                
+                # 2. Build Graph & Analyze Flows
+                if file_map:
+                    analyzer = FlowGraphAnalyzer()
+                    graph = analyzer.build_graph(file_map)
+                    
+                    service = FlowAnalysisService()
+                    # Extract node types for context builder
+                    node_types = {}
+                    for node, attrs in graph.nodes(data=True):
+                         if "type" in attrs:
+                             node_types[node] = attrs["type"]
+                    
+                    # Extract paths using Smart Pruning
+                    flow_paths = service.extract_flow_paths(graph, max_paths=3)
+                    
+                    # 3. Build Text Context
+                    if flow_paths:
+                        builder = GraphContextBuilder()
+                        flow_context = builder.build_flow_context(flow_paths, file_map, node_types)
+                        print(f"[QUESTION_GEN] Graph RAG Context Generated ({len(flow_paths)} flows)")
+        except Exception as e:
+            print(f"[QUESTION_GEN] Graph RAG Error: {e}")
+            # Non-blocking error, continue with standard generation
+        
         if not state.prioritized_files or not state.file_contents:
             return questions
         
@@ -479,7 +517,8 @@ class EnhancedQuestionGenerator:
                     },
                     question_type="code_analysis",
                     difficulty=state.difficulty_level,
-                    include_metrics=True
+                    include_metrics=True,
+                    flow_context=flow_context
                 )
                 
                 # AI 질문 생성
@@ -727,7 +766,8 @@ class EnhancedQuestionGenerator:
         file_context: Dict[str, Any],
         question_type: str,
         difficulty: str,
-        include_metrics: bool = True
+        include_metrics: bool = True,
+        flow_context: str = ""
     ) -> str:
         """향상된 프롬프트 생성"""
         
@@ -746,6 +786,11 @@ class EnhancedQuestionGenerator:
         # 메트릭 정보 포함 여부
         complexity_score = metrics.get("complexity_score", 0.0) if include_metrics else 0.0
         
+        # [Graph RAG] Flow Context Injection
+        flow_section = ""
+        if flow_context:
+            flow_section = f"\n## Execution Flow Context\n{flow_context}\n"
+        
         # Gemini 특화 프롬프트 헤더 추가
         gemini_header = f"""# 코드 분석 및 기술면접 질문 생성
 
@@ -754,7 +799,7 @@ class EnhancedQuestionGenerator:
 - **프로그래밍 언어**: {language}
 - **중요도 점수**: {importance_score:.2f}/1.0
 - **복잡도 점수**: {complexity_score:.2f}/1.0
-
+{flow_section}
 ## 전체 파일 내용 (완전 분석용)
 ```{language}
 {content}
@@ -762,6 +807,9 @@ class EnhancedQuestionGenerator:
 
 ## 요구사항
 {self.difficulty_instructions.get(difficulty, "")}
+### **[중요] 다차원적인 질문 생성**
+단순히 이 파일의 내부 로직만 묻지 말고, **위 'Execution Flow Context'를 참고하여 이 파일이 다른 파일들과 어떻게 상호작용하는지**를 포함한 질문을 우선적으로 생성해주세요.
+예: "Controller가 Service를 호출할 때 데이터 유효성 검증은 어디서 수행되나요?"
 
 ## 출력 형식
 다음 JSON 형식으로 응답해주세요:

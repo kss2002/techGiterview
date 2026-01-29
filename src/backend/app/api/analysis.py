@@ -13,6 +13,8 @@ from datetime import datetime
 
 from app.agents.repository_analyzer import RepositoryAnalyzer
 from app.services.advanced_file_analyzer import AdvancedFileAnalyzer
+from app.services.flow_graph_analyzer import FlowGraphAnalyzer
+from app.services.flow_analysis_service import FlowAnalysisService
 
 router = APIRouter()
 
@@ -108,6 +110,92 @@ async def get_analysis_status(analysis_id: str):
         result=cache_data.get("result"),
         error=cache_data.get("error")
     )
+
+
+@router.get("/analysis/{analysis_id}/graph")
+async def get_analysis_graph(analysis_id: str):
+    """분석 결과에 대한 코드 그래프 데이터 조회"""
+    
+    if analysis_id not in analysis_cache:
+        raise HTTPException(status_code=404, detail="분석 ID를 찾을 수 없습니다")
+    
+    cache_data = analysis_cache[analysis_id]
+    
+    if cache_data["status"] != "completed":
+        raise HTTPException(status_code=400, detail="분석이 완료되지 않았습니다")
+        
+    result = cache_data.get("result", {})
+    
+    # key_files에서 파일 내용 및 메타데이터 추출
+    file_map = {}
+    metadata_map = {}
+    
+    if "key_files" in result:
+        for f in result["key_files"]:
+            path = f.get("path")
+            if f.get("content"):
+                file_map[path] = f.get("content")
+            
+            # Store metadata for graph injection
+            metadata_map[path] = {
+                "importance_score": f.get("importance_score", 0),
+                "selection_reason": f.get("selection_reason", ""),
+                "importance_level": f.get("importance", "low")
+            }
+                
+    if not file_map:
+        return {"nodes": [], "links": []}
+        
+    # 그래프 생성
+    try:
+        analyzer = FlowGraphAnalyzer()
+        
+        # Extract repo name for internal prefix detection
+        repo_name = None
+        if "repo_info" in result:
+             repo_name = result["repo_info"].get("name")
+        
+        graph = analyzer.build_graph(file_map, repo_name=repo_name)
+        
+        # Frontend 호환 포맷으로 변환
+        nodes = []
+        links = []
+        
+        for node, attrs in graph.nodes(data=True):
+            node_type = attrs.get("type", "unknown")
+            # NodeType enum 처리
+            if hasattr(node_type, "value"):
+                node_type = node_type.value
+            
+            # Get metadata
+            meta = metadata_map.get(node, {})
+            score = meta.get("importance_score", 0)
+            
+            # Fallback to visual density if score is missing (e.g. for implicit nodes)
+            val = score if score > 0 else attrs.get("density", 0.1)
+                
+            nodes.append({
+                "id": node,
+                "name": node.split('/')[-1],
+                "val": val, # Used for visual importance
+                "type": node_type,
+                "density": attrs.get("density", 0),
+                "reason": meta.get("selection_reason", ""),
+                "importance": meta.get("importance_level", "low")
+            })
+            
+        for u, v, attrs in graph.edges(data=True):
+            links.append({
+                "source": u,
+                "target": v,
+                "type": attrs.get("type", "dependency")
+            })
+            
+        return {"nodes": nodes, "links": links}
+        
+    except Exception as e:
+        print(f"[GRAPH_API] Error building graph: {e}")
+        return {"nodes": [], "links": []}
 
 
 @router.get("/analysis/{analysis_id}/result")

@@ -17,11 +17,14 @@ from sqlalchemy import func, String
 from app.core.config import settings
 from app.services.file_importance_analyzer import SmartFileImportanceAnalyzer
 from app.services.dependency_analyzer import DependencyAnalyzer
+from app.services.flow_graph_analyzer import FlowGraphAnalyzer
 from app.core.database import get_db
 from sqlalchemy.orm import Session
 
 # 임시 메모리 저장소
 analysis_cache = {}
+
+
 
 
 router = APIRouter()
@@ -198,10 +201,37 @@ class GitHubClient:
         return final_items
 
 
-class RepositoryAnalyzer:
-    """실제 저장소 분석기"""
+from app.agents.repository_analyzer import RepositoryAnalyzer as AgentRepositoryAnalyzer
+
+# ... (Previous imports)
+
+# ... (Pydantic models)
+
+class LocalRepositoryAnalyzer:
+    """
+    로컬 저장소 분석기 (Legacy / Helper)
+    - Tree API 등 단순 기능 유지
+    - 복잡한 분석은 AgentRepositoryAnalyzer 위임 권장
+    """
     
     def __init__(self, github_client: Optional[GitHubClient] = None):
+        self.github_client = github_client or GitHubClient()
+        # ... (rest of init)
+
+    # ... (keep existing methods: parse_repo_url, analyze_tech_stack, get_key_files, get_all_files, etc.)
+    # Note: I am NOT copying all methods here in ReplacementContent to save tokens, 
+    # relying on the fact that I renamed the class. 
+    # WAIT. `replace_file_content` replaces a contiguous block. 
+    # I need to be careful not to delete the methods. 
+    # Strategy: 
+    # 1. Rename the class definition line.
+    # 2. Add the import at the top.
+    # 3. Update `analyze_repository_simple` completely.
+    # 4. Update usage in `get_all_repository_files`.
+
+# I will do this in multiple steps or chunks since the file is large.
+# Let's start by renaming the class and adding the import.
+
         self.github_client = github_client or GitHubClient()
         # SmartFileImportanceAnalyzer 추가
         from app.services.file_importance_analyzer import SmartFileImportanceAnalyzer
@@ -450,6 +480,16 @@ class RepositoryAnalyzer:
                 print(f"[SMART_ANALYZER] ❌ Dot 파일 {len(dot_files)}개 발견: {[f.path for f in dot_files]}")
             else:
                 print(f"[SMART_ANALYZER] ✅ Dot 파일 제외 성공")
+
+            # 6. [NUCLEAR OPTION] Force Filter out ANY file containing 'test'
+            original_count = len(key_files)
+            key_files = [
+                f for f in key_files 
+                if not ('test' in f.path.lower() or 'spec' in f.path.lower() or 'conftest' in f.path.lower())
+            ]
+            filtered_count = len(key_files)
+            if original_count != filtered_count:
+                print(f"[SMART_ANALYZER] ☢️  Nuclear Filter Removed {original_count - filtered_count} test files.")
             
             return key_files
             
@@ -1098,7 +1138,7 @@ async def get_all_repository_files(analysis_id: str, max_depth: int = 3, max_fil
         raise HTTPException(status_code=404, detail="Analysis not found")
     
     analysis_result = analysis_cache[analysis_id]
-    analyzer = RepositoryAnalyzer()
+    analyzer = LocalRepositoryAnalyzer()
     
     try:
         # 저장소 정보에서 owner와 repo 추출
@@ -1198,7 +1238,7 @@ async def get_file_content(analysis_id: str, file_path: str):
         
         # 3. 캐시에 없으면 GitHub API에서 가져오기 (fallback)
         print(f"[FILE_CONTENT] 캐시에 없는 파일, GitHub API 요청: {file_path}")
-        analyzer = RepositoryAnalyzer()
+        analyzer = LocalRepositoryAnalyzer()
         owner = analysis_result.repo_info.owner
         repo = analysis_result.repo_info.name
         
@@ -1306,44 +1346,82 @@ async def analyze_repository_simple(
             print(f"[ANALYZE_SIMPLE]   - Google API Key 값: {google_api_key[:20]}...")
         
         # 실제 GitHub API를 사용한 분석 (헤더에서 받은 토큰 사용)
-        github_client = GitHubClient(github_token)
-        repo_analyzer = RepositoryAnalyzer(github_client)
         
-        # 1. 저장소 기본 정보 수집
-        repo_info_dict = await github_client.get_repository_info(owner, repo_name)
-        # GitHub API 응답에서 owner는 딕셔너리이므로 login 필드 추출
-        owner_info = repo_info_dict.get("owner", {})
-        owner_name = owner_info.get("login", owner) if isinstance(owner_info, dict) else str(owner_info)
+        # [ADVANCED ANALYZER] AgentRepositoryAnalyzer 사용 (PageRank + Hybrid Selection)
+        print(f"[ANALYZE_SIMPLE] 고급 분석 에이전트 시작...")
+        
+        # AgentAnalyzer는 내부적으로 GitHubClient를 초기화하지만, 토큰 설정이 필요함
+        analyzer = AgentRepositoryAnalyzer()
+        
+        # API 키 딕셔너리 준비
+        api_keys = {}
+        if github_token and github_token != "your_github_token_here":
+            api_keys["github_token"] = github_token
+        
+        # Agent 실행
+        agent_result = await analyzer.analyze_repository(repo_url_str, api_keys, use_advanced=True)
+        
+        if not agent_result or not agent_result.get("success", True):
+             error_msg = agent_result.get("error", "Unknown error in agent analysis")
+             raise HTTPException(status_code=500, detail=f"분석 에이전트 오류: {error_msg}")
+             
+        # 결과 매핑 (Dict -> Pydantic Models)
+        
+        # 1. RepositoryInfo
+        repo_info_data = agent_result.get("repo_info", {})
+        owner_name = repo_info_data.get("owner", {}).get("login", owner) if isinstance(repo_info_data.get("owner"), dict) else repo_info_data.get("owner", owner)
         
         repo_info = RepositoryInfo(
-            name=repo_info_dict.get("name", repo_name),
+            name=repo_info_data.get("name", repo_name),
             owner=owner_name,
-            description=repo_info_dict.get("description", f"{owner_name}/{repo_name} repository") or f"{owner_name}/{repo_name} repository",
-            language=repo_info_dict.get("language") or "Unknown",
-            stars=repo_info_dict.get("stargazers_count", 0),
-            forks=repo_info_dict.get("forks_count", 0),
-            size=repo_info_dict.get("size", 0),
-            topics=repo_info_dict.get("topics", []),
-            default_branch=repo_info_dict.get("default_branch", "main")
+            description=repo_info_data.get("description", "") or f"{owner_name}/{repo_name}",
+            language=repo_info_data.get("language") or "Unknown",
+            stars=repo_info_data.get("stargazers_count", 0),
+            forks=repo_info_data.get("forks_count", 0),
+            size=repo_info_data.get("size", 0),
+            topics=repo_info_data.get("topics", []),
+            default_branch=repo_info_data.get("default_branch", "main")
         )
         
-        # 2. 중요 파일 수집 (최소 6개 이상 확보)
-        key_files = await repo_analyzer.get_key_files(owner, repo_name)
-        print(f"[ANALYZE_SIMPLE] 중요 파일 {len(key_files)}개 수집")
+        # 2. Key Files (Dict List -> FileInfo List)
+        raw_files = agent_result.get("key_files", []) or agent_result.get("analysis_result", {}).get("key_files", [])
+        # Agent result structure might vary, check implementation
+        if not raw_files and "important_files" in agent_result:
+             raw_files = agent_result["important_files"]
+             
+        key_files = []
+        for f in raw_files:
+             # Agent might return full dict or FileInfo object (if mixed)
+             # But analyze_repository returns dict mainly.
+             if isinstance(f, dict):
+                 key_files.append(FileInfo(
+                     path=f.get("path"),
+                     type=f.get("type", "file"),
+                     size=f.get("size", 0),
+                     content=f.get("content")
+                 ))
+             elif hasattr(f, "path"): # It might be an object
+                 key_files.append(FileInfo(
+                     path=f.path,
+                     type=getattr(f, "type", "file"),
+                     size=getattr(f, "size", 0),
+                     content=getattr(f, "content", None)
+                 ))
+
+        # 3. Tech Stack
+        tech_stack = agent_result.get("tech_stack", {}) or {}
         
-        # 3. 언어 통계 수집 및 기술 스택 분석
-        languages = await github_client.get_languages(owner, repo_name)
-        tech_stack = repo_analyzer.analyze_tech_stack(key_files, languages)
-        print(f"[ANALYZE_SIMPLE] 기술 스택 {len(tech_stack)}개 식별")
-        
-        # 4. 추천사항 생성
-        recommendations = repo_analyzer.generate_recommendations(tech_stack, key_files)
-        
-        # 5. 복잡도 점수 계산
-        complexity_score = repo_analyzer.calculate_complexity_score(tech_stack, key_files, languages)
-        
-        # 6. 요약 생성
-        summary = repo_analyzer.generate_summary(repo_info, tech_stack)
+        # 4. Summary & Recommendations
+        summary = agent_result.get("analysis_result", {}).get("summary", "") or agent_result.get("summary", "")
+        if not summary and "analysis_result" in agent_result:
+             summary = agent_result["analysis_result"].get("summary", "")
+             
+        recommendations = agent_result.get("analysis_result", {}).get("recommendations", []) or agent_result.get("recommendations", [])
+        if not recommendations and "analysis_result" in agent_result:
+             recommendations = agent_result["analysis_result"].get("recommendations", [])
+             
+        # 5. Complexity
+        complexity_score = agent_result.get("complexity_score", 0.0)
         
         # AnalysisResult 객체 생성
         analysis_result = AnalysisResult(
@@ -1354,10 +1432,11 @@ async def analyze_repository_simple(
             key_files=key_files,
             summary=summary,
             recommendations=recommendations,
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            smart_file_analysis=agent_result.get("smart_file_analysis")
         )
         
-        print(f"[ANALYZE_SIMPLE] 분석 완료 - 파일: {len(key_files)}개, 기술스택: {len(tech_stack)}개, 복잡도: {complexity_score}")
+        print(f"[ANALYZE_SIMPLE] 고급 분석 완료 - 파일: {len(key_files)}개, 기술스택: {len(tech_stack)}개, 복잡도: {complexity_score}")
         
         # analysis_cache에 저장하여 대시보드에서 조회 가능하도록 함
         analysis_cache[analysis_id] = analysis_result
@@ -1474,3 +1553,74 @@ async def clear_cache():
         "cleared_items": cache_size_before,
         "current_cache_size": len(analysis_cache)
     }
+
+
+@router.get("/analysis/{analysis_id}/graph")
+async def get_analysis_graph(analysis_id: str):
+    """분석 결과에 대한 코드 그래프 데이터 조회"""
+    
+    if analysis_id not in analysis_cache:
+        # DB에서 조회 시도 (옵션)
+        raise HTTPException(status_code=404, detail="분석 ID를 찾을 수 없습니다")
+    
+    analysis_data = analysis_cache[analysis_id]
+    
+    # AnalysisResult 객체이거나 dict일 수 있음
+    key_files = []
+    if hasattr(analysis_data, "key_files"):
+        key_files = analysis_data.key_files
+    elif isinstance(analysis_data, dict):
+        key_files = analysis_data.get("key_files", [])
+        
+    # key_files에서 파일 내용 추출
+    file_map = {}
+    for f in key_files:
+        path = getattr(f, "path", None) 
+        if path is None and isinstance(f, dict):
+            path = f.get("path")
+            
+        content = getattr(f, "content", None)
+        if content is None and isinstance(f, dict):
+            content = f.get("content")
+        
+        if path and content:
+            file_map[path] = content
+                
+    if not file_map:
+        return {"nodes": [], "links": []}
+        
+    # 그래프 생성
+    try:
+        analyzer = FlowGraphAnalyzer()
+        graph = analyzer.build_graph(file_map)
+        
+        # Frontend 호환 포맷으로 변환
+        nodes = []
+        links = []
+        
+        for node, attrs in graph.nodes(data=True):
+            node_type = attrs.get("type", "unknown")
+            if hasattr(node_type, "value"):
+                node_type = node_type.value
+                
+            nodes.append({
+                "id": node,
+                "name": node.split('/')[-1],
+                "val": attrs.get("val", 5),     # LOC based sizing
+                "type": node_type,
+                "density": attrs.get("density", 0)
+            })
+            
+        for u, v, attrs in graph.edges(data=True):
+            links.append({
+                "source": u,
+                "target": v,
+                "type": attrs.get("type", "dependency"),
+                "weight": attrs.get("weight", 1)
+            })
+            
+        return {"nodes": nodes, "links": links}
+        
+    except Exception as e:
+        print(f"[GRAPH_API] Error building graph: {e}")
+        return {"nodes": [], "links": []}

@@ -17,6 +17,9 @@ from dataclasses import dataclass
 from app.core.config import settings
 from app.core.ai_service import ai_service, AIProvider
 from app.core.gemini_client import get_gemini_llm
+from app.services.flow_graph_analyzer import FlowGraphAnalyzer, NodeType
+from app.services.flow_analysis_service import FlowAnalysisService
+
 # from app.services.vector_db import VectorDBService
 
 
@@ -30,6 +33,7 @@ class QuestionState:
     difficulty_level: str = "medium"  # easy, medium, hard
     question_types: Optional[List[str]] = None
     error: Optional[str] = None
+    flow_context: Optional[str] = None  # Graph RAG Context
 
 
 class QuestionGenerator:
@@ -57,6 +61,124 @@ class QuestionGenerator:
             "medium": (3.0, 6.0), 
             "hard": (6.0, 10.0)
         }
+
+    def _extract_flow_context(self, code_snippets: List[Dict[str, Any]]) -> str:
+        """코드 스니펫들로부터 실행 흐름 문맥 추출 (Graph RAG)"""
+        try:
+            # 1. 파일 내용 맵 준비
+            file_map = {
+                s["id"]: s["content"] 
+                for s in code_snippets 
+                if s["metadata"].get("has_real_content", False)
+            }
+            
+            if not file_map:
+                return ""
+                
+            # 2. 그래프 생성 및 흐름 분석
+            analyzer = FlowGraphAnalyzer()
+            graph = analyzer.build_graph(file_map)
+            
+            # 엔트리 포인트 식별
+            entry_points = [n for n, d in graph.nodes(data=True) if d.get("type") == NodeType.ENTRY_POINT]
+            if not entry_points:
+                # 엔트리 포인트가 없으면 모든 로직 노드를 후보로
+                entry_points = [n for n, d in graph.nodes(data=True) if d.get("type") == NodeType.LOGIC]
+            
+            if not entry_points:
+                # 그래도 없으면 모든 노드를 후보로 (순환 방지를 위해 상위 5개만)
+                entry_points = list(graph.nodes())[:5]
+
+            service = FlowAnalysisService()
+            flow_paths = service.extract_flow_paths(graph, entry_points, max_depth=5, max_branches=3)
+            
+            if not flow_paths:
+                return ""
+                
+            # 3. 문맥 텍스트 생성
+            context_parts = []
+            context_parts.append("## Execution Flow Context")
+            context_parts.append("The following execution paths represent the core logic flows detected in this codebase:")
+
+            # 노드 타입 정보 추출
+            node_types = {}
+            for node, attrs in graph.nodes(data=True):
+                 if "type" in attrs:
+                     node_types[node] = attrs["type"]
+
+            sorted_flows = sorted(flow_paths, key=len, reverse=True)[:3]
+
+            for i, flow in enumerate(sorted_flows, 1):
+                flow_str = f"\\n[Flow {i}]"
+                for j, file_path in enumerate(flow):
+                    type_info = ""
+                    if file_path in node_types:
+                        type_info = f" ({node_types[file_path].value})"
+                    indent = "  " * j
+                    if j == 0:
+                        flow_str += f"\\n{indent}Step {j+1}: {file_path}{type_info} (Entry)"
+                    else:
+                        flow_str += f"\\n{indent}-> calls {file_path}{type_info}"
+                context_parts.append(flow_str)
+            
+            context_parts.append("\\nUse these flows to understand how data moves from Entry Points through Services to Data Models within the question.")
+            return "\\n".join(context_parts)
+            
+        except Exception as e:
+            print(f"[QUESTION_GENERATOR] Flow context extraction failed: {e}")
+            return ""
+
+    def _remove_duplicates(self, questions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """유사도가 높은 중복 질문 제거"""
+        if not questions:
+            return []
+            
+        unique_questions = []
+        
+        # 질문 텍스트만 추출하여 비교
+        for q in questions:
+            q_text = q.get("question", "")
+            if not q_text:
+                continue
+                
+            is_duplicate = False
+            
+            for i, existing in enumerate(unique_questions):
+                existing_text = existing.get("question", "")
+                
+                # 1. 완전 일치 확인
+                if q_text == existing_text:
+                    is_duplicate = True
+                    break
+                
+                # 2. 유사도 확인 (SequenceMatcher)
+                import difflib
+                ratio = difflib.SequenceMatcher(None, q_text, existing_text).ratio()
+                
+                # 3. 같은 파일에 대한 유사 질문인지 확인 (context/source_file)
+                # 파일이 같고 질문이 60% 이상 유사하면 중복
+                same_file = False
+                q_file = q.get("source_file", q.get("context", ""))
+                exist_file = existing.get("source_file", existing.get("context", ""))
+                if q_file and exist_file and q_file == exist_file:
+                    if ratio > 0.6:
+                        is_duplicate = True
+                        print(f"[DEDUP] 같은 파일({q_file})에 대한 중복 질문 제거: (유사도 {ratio:.2f})")
+                
+                elif ratio > 0.7:  # 파일이 달라도 70% 이상 유사하면 중복
+                    is_duplicate = True
+                    print(f"[DEDUP] 유사한 질문 제거: (유사도 {ratio:.2f})")
+                
+                if is_duplicate:
+                    # 더 긴 질문(상세한 질문)을 유지
+                    if len(q_text) > len(existing_text):
+                        unique_questions[i] = q
+                    break
+            
+            if not is_duplicate:
+                unique_questions.append(q)
+                
+        return unique_questions
     
     async def generate_questions(
         self, 
@@ -102,7 +224,7 @@ class QuestionGenerator:
             if analysis_data and "key_files" in analysis_data:
                 print(f"[DEBUG] key_files 개수: {len(analysis_data['key_files'])}")
                 # 분석 데이터에서 파일 정보 활용
-                for file_info in analysis_data["key_files"][:8]:  # 최대 8개로 증가
+                for file_info in analysis_data["key_files"][:15]:  # Graph RAG를 위해 더 많은 파일 로드 (8 -> 15)
                     file_path = file_info.get("path", "unknown")
                     file_content = file_info.get("content", "# File content not available")
                     
@@ -126,12 +248,6 @@ class QuestionGenerator:
                     if is_config_or_doc and file_content and len(file_content.strip()) > 5:
                         has_real_content = True  # 설정/문서 파일은 5자 이상이면 유효
                     
-                    print(f"[DEBUG] 파일 내용 검사: {file_path}")
-                    print(f"  - 내용 길이: {len(file_content) if file_content else 0}")
-                    print(f"  - has_real_content: {has_real_content}")
-                    if not has_real_content and file_content:
-                        print(f"  - 내용 미리보기: {file_content[:100]}...")
-                    
                     # 파일 유형별 중요도 자동 설정
                     file_importance = self._determine_file_importance(file_path, file_content)
                     
@@ -151,7 +267,11 @@ class QuestionGenerator:
                     }
                     
                     state.code_snippets.append(snippet_data)
-                    print(f"[DEBUG] 파일: {file_path}, 실제 내용: {has_real_content}, 중요도: {file_importance}")
+                
+                # [Graph RAG] 실행 흐름 문맥 추출
+                state.flow_context = self._extract_flow_context(state.code_snippets)
+                if state.flow_context:
+                    print("[QUESTION_GEN] Graph RAG Flow Context Extracted")
             else:
                 print(f"[DEBUG] key_files 없음. analysis_data 키들: {list(analysis_data.keys()) if analysis_data else 'None'}")
             
@@ -1298,16 +1418,56 @@ class QuestionGenerator:
         context_str = " | ".join(context_info) if context_info else "기본 코드 구조"
         
         # 파일 유형별 질문 스타일 조정
-        if file_type == "controller":
-            question_focus = "HTTP 요청 처리, 라우팅, 에러 핸들링"
-        elif file_type == "service":
-            question_focus = "비즈니스 로직, 데이터 처리, 트랜잭션"
-        elif file_type == "model":
-            question_focus = "데이터 모델링, 관계 설정, 유효성 검사"
-        elif file_type == "configuration":
-            question_focus = "설정 관리, 환경 분리, 보안"
-        else:
-            question_focus = "코드 구조, 설계 패턴, 최적화"
+        # [다양성 확보] 파일 유형별 다양한 관점(Focus Angle) 정의
+        focus_options = {
+            "controller": [
+                "HTTP 요청 처리 및 라우팅 전략",
+                "입력 데이터 유효성 검사 및 에러 핸들링",
+                "API 설계 원칙 (RESTful, GraphQL 등)",
+                "보안 고려사항 (인증, 권한 부여)"
+            ],
+            "service": [
+                "핵심 비즈니스 로직 구현 방식",
+                "트랜잭션 관리 및 데이터 일관성",
+                "서비스 계층의 의존성 주입 및 결합도",
+                "예외 처리 및 로깅 전략"
+            ],
+            "model": [
+                "데이터 모델링 및 스키마 설계",
+                "ORM 사용 방식 및 쿼리 최적화",
+                "데이터 무결성 보장 방법",
+                "모델 간의 관계 설정 및 연관 데이터 처리"
+            ],
+            "configuration": [
+                "환경별 설정 관리 전략",
+                "민감 정보(Secrets) 처리 방식",
+                "애플리케이션 초기화 및 구성 프로세스",
+                "외부 의존성 설정 방법"
+            ],
+            "utils": [
+                "유틸리티 함수의 재사용성 및 순수성",
+                "엣지 케이스 처리 및 견고성",
+                "성능 최적화 및 알고리즘 효율성",
+                "테스트 용이성 및 모듈화"
+            ],
+            "frontend": [
+                "컴포넌트 구조 및 상태 관리",
+                "렌더링 성능 최적화",
+                "사용자 경험(UX) 및 인터랙션 처리",
+                "비동기 데이터 통신 및 에러 처리"
+            ]
+        }
+        
+        # 랜덤하게 관점 선택하여 다양성 확보
+        import random
+        base_options = focus_options.get(file_type, [
+            "코드 구조 및 설계 패턴",
+            "유지보수성 및 확장성", 
+            "에러 처리 및 예외 상황 대응",
+            "성능 최적화 및 리소스 관리"
+        ])
+        selected_focus = random.choice(base_options)
+        question_focus = f"{selected_focus} (이 관점을 중점적으로)"
         
         # 파일별 맞춤 프롬프트 생성
         if file_path.endswith("package.json"):
@@ -1331,6 +1491,11 @@ class QuestionGenerator:
 실제 파일 내용을 직접 참조하는 구체적인 질문 하나만 생성하세요:
 """
         else:
+            # Graph RAG Flow Context Injection
+            flow_section = ""
+            if state.flow_context:
+                flow_section = f"\\n{state.flow_context}\\n"
+            
             prompt = f"""
 다음은 실제 프로젝트의 {file_type} 파일입니다. 이 파일의 구체적인 내용을 바탕으로 기술면접 질문을 생성해주세요.
 
@@ -1339,7 +1504,7 @@ class QuestionGenerator:
 언어: {snippet["metadata"].get("language", "unknown")}
 파일 유형: {file_type}
 복잡도: {complexity:.1f}/10
-
+{flow_section}
 === 실제 코드 내용 ===
 ```{snippet["metadata"].get("language", "")}
 {snippet["content"][:2000]}
@@ -1351,6 +1516,7 @@ class QuestionGenerator:
 3. {question_focus} 관점에서 심도 있는 질문을 만드세요
 4. {state.difficulty_level} 난이도에 맞는 기술적 깊이를 유지하세요
 5. "만약", "가정", "일반적으로" 같은 추상적 표현 대신 코드의 실제 내용을 직접 언급하세요
+6. (중요) 위에 제공된 'Execution Flow Context'가 있다면, 이 파일이 전체 흐름에서 어떤 역할을 하는지를 포함하여 질문하세요. (예: "Controller가 Service를 호출할 때...")
 
 반드시 실제 코드 내용을 참조한 구체적인 질문 하나만 생성해주세요:
 """

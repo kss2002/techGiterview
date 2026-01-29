@@ -8,6 +8,8 @@ import asyncio
 import json
 import re
 import time
+import os
+import math
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +19,7 @@ from langgraph.graph import StateGraph, END
 
 from app.services.github_client import GitHubClient
 from app.services.file_importance_analyzer import SmartFileImportanceAnalyzer
+from app.services.dependency_analyzer import DependencyAnalyzer
 from app.core.config import settings
 from app.core.gemini_client import get_gemini_llm
 
@@ -42,6 +45,7 @@ class RepositoryAnalyzer:
     def __init__(self, repo_path: str = "."):
         self.github_client = GitHubClient()
         self.smart_file_analyzer = SmartFileImportanceAnalyzer(repo_path)
+        self.dependency_analyzer = DependencyAnalyzer()
         
         # Google Gemini LLM 초기화
         self.llm = get_gemini_llm()
@@ -182,54 +186,299 @@ class RepositoryAnalyzer:
             }
     
     async def _select_important_files(self, client: GitHubClient, repo_url: str, file_tree: List[Dict], target_count: int = 12) -> List[Dict]:
-        """SmartFileImportanceAnalyzer 결과를 활용한 중요한 파일 선택"""
+        """
+        PageRank + MMR 기반 중요 파일 선택 (Graph Centrality Strategy)
+        1. 메타데이터/중요도 기반 상위 50개 'Candidate' 선정
+        2. Candidate 파일 다운로드 및 의존성 분석 (Ghost Node 포함)
+        3. PageRank로 전역 중요도(Centrality) 산출
+        4. 상위권 Ghost Node의 Lazy Loading (작은 거인 구출)
+        5. MMR 알고리즘으로 다양성 확보하며 최종 N개 선택
+        """
         
         print(f"[DEBUG] 파일 트리 총 개수: {len(file_tree)}")
         print(f"[DEBUG] 목표 파일 개수: {target_count}")
-        print(f"[DEBUG] 파일들 (처음 10개): {[f.get('path', 'no-path') for f in file_tree[:10]]}")
         
-        # 1단계: 확장된 파일 트리 수집 (중요 디렉토리 포함)
-        extended_file_tree = await self._get_extended_file_tree(client, repo_url, file_tree)
-        print(f"[DEBUG] 확장된 파일 트리 개수: {len(extended_file_tree)}")
+        # 1. 메타데이터 기반 후보군 선정 (Phase 1)
+        # 이제 Recursive API를 사용하여 한 번에 모든 파일을 가져옴
+        print(f"[REPO_ANALYZER] Recursive API로 전체 파일 트리 조회 중...")
+        all_files_tree = await client.get_recursive_file_tree(repo_url)
         
-        # 2단계: 파일 내용을 포함한 분석 데이터 구성 (SmartFileImportanceAnalyzer의 실제 분석 사용)
-        # 기존 메타데이터 스코어링은 SmartFileImportanceAnalyzer의 analyze_enhanced_metadata에서 처리됨
+        file_tree_dict = {f['path']: f for f in all_files_tree if f['type'] == 'file'}
+        all_file_paths = list(file_tree_dict.keys())
         
-        # 3단계: SmartFileImportanceAnalyzer로 실제 파일 중요도 분석
-        try:
-            # 더미 값 대신 SmartFileImportanceAnalyzer의 실제 분석을 사용하도록 변경
-            # analyze_repository 메서드에서 모든 실제 분석이 수행됨
+        print(f"[REPO_ANALYZER] 전체 파일 수: {len(all_file_paths)}개 (Recursive)")
+        
+        # 기본 메타데이터 점수 계산
+        metadata_scores = self._build_metadata_for_scoring(all_files_tree)
+        
+        # 상위 50개 후보 선정
+        candidate_count = 50
+        sorted_candidates = sorted(metadata_scores.items(), key=lambda x: x[1], reverse=True)
+        candidate_files = [path for path, score in sorted_candidates[:candidate_count]]
+        
+        print(f"[PHASE 1] 후보군 선정 완료 ({len(candidate_files)}개): {candidate_files[:5]}...")
+
+        # 2. 후보군 병렬 다운로드 (Phase 2)
+        # Semaphore를 사용하여 동시 요청 제한 (Rate Limit 방지)
+        sem = asyncio.Semaphore(10)
+        
+        async def fetch_with_sem(path):
+            async with sem:
+                content = await client.get_file_content(repo_url, path)
+                return path, content
+
+        tasks = [fetch_with_sem(path) for path in candidate_files]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        file_contents = {}
+        for path, content in results:
+            if isinstance(content, str) and not isinstance(path, Exception):
+                file_contents[path] = content
+            elif isinstance(path, str): # path가 반환되었지만 content가 에러인 경우
+                print(f"[WARN] 파일 다운로드 실패: {path}")
+
+        # 3. 의존성 그래프 구축 및 PageRank (Phase 3)
+        # Ghost Node(다운로드 안된 파일)도 그래프에 포함시키기 위해 all_file_paths 전달
+        code_graph = self.dependency_analyzer.build_code_dependency_graph(file_contents, all_file_paths)
+        
+        # 전체 노드(다운로드+Ghost)에 대한 PageRank 점수 계산
+        # 그래프에 없는 다운로드 된 파일(Config, Docs 등)도 점수 계산 대상에 포함
+        centrality_scores = self.dependency_analyzer.calculate_code_centrality_metrics(
+            code_graph, 
+            file_paths=list(file_contents.keys())
+        )
+        
+        print(f"[PHASE 3] PageRank 계산 완료. 상위 파일:")
+        sorted_centrality = sorted(centrality_scores.items(), key=lambda x: x[1], reverse=True)
+        for i, (path, score) in enumerate(sorted_centrality[:10]):
+            is_downloaded = "V" if path in file_contents else "X (Ghost)"
+            print(f"  {i+1}. {path} ({score:.4f}) [{is_downloaded}]")
+
+        # 4. Lazy Loading (Phase 4 - Ghost Node Rescue)
+        # 상위 20위권 내에 Ghost Node가 있다면 추가 다운로드
+        lazy_load_candidates = []
+        for path, score in sorted_centrality[:20]:
+            if path not in file_contents and path in file_tree_dict:
+                lazy_load_candidates.append(path)
+        
+        if lazy_load_candidates:
+            print(f"[PHASE 4] 중요 Ghost Node Lazy Loading ({len(lazy_load_candidates)}개): {lazy_load_candidates}")
+            lazy_tasks = [fetch_with_sem(path) for path in lazy_load_candidates]
+            lazy_results = await asyncio.gather(*lazy_tasks, return_exceptions=True)
             
-            # 간단한 파일 선택을 위한 기본 중요도만 계산 (실제 분석은 나중에 수행됨)
-            basic_importance_scores = {}
-            for file_info in extended_file_tree:
-                if file_info['type'] == 'file':
-                    file_path = file_info['path']
-                    if not self.smart_file_analyzer.is_excluded_file(file_path, file_info.get('size', 0)):
-                        # 기본 구조적 중요도만 사용 (실제 분석은 analyze_repository에서)
-                        structural_score = self.smart_file_analyzer.calculate_structural_importance(file_path)
-                        basic_importance_scores[file_path] = structural_score
+            for path, content in lazy_results:
+                if isinstance(content, str):
+                    file_contents[path] = content
+                    print(f"  -> {path} 컨텐츠 확보 성공")
+        
+        # 5. Hybrid Selection (Phase 5)
+        # 전략: Config 파일은 Metadata 점수로 "쿼터제" 선발, 소스 코드는 Weighted PageRank로 선발
+        
+        # 5-1. Reserved Slots (Config/Infra) - 2자리 확보
+        reserved_target = 2
+        config_patterns = [
+            r"package\.json", r"requirements\.txt", r"pyproject\.toml", r"Cargo\.toml", 
+            r"pom\.xml", r"build\.gradle", r"go\.mod", 
+            r"docker-compose", r"Dockerfile", r"Makefile"
+        ]
+        
+        reserved_files = []
+        reserved_paths = set()
+        
+        # Metadata 점수 기준으로 Config 파일 후보 찾기
+        sorted_metadata = sorted(metadata_scores.items(), key=lambda x: x[1], reverse=True)
+        
+        for path, score in sorted_metadata:
+            if len(reserved_files) >= reserved_target:
+                break
+                
+            is_config = any(re.search(p, os.path.basename(path), re.IGNORECASE) for p in config_patterns)
+            if is_config:
+                # 컨텐츠가 이미 다운로드 되었는지 확인, 없으면 Lazy Load 시도 (이미 P4에서 했을 수도 있음)
+                if path not in file_contents:
+                    # 다운로드 시도
+                    try:
+                        content = await client.get_file_content(repo_url, path)
+                        if content:
+                            file_contents[path] = content
+                        else:
+                            continue # 다운로드 실패시 스킵
+                    except:
+                        continue
+                
+                # 결과 목록에 추가
+                file_info = file_tree_dict.get(path, {"path": path, "name": os.path.basename(path), "size": 0})
+                file_entry = {
+                    **file_info,
+                    "importance": "high",
+                    "importance_score": score, # Metadata Score 사용
+                    "selection_reason": "reserved_config_slot",
+                    "content": file_contents.get(path, "# Content unavailable")
+                }
+                reserved_files.append(file_entry)
+                reserved_paths.add(path)
+                print(f"[Phase 5-1] Reserved Config Selected: {path}")
+
+        # 5-2. Architectural Weighting (Logic Slots)
+        # PageRank 점수에 구조적 가중치 적용
+        weighted_scores = centrality_scores.copy()
+        for path, score in weighted_scores.items():
+            # 이미 예약된 파일은 제외 (MMR에서 선택 안되게 점수 0 처리 하거나, 리스트에서 뺌)
+            if path in reserved_paths:
+                weighted_scores[path] = -1.0
+                continue
+
+            # Boost: Logic (API, Services, Core, Models)
+            # Ensure we DON'T boost tests even if they are in 'services/tests'
+            is_test = 'test' in path.lower() or 'conftest' in path or 'spec' in path
             
-            importance_scores = basic_importance_scores
+            if not is_test and any(x in path for x in ['api/', 'services/', 'core/', 'models/', 'lib/', 'utils/', 'backend/app/', 'src/app/']):
+                weighted_scores[path] *= 3.0 # Massive Boost (was 1.5)
             
-            print(f"[DEBUG] 중요도 스코어링 완료: {len(importance_scores)}개 파일")
+            # Penalty: Tests
+            if is_test:
+                weighted_scores[path] = 0.0  # NUCLEAR OPTION: Tests get ZERO score.
+                # They effectively become invisible to MMR unless EVERYTHING else is worse.
+                
+            # Penalty: Docs (README는 Reserved에 없으면 여기서 Doc으로 처리)
+            if path.endswith(('.md', '.rst', '.txt')):
+                weighted_scores[path] *= 0.1 # Stronger Penalty (was 0.2)
+                
+            # Penalty: Other Configs (not in reserved)
+            if path.endswith(('.json', '.yml', '.yaml', '.xml', '.toml')):
+                weighted_scores[path] *= 0.2 # Stronger Penalty (was 0.5)
+
+        # 5-3. MMR Selection for Logic
+        logic_target = target_count - len(reserved_files)
+        print(f"[Phase 5-2] Logic Selection Target: {logic_target} (Weighted PageRank)")
+        
+        selected_logic_files = self._select_files_with_mmr(
+            logic_target, 
+            weighted_scores, 
+            file_contents, 
+            file_tree_dict
+        )
+        
+        # 5-4. Final Merge
+        final_selection = reserved_files + selected_logic_files
+        
+        # [CRITICAL FIX] MMR이 target_count를 채우기 위해 테스트 파일을 강제로 선택했을 수 있음.
+        # 마지막으로 한 번 더 필터링하여 테스트 파일은 제거함. (개수가 target_count보다 적어지더라도 품질 우선)
+        final_selection = [
+            f for f in final_selection 
+            if not ('test' in f['path'].lower() or 'spec' in f['path'].lower() or 'conftest' in f['path'].lower())
+        ]
+        
+        print(f"[REPO_ANALYZER] 최종 수집 완료: {len(final_selection)}개 파일 (테스트 제거 후)")
+        return final_selection
+
+    def _select_files_with_mmr(
+        self, 
+        target_count: int, 
+        centrality_scores: Dict[str, float], 
+        file_contents: Dict[str, str],
+        file_tree_dict: Dict[str, Dict]
+    ) -> List[Dict]:
+        """MMR(Maximal Marginal Relevance) 알고리즘을 이용한 파일 선택"""
+        
+        selected_paths = []
+        candidates = list(centrality_scores.keys())
+        
+        # 람다 값: 중요도(0.6) vs 다양성(0.4) 균형
+        lambda_param = 0.6
+        
+        print(f"[PHASE 5] MMR 선택 시작 (목표: {target_count})")
+        
+        while len(selected_paths) < target_count and candidates:
+            best_file = None
+            best_mmr_score = -float('inf')
             
-            # 4단계: 중요도 점수 기준으로 상위 파일 선택
-            selected_files = await self._select_by_importance_scores(
-                client, repo_url, extended_file_tree, importance_scores, target_count
-            )
+            for candidate in candidates:
+                # 이미 선택된 파일과 유사도 계산
+                max_similarity = 0.0
+                for selected in selected_paths:
+                    sim = self._calculate_similarity(candidate, selected)
+                    if sim > max_similarity:
+                        max_similarity = sim
+                
+                # MMR 점수 = λ * 중요도 - (1-λ) * 유사도
+                importance = centrality_scores.get(candidate, 0.0)
+                mmr_score = lambda_param * importance - (1 - lambda_param) * max_similarity
+                
+                if mmr_score > best_mmr_score:
+                    best_mmr_score = mmr_score
+                    best_file = candidate
             
-            print(f"[REPO_ANALYZER] ========== 스마트 파일 선정 완료 ==========")
-            print(f"[REPO_ANALYZER] 선택된 중요 파일: 총 {len(selected_files)}개 (목표: {target_count}개)")
+            if best_file:
+                selected_paths.append(best_file)
+                candidates.remove(best_file)
+                
+                file_info = file_tree_dict.get(best_file, {"path": best_file, "name": os.path.basename(best_file), "size": 0})
+                score = centrality_scores.get(best_file, 0.0)
+                
+                # 중요도 레벨 결정
+                if score >= 0.05: importance_level = "critical"
+                elif score >= 0.02: importance_level = "important"
+                else: importance_level = "moderate"
+                
+                print(f"  Selected: {best_file} (Score: {score:.4f}, MMR: {best_mmr_score:.4f})")
+            else:
+                break
+                
+        # 최종 결과 구성
+        result_files = []
+        for path in selected_paths:
+            file_info = file_tree_dict.get(path, {"path": path, "name": os.path.basename(path), "size": 0})
             
-            return selected_files
+            file_entry = {
+                **file_info,
+                "importance": "high", # MMR로 뽑혔으면 다 중요함
+                "importance_score": centrality_scores.get(path, 0.0),
+                "selection_reason": "pagerank_mmr_selection"
+            }
             
-        except Exception as e:
-            print(f"[ERROR] SmartFileImportanceAnalyzer 오류: {e}")
-            print(f"[FALLBACK] 기존 방식으로 파일 선택")
+            if path in file_contents:
+                content = file_contents[path]
+                if self.smart_file_analyzer._is_low_code_density_file(content):
+                     file_entry["importance"] = "low_density" # 참고용으로 남김
+                file_entry["content"] = content
+            else:
+                file_entry["content"] = "# File content not available"
+                file_entry["content_unavailable_reason"] = "api_error_or_ghost"
             
-            # 오류 시 기존 방식으로 폴백
-            return await self._select_important_files_fallback(client, repo_url, file_tree, target_count)
+            result_files.append(file_entry)
+            
+        return result_files
+
+    def _calculate_similarity(self, file_a: str, file_b: str) -> float:
+        """파일 간 유사도 계산 (MMR용)"""
+        # 1. 경로 기반 기본 유사도
+        dir_a = os.path.dirname(file_a)
+        dir_b = os.path.dirname(file_b)
+        
+        score = 0.0
+        if dir_a == dir_b:
+            score = 0.8  # 같은 디렉토리면 높은 유사도
+        elif os.path.dirname(dir_a) == os.path.dirname(dir_b) and os.path.dirname(dir_a):
+            score = 0.4  # 같은 상위 디렉토리면 중간 유사도
+            
+        # 2. "테스트 코드" 페널티 강화 (다양성 강제)
+        is_test_a = "test" in file_a.lower()
+        is_test_b = "test" in file_b.lower()
+        
+        if is_test_a and is_test_b:
+            score = max(score, 1.0)  # 테스트끼리는 절대 중복 선택 안 되게 강력 차단
+            
+        # 3. 확장자 다르면 유사도 대폭 하락
+        ext_a = os.path.splitext(file_a)[1]
+        ext_b = os.path.splitext(file_b)[1]
+        
+        if ext_a != ext_b:
+            score *= 0.2
+            
+        return score
+            
+
     
     async def _get_extended_file_tree(self, client: GitHubClient, repo_url: str, base_file_tree: List[Dict]) -> List[Dict]:
         """중요 디렉토리를 포함한 확장된 파일 트리 수집"""
@@ -288,6 +537,22 @@ class RepositoryAnalyzer:
             
             # 메타데이터 점수 조합 (크기 30% + 구조적 중요도 70%)
             metadata_score = (size_score * 0.3) + (structural_score * 0.7)
+            
+            # [CRITICAL UPDATE] 소스 코드 후보군 진입 보장 (Candidate Boosting)
+            # api, services, core 등 핵심 디렉토리 파일은 크기가 작아도 후보군(Top 50)에 포함되어야 함
+            # 그래야 다운로드 -> 의존성 분석 -> PageRank -> Hybrid Selection의 기회를 얻음
+            
+            # 단, 테스트 코드는 절대 부스팅 금지 -> 오히려 강력 페널티 부여
+            # Top 50 후보군에서 테스트 파일이 로직 파일을 밀어내는 현상 방지
+            is_test_path = 'test' in file_path.lower() or 'spec' in file_path.lower()
+            # 벤더/의존성 디렉토리 페널티
+            is_vendor_path = any(x in file_path.lower() for x in ['deps/', 'vendor/', 'node_modules/', 'third_party/'])
+            
+            if is_test_path or is_vendor_path:
+                metadata_score = 0.01 # 테스트/벤더 파일은 후보군 최하위로 강등
+            elif any(key in file_path for key in ['api/', 'services/', 'core/', 'lib/', 'src/', 'backend/app/']):
+                 if file_path.endswith(('.py', '.ts', '.js', '.java', '.go', '.cc', '.cpp', '.c', '.h')):
+                     metadata_score += 0.5 # 로직 파일 강력한 부스팅
             
             metadata_scores[file_path] = metadata_score
         
@@ -637,6 +902,8 @@ class RepositoryAnalyzer:
                     "name": f["name"], 
                     "size": f.get("size", 0),
                     "importance": f.get("importance", "low"),
+                    "importance_score": f.get("importance_score", 0.0),
+                    "selection_reason": f.get("selection_reason", ""),
                     "content": f.get("content", "# File content not available"),
                     "content_unavailable_reason": f.get("content_unavailable_reason")
                 }

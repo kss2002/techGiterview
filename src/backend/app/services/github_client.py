@@ -201,6 +201,72 @@ class GitHubClient:
             print(f"[GITHUB_CLIENT] 파일 트리 수집 완료: 파일 {file_count}개, 디렉토리 {dir_count}개, 총 크기 {total_size:,} bytes")
             
             return files
+
+    async def get_recursive_file_tree(self, repo_url: str) -> List[Dict[str, Any]]:
+        """Recursive Git Tree API를 사용하여 전체 파일 트리 조회"""
+        start_time = time.time()
+        owner, repo = self._parse_repo_url(repo_url)
+        
+        # 1. 기본 브랜치 정보 조회 (SHA 확보용)
+        repo_info = await self.get_repository_info(repo_url)
+        default_branch = repo_info['default_branch']
+        
+        # 2. Tree URL 구성
+        url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{default_branch}?recursive=1"
+        
+        print(f"[GITHUB_CLIENT] 전체 파일 트리(Recursive) 요청: {owner}/{repo} (branch: {default_branch})")
+        
+        if not self.session:
+            raise RuntimeError("GitHubClient must be used as async context manager")
+        
+        self.api_call_count += 1
+        async with self.session.get(url) as response:
+            response_time = time.time() - start_time
+            self.total_response_time += response_time
+            
+            print(f"[GITHUB_CLIENT] Recursive Tree 응답: {response.status} ({response_time:.2f}초)")
+            
+            if response.status != 200:
+                print(f"[GITHUB_CLIENT] Recursive Tree 조회 실패: {response.status}")
+                # 실패 시 일반 파일 트리 조회로 폴백하거나 빈 리스트 반환
+                return []
+            
+            data = await response.json()
+            
+            # 응답 형식이 일반 /contents API와 다름 (git/trees 형식)
+            # { "sha": "...", "url": "...", "tree": [ { "path": "...", "mode": "...", "type": "blob/tree", "sha": "...", "size": ... } ] }
+            
+            tree_items = data.get("tree", [])
+            files = []
+            file_count = 0
+            dir_count = 0
+            
+            for item in tree_items:
+                # type: 'blob' -> file, 'tree' -> dir
+                item_type = "file" if item["type"] == "blob" else "dir"
+                
+                # git tree API는 size를 제공하지 않을 수도 있음 (blob인 경우 제공)
+                size = item.get("size", 0)
+                
+                files.append({
+                    "path": item["path"],
+                    "name": item["path"].split("/")[-1],
+                    "type": item_type,
+                    "size": size,
+                    "download_url": None # Git Tree API는 download_url을 직접 주지 않음 (contents API 사용 필요)
+                })
+                
+                if item_type == "file":
+                    file_count += 1
+                else:
+                    dir_count += 1
+            
+            print(f"[GITHUB_CLIENT] Recursive Tree 수집 완료: 총 {len(files)}개 항목 (파일 {file_count}개)")
+            
+            if data.get("truncated"):
+                print(f"[GITHUB_CLIENT] Warning: 파일 트리가 너무 커서 잘렸습니다 (truncated=true).")
+            
+            return files
     
     async def get_file_content(self, repo_url: str, file_path: str) -> Optional[str]:
         """파일 내용 조회"""

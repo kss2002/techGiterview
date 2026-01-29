@@ -73,7 +73,7 @@ class AIService:
                 if upstage_api_key:
                     self.available_providers[AIProvider.UPSTAGE_SOLAR] = {
                         "client": None,  # OpenAI 호환 클라이언트 사용
-                        "model": "solar-pro2-preview",
+                        "model": "solar-pro2",
                         "status": "ready"
                     }
                     logger.info("Upstage Solar Pro 2 initialized successfully")
@@ -472,7 +472,7 @@ class AIService:
                         "Content-Type": "application/json"
                     },
                     json={
-                        "model": "solar-pro2-preview",
+                        "model": "solar-pro2",
                         "messages": [
                             {"role": "user", "content": prompt}
                         ],
@@ -491,7 +491,7 @@ class AIService:
                 
                 return {
                     "provider": AIProvider.UPSTAGE_SOLAR.value,
-                    "model": "solar-pro2-preview",
+                    "model": "solar-pro2",
                     "content": content,
                     "usage": {
                         "prompt_tokens": usage.get("prompt_tokens", len(prompt.split())),
