@@ -1,762 +1,487 @@
 /**
- * TechGiterview 통합 디자인 토큰 시스템
- * CACHE_BUSTER: 20250817-120000-UNIQUE-FORCE-RELOAD
- * 
- * 모든 색상, 간격, 타이포그래피, 그림자 등의 디자인 요소를 중앙에서 관리합니다.
- * 이 파일은 프로젝트 전체에서 일관된 디자인을 보장하기 위한 Single Source of Truth입니다.
+ * TechGiterview High-End Design Tokens
+ * ==========================================================
+ * A comprehensive design system for a premium, modern UI.
+ * Includes proper Glassmorphism, enforced Typography, and spacing.
  */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
 :root {
-  /* ============================================
-     TechGiterview 브랜드 컬러 시스템 (Brand Color System)
-     ============================================ */
+  /* ==========================================================
+     ULTRA-MINIMAL COLOR PALETTE
+     Pure white/black + Single blue accent
+     ========================================================== */
 
-  /* Brand Navy - 군청(#181677) 기반 파스텔 그라데이션 */
-  --brand-navy-50: #f0f1ff;
-  /* 매우 연한 파스텔 네이비 */
-  --brand-navy-100: #e0e2fe;
-  /* 연한 파스텔 네이비 */
-  --brand-navy-200: #c7cbfd;
-  /* 파스텔 네이비 */
-  --brand-navy-300: #a5aafb;
-  /* 중간 파스텔 네이비 */
-  --brand-navy-400: #7c82f8;
-  /* 진한 파스텔 네이비 */
-  --brand-navy-500: #4c51bf;
-  /* 중간 톤 네이비 */
-  --brand-navy-600: #181677;
-  /* 브랜드 군청 */
-  --brand-navy-700: #141460;
-  /* 진한 군청 */
-  --brand-navy-800: #0f0e4a;
-  /* 매우 진한 군청 */
-  --brand-navy-900: #0a0935;
-  /* 가장 진한 군청 */
-  --brand-navy-950: #050420;
-  /* 블랙에 가까운 네이비 */
+  /* Primary: Single Blue Accent (Subtle, not tiring) */
+  --primary-50: #f8fafc;
+  --primary-100: #f1f5f9;
+  --primary-200: #e2e8f0;
+  --primary-300: #cbd5e1;
+  --primary-400: #94a3b8;
+  --primary-500: #3b82f6;
+  /* Main Accent - Clean Blue */
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+  --primary-950: #172554;
 
-  /* Brand Green - 진녹(#1B5410) 기반 파스텔 그라데이션 */
-  --brand-green-50: #f0fdf4;
-  /* 매우 연한 파스텔 그린 */
-  --brand-green-100: #dcfce7;
-  /* 연한 파스텔 그린 */
-  --brand-green-200: #bbf7d0;
-  /* 파스텔 그린 */
-  --brand-green-300: #86efac;
-  /* 중간 파스텔 그린 */
-  --brand-green-400: #4ade80;
-  /* 진한 파스텔 그린 */
-  --brand-green-500: #22c55e;
-  /* 중간 톤 그린 */
-  --brand-green-600: #1b5410;
-  /* 브랜드 진녹 */
-  --brand-green-700: #15401a;
-  /* 진한 녹색 */
-  --brand-green-800: #0f2e15;
-  /* 매우 진한 녹색 */
-  --brand-green-900: #0a1c10;
-  /* 가장 진한 녹색 */
-  --brand-green-950: #05140a;
-  /* 블랙에 가까운 그린 */
+  /* NO Secondary - Keep it simple */
 
-  /* Brand Lime - 연두(#88E83C) 기반 파스텔 그라데이션 */
-  --brand-lime-50: #f7fee7;
-  /* 매우 연한 파스텔 라임 */
-  --brand-lime-100: #ecfccb;
-  /* 연한 파스텔 라임 */
-  --brand-lime-200: #d9f99d;
-  /* 파스텔 라임 */
-  --brand-lime-300: #bef264;
-  /* 중간 파스텔 라임 */
-  --brand-lime-400: #a3e635;
-  /* 진한 파스텔 라임 */
-  --brand-lime-500: #88e83c;
-  /* 브랜드 연두 */
-  --brand-lime-600: #65a30d;
-  /* 중간 톤 라임 */
-  --brand-lime-700: #4d7c0f;
-  /* 진한 라임 */
-  --brand-lime-800: #365314;
-  /* 매우 진한 라임 */
-  --brand-lime-900: #1a2e05;
-  /* 가장 진한 라임 */
-  --brand-lime-950: #0f1a03;
-  /* 블랙에 가까운 라임 */
+  /* Neutral: Pure Grayscale (No blue tint) */
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #737373;
+  --gray-600: #525252;
+  --gray-700: #404040;
+  --gray-800: #262626;
+  --gray-900: #171717;
+  --gray-950: #0a0a0a;
 
-  /* Primary Colors - 브랜드 네이비를 Primary로 매핑 */
-  --primary-50: var(--brand-navy-50);
-  --primary-100: var(--brand-navy-100);
-  --primary-200: var(--brand-navy-200);
-  --primary-300: var(--brand-navy-300);
-  --primary-400: var(--brand-navy-400);
-  --primary-500: var(--brand-navy-500);
-  --primary-600: var(--brand-navy-600);
-  --primary-700: var(--brand-navy-700);
-  --primary-800: var(--brand-navy-800);
-  --primary-900: var(--brand-navy-900);
-  --primary-950: var(--brand-navy-950);
-
-  /* 테스트용 - CSS 변경 감지 완료 */
-
-  /* Secondary Colors - 브랜드 그린을 Secondary로 매핑 */
-  --secondary-50: var(--brand-green-50);
-  --secondary-100: var(--brand-green-100);
-  --secondary-200: var(--brand-green-200);
-  --secondary-300: var(--brand-green-300);
-  --secondary-400: var(--brand-green-400);
-  --secondary-500: var(--brand-green-500);
-  --secondary-600: var(--brand-green-600);
-  --secondary-700: var(--brand-green-700);
-  --secondary-800: var(--brand-green-800);
-  --secondary-900: var(--brand-green-900);
-  --secondary-950: var(--brand-green-950);
-
-  /* Core Colors */
   --white: #ffffff;
   --black: #000000;
 
-  /* Gray Scale - 회색 팔레트 */
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
-  --gray-700: #374151;
-  --gray-800: #1f2937;
-  --gray-900: #111827;
-  --gray-950: #030712;
+  /* Semantic Colors (Minimal) */
+  --color-background: #ffffff;
+  /* Pure white */
+  --color-background-alt: #fafafa;
+  --color-text-primary: #171717;
+  --color-text-secondary: #525252;
+  --color-text-muted: #a3a3a3;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: var(--primary-500);
 
-  /* Semantic Colors - 의미 기반 색상 */
-  --success-50: #f0fdf4;
-  --success-100: #dcfce7;
-  --success-200: #bbf7d0;
-  --success-300: #86efac;
-  --success-400: #4ade80;
-  --success-500: #22c55e;
-  --success-600: #16a34a;
-  --success-700: #15803d;
-  --success-800: #166534;
-  --success-900: #14532d;
-
-  --warning-50: #fffbeb;
-  --warning-100: #fef3c7;
-  --warning-200: #fde68a;
-  --warning-300: #fcd34d;
-  --warning-400: #fbbf24;
-  --warning-500: #f59e0b;
-  --warning-600: #d97706;
-  --warning-700: #b45309;
-  --warning-800: #92400e;
-  --warning-900: #78350f;
-
-  --error-50: #fef2f2;
-  --error-100: #fee2e2;
-  --error-200: #fecaca;
-  --error-300: #fca5a5;
-  --error-400: #f87171;
-  --error-500: #ef4444;
-  --error-600: #dc2626;
-  --error-700: #b91c1c;
-  --error-800: #991b1b;
-  --error-900: #7f1d1d;
-
-  --info-50: var(--primary-50);
-  --info-100: var(--primary-100);
-  --info-200: var(--primary-200);
-  --info-300: var(--primary-300);
-  --info-400: var(--primary-400);
-  --info-500: var(--primary-500);
-  --info-600: var(--primary-600);
-  --info-700: var(--primary-700);
-  --info-800: var(--primary-800);
-  --info-900: var(--primary-900);
-
-  /* Accent Colors - 브랜드 라임을 Accent로 매핑 */
-  --accent-50: var(--brand-lime-50);
-  --accent-100: var(--brand-lime-100);
-  --accent-200: var(--brand-lime-200);
-  --accent-300: var(--brand-lime-300);
-  --accent-400: var(--brand-lime-400);
-  --accent-500: var(--brand-lime-500);
-  --accent-600: var(--brand-lime-600);
-  --accent-700: var(--brand-lime-700);
-  --accent-800: var(--brand-lime-800);
-  --accent-900: var(--brand-lime-900);
-  --accent-950: var(--brand-lime-950);
-
-  /* ============================================
-     통일된 컬러 시스템 (Unified Color System)
-     ============================================ */
-
-  /* 🎯 핵심 색상 팔레트 (Core Color Palette) */
-  --color-primary: var(--brand-navy-600);
-  /* #181677 - 주요 UI 요소 */
-  --color-primary-light: var(--brand-navy-500);
-  /* 밝은 primary */
-  --color-primary-dark: var(--brand-navy-700);
-  /* 진한 primary */
-
-  --color-secondary: var(--brand-green-600);
-  /* #1B5410 - 성공, 확인 */
-  --color-secondary-light: var(--brand-green-500);
-  --color-secondary-dark: var(--brand-green-700);
-
-  --color-accent: #3498db;
-  /* 선명한 블루 - 강조, 링크 */
-  --color-accent-light: #5dade2;
-  /* 밝은 accent */
-  --color-accent-dark: #2980b9;
-  /* 진한 accent */
-
-  /* 🎨 배경 색상 */
-  --color-background: var(--white);
-  /* 기본 배경 */
-  --color-background-alt: var(--gray-50);
-  /* 대체 배경 */
-  --color-background-dark: var(--brand-navy-800);
-  /* 다크 배경 (헤더용) */
-  --color-background-card: var(--white);
-  /* 카드 배경 */
-
-  /* 📝 텍스트 색상 계층 */
-  --color-text-primary: var(--gray-900);
-  /* #111827 - 제목, 중요 텍스트 */
-  --color-text-secondary: var(--gray-700);
-  /* #374151 - 본문 텍스트 */
-  --color-text-muted: var(--gray-500);
-  /* #6b7280 - 부가 정보 */
-  --color-text-on-dark: var(--white);
-  /* 다크 배경 위 텍스트 */
-  --color-text-on-dark-muted: rgba(255,
-      255,
-      255,
-      0.7);
-  /* 다크 배경 위 연한 텍스트 */
-
-  /* 🚦 상태 색상 (Status Colors) - 단색 */
-  --color-success: #16a34a;
-  /* 성공 */
-  --color-success-bg: rgba(22, 163, 74, 0.1);
-  /* 성공 배경 */
-  --color-warning: #d97706;
-  /* 경고 */
-  --color-warning-bg: rgba(217, 119, 6, 0.1);
-  /* 경고 배경 */
-  --color-error: #dc2626;
-  /* 오류 */
-  --color-error-bg: rgba(220, 38, 38, 0.1);
-  /* 오류 배경 */
-  --color-info: #0284c7;
-  /* 정보 */
-  --color-info-bg: rgba(2, 132, 199, 0.1);
-  /* 정보 배경 */
-
-  /* 언어별 색상 토큰 (GitHub 표준 색상) */
-  --lang-javascript: #f7df1e;
-  --lang-typescript: #3178c6;
-  --lang-python: #3776ab;
-  --lang-java: #ed8b00;
-  --lang-cpp: #00599c;
-  --lang-go: #00add8;
-  --lang-rust: #000000;
-  --lang-php: #777bb4;
-  --lang-ruby: #cc342d;
-  --lang-swift: #fa7343;
-  --lang-kotlin: #a97bff;
-  --lang-dart: #0175c2;
-  --lang-html: #e34f26;
-  --lang-css: #1572b6;
-  --lang-scss: #cf649a;
-  --lang-vue: #4fc08d;
-  --lang-react: #61dafb;
-  --lang-angular: #dd0031;
-
-  /* 점수별 색상 토큰 */
-  --score-excellent: var(--success-600);
-  /* 8.0+ - #16a34a */
-  --score-good: var(--warning-500);
-  /* 6.0+ - #f59e0b */
-  --score-fair: var(--warning-600);
-  /* 4.0+ - #d97706 */
-  --score-poor: var(--error-600);
-  /* 4.0- - #dc2626 */
-
-  /* 🔲 보더 색상 */
-  --color-border: var(--gray-200);
-  /* 기본 보더 */
-  --color-border-light: var(--gray-100);
-  /* 연한 보더 */
-  --color-border-dark: var(--gray-300);
-  /* 진한 보더 */
-
-  /* 📊 Dashboard 특화 색상 (브랜드 색상 기반) */
-  --dashboard-light-text: var(--color-text-on-dark-muted);
-  /* 다크 배경의 연한 텍스트 */
-  --dashboard-soft-navy: var(--brand-navy-200);
-  /* 연한 네이비 보더/배경 */
-  --dashboard-medium-navy: var(--brand-navy-600);
-  /* 중간 네이비 텍스트 */
-  --dashboard-bright-blue: var(--color-accent);
-  /* 강조 블루 */
-  --dashboard-accent-blue: var(--color-accent-light);
-  /* 밝은 강조 블루 */
-  --dashboard-soft-blue: var(--brand-navy-300);
-  /* 연한 블루 보더 */
-  --dashboard-error: var(--color-error);
-  /* 에러 색상 */
-  --dashboard-warning: var(--color-warning);
-  /* 경고 색상 */
-  --dashboard-success: var(--color-success);
-  /* 성공 색상 */
-  --dashboard-info: var(--color-info);
-  /* 정보 색상 */
-
-  /* File Importance Colors - 브랜드 컬러 기반 파스텔 그라데이션 */
-  --importance-critical: var(--brand-navy-600);
-  --importance-critical-bg: var(--brand-navy-50);
-  --importance-critical-border: var(--brand-navy-200);
-
-  --importance-high: var(--brand-green-600);
-  --importance-high-bg: var(--brand-green-50);
-  --importance-high-border: var(--brand-green-200);
-
-  --importance-medium: var(--brand-lime-600);
-  --importance-medium-bg: var(--brand-lime-50);
-  --importance-medium-border: var(--brand-lime-200);
-
-  --importance-low: #f59e0b;
-  /* 파스텔 앰버 - 보완색 */
-  --importance-low-bg: #fffbeb;
-  --importance-low-border: #fde68a;
-
-  /* Pastel Extended Colors - 추가 파스텔 컬러 팔레트 */
-  --pastel-coral-50: #fef7f0;
-  --pastel-coral-100: #feede0;
-  --pastel-coral-200: #fdd6b8;
-  --pastel-coral-300: #fbb88a;
-  --pastel-coral-400: #f8915a;
-  --pastel-coral-500: #f4723d;
-  --pastel-coral-600: #e8591c;
-  --pastel-coral-700: #c04515;
-  --pastel-coral-800: #9a3a17;
-  --pastel-coral-900: #7d3317;
-
-  --pastel-lavender-50: #f8f7ff;
-  --pastel-lavender-100: #f1efff;
-  --pastel-lavender-200: #e5e1ff;
-  --pastel-lavender-300: #d2c7ff;
-  --pastel-lavender-400: #b8a3ff;
-  --pastel-lavender-500: #9b7aff;
-  --pastel-lavender-600: #8b5cf6;
-  --pastel-lavender-700: #7c3aed;
-  --pastel-lavender-800: #6b21c8;
-  --pastel-lavender-900: #551aa3;
-
-  --pastel-sage-50: #f5f7f5;
-  --pastel-sage-100: #e8ede8;
-  --pastel-sage-200: #c8d4c8;
-  --pastel-sage-300: #a3b8a3;
-  --pastel-sage-400: #7a9a7a;
-  --pastel-sage-500: #5a8060;
-  --pastel-sage-600: #486b4d;
-  --pastel-sage-700: #3a583f;
-  --pastel-sage-800: #2f4834;
-  --pastel-sage-900: #273d2b;
-
-  /* ============================================
-     간격 시스템 (Spacing System) - 8px 기반
-     ============================================ */
-  --spacing-0: 0;
-  --spacing-px: 1px;
-  --spacing-0-5: 0.125rem;
-  /* 2px */
-  --spacing-1: 0.25rem;
-  /* 4px */
-  --spacing-1-5: 0.375rem;
-  /* 6px */
-  --spacing-2: 0.5rem;
-  /* 8px */
-  --spacing-2-5: 0.625rem;
-  /* 10px */
-  --spacing-3: 0.75rem;
-  /* 12px */
-  --spacing-3-5: 0.875rem;
-  /* 14px */
-  --spacing-4: 1rem;
-  /* 16px */
-  --spacing-5: 1.25rem;
-  /* 20px */
-  --spacing-6: 1.5rem;
-  /* 24px */
-  --spacing-7: 1.75rem;
-  /* 28px */
-  --spacing-8: 2rem;
-  /* 32px */
-  --spacing-9: 2.25rem;
-  /* 36px */
-  --spacing-10: 2.5rem;
-  /* 40px */
-  --spacing-11: 2.75rem;
-  /* 44px */
-  --spacing-12: 3rem;
-  /* 48px */
-  --spacing-14: 3.5rem;
-  /* 56px */
-  --spacing-16: 4rem;
-  /* 64px */
-  --spacing-20: 5rem;
-  /* 80px */
-  --spacing-24: 6rem;
-  /* 96px */
-  --spacing-28: 7rem;
-  /* 112px */
-  --spacing-32: 8rem;
-  /* 128px */
-
-  /* ============================================
-     타이포그래피 시스템 (Typography System)
-     ============================================ */
-
-  /* Font Families */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
-    'Courier New', monospace;
-  --font-serif: Georgia, Cambria, 'Times New Roman', Times, serif;
+  /* ==========================================================
+     TYPOGRAPHY (Inter only - Clean and Neutral)
+     ========================================================== */
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 
   /* Font Sizes */
   --text-xs: 0.75rem;
-  /* 12px */
   --text-sm: 0.875rem;
-  /* 14px */
   --text-base: 1rem;
-  /* 16px */
   --text-lg: 1.125rem;
-  /* 18px */
   --text-xl: 1.25rem;
-  /* 20px */
   --text-2xl: 1.5rem;
-  /* 24px */
   --text-3xl: 1.875rem;
-  /* 30px */
   --text-4xl: 2.25rem;
-  /* 36px */
   --text-5xl: 3rem;
-  /* 48px */
   --text-6xl: 3.75rem;
-  /* 60px */
+  --text-7xl: 4.5rem;
+  --text-8xl: 6rem;
 
   /* Font Weights */
-  --font-thin: 100;
-  --font-extralight: 200;
   --font-light: 300;
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
   --font-bold: 700;
   --font-extrabold: 800;
-  --font-black: 900;
 
   /* Line Heights */
-  --leading-none: 1;
   --leading-tight: 1.25;
   --leading-snug: 1.375;
   --leading-normal: 1.5;
   --leading-relaxed: 1.625;
   --leading-loose: 2;
 
-  /* Letter Spacing */
-  --tracking-tighter: -0.05em;
-  --tracking-tight: -0.025em;
-  --tracking-normal: 0em;
-  --tracking-wide: 0.025em;
-  --tracking-wider: 0.05em;
-  --tracking-widest: 0.1em;
+  /* ==========================================================
+     MINIMAL EFFECTS (Almost none)
+     ========================================================== */
+  --glass-blur: 0;
+  --glass-bg: #ffffff;
+  --glass-bg-heavy: #ffffff;
+  --glass-bg-subtle: #fafafa;
+  --glass-border: 1px solid #e5e5e5;
+  --glass-border-bright: 1px solid #d4d4d4;
+  --glass-border-glow: 1px solid var(--primary-500);
 
-  /* ============================================
-     Border Radius (테두리 둥글기)
-     ============================================ */
-  --radius-none: 0px;
-  --radius-sm: 0.125rem;
-  /* 2px */
-  --radius-base: 0.25rem;
+  /* Minimal Shadows (Barely visible) */
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --glass-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --glass-shadow-active: 0 1px 1px rgba(0, 0, 0, 0.02);
+
+  /* No glow effects */
+  --card-glow: none;
+  --card-glow-hover: none;
+
+
+
+  /* ==========================================================
+     SPACING & LAYOUT
+     ========================================================== */
+  --spacing-0: 0;
+  --spacing-1: 0.25rem;
   /* 4px */
-  --radius-md: 0.375rem;
-  /* 6px */
-  --radius-lg: 0.5rem;
+  --spacing-2: 0.5rem;
   /* 8px */
-  --radius-xl: 0.75rem;
+  --spacing-3: 0.75rem;
   /* 12px */
-  --radius-2xl: 1rem;
+  --spacing-4: 1rem;
   /* 16px */
-  --radius-3xl: 1.5rem;
+  --spacing-5: 1.25rem;
+  /* 20px */
+  --spacing-6: 1.5rem;
+  /* 24px */
+  --spacing-8: 2rem;
+  /* 32px */
+  --spacing-10: 2.5rem;
+  /* 40px */
+  --spacing-12: 3rem;
+  /* 48px */
+  --spacing-16: 4rem;
+  /* 64px */
+  --spacing-20: 5rem;
+  /* 80px */
+
+  --container-width: 1280px;
+  --sidebar-width: 320px;
+
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  /* 6px */
+  --radius-md: 0.5rem;
+  /* 8px */
+  --radius-lg: 0.75rem;
+  /* 12px */
+  --radius-xl: 1rem;
+  /* 16px */
+  --radius-2xl: 1.5rem;
   /* 24px */
   --radius-full: 9999px;
 
-  /* ============================================
-     그림자 시스템 (Shadow System)
-     ============================================ */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
-    0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
-    0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
-  --shadow-none: 0 0 #0000;
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 
-  /* Colored Shadows */
-  --shadow-primary: 0 8px 25px rgba(51, 53, 55, 0.3);
-  --shadow-secondary: 0 8px 25px rgba(14, 165, 233, 0.3);
-  --shadow-success: 0 8px 25px rgba(34, 197, 94, 0.3);
-  --shadow-warning: 0 8px 25px rgba(245, 158, 11, 0.3);
-  --shadow-error: 0 8px 25px rgba(239, 68, 68, 0.3);
+  /* Transitions */
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-colors: color 0.2s, background-color 0.2s, border-color 0.2s;
+  --transition-all: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ============================================
-     전환 효과 (Transitions)
-     ============================================ */
-  --transition-none: none;
-  --transition-all: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-fast: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: all 350ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-colors: color 150ms cubic-bezier(0.4, 0, 0.2, 1),
-    background-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Easing Functions */
-  --ease-linear: cubic-bezier(0, 0, 1, 1);
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* ============================================
-     Z-Index 계층 (Z-Index Scale)
-     ============================================ */
-  --z-hide: -1;
+  /* Z-Index */
   --z-base: 0;
-  --z-docked: 10;
-  --z-dropdown: 1000;
-  --z-sticky: 1020;
-  --z-banner: 1030;
-  --z-overlay: 1040;
-  --z-modal: 1050;
-  --z-popover: 1060;
-  --z-tooltip: 1070;
-  --z-toast: 1080;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 500;
+  --z-toast: 600;
 
-  /* ============================================
-     브레이크포인트 (Breakpoints)
-     ============================================ */
-  --breakpoint-sm: 640px;
-  /* 모바일 */
-  --breakpoint-md: 768px;
-  /* 태블릿 */
-  --breakpoint-lg: 1024px;
-  /* 데스크톱 */
-  --breakpoint-xl: 1280px;
-  /* 대형 데스크톱 */
-  --breakpoint-2xl: 1536px;
-  /* 초대형 데스크톱 */
+  /* ===========================================================
+     LEGACY ALIASES (for components.css compatibility)
+     =========================================================== */
+  --font-sans: var(--font-body);
 
-  /* ============================================
-     기타 유틸리티 토큰
-     ============================================ */
+  /* Legacy Color Aliases */
+  --color-primary: var(--primary-600);
+  --color-primary-light: var(--primary-400);
+  --color-primary-dark: var(--primary-800);
+  --color-secondary: var(--secondary-600);
+  --color-secondary-dark: var(--secondary-800);
+  --color-accent: var(--primary-500);
+  --color-background-alt: var(--white);
+  --color-text-on-dark: var(--white);
+  --color-border: var(--gray-200);
+  --color-border-light: var(--gray-100);
+
+  /* Gradients (for buttons, badges) */
+  --gradient-primary: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+  --gradient-primary-hover: linear-gradient(135deg, var(--primary-700) 0%, var(--primary-800) 100%);
+  --gradient-secondary: linear-gradient(135deg, var(--secondary-600) 0%, var(--secondary-700) 100%);
+  --gradient-secondary-hover: linear-gradient(135deg, var(--secondary-700) 0%, var(--secondary-800) 100%);
+  --gradient-easy: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  --gradient-medium: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --gradient-hard: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+
+  /* Importance Colors */
+  --importance-critical: #dc2626;
+  --importance-critical-bg: #fee2e2;
+  --importance-critical-border: #fecaca;
+  --importance-high: #f97316;
+  --importance-high-bg: #ffedd5;
+  --importance-high-border: #fed7aa;
+  --importance-medium: #eab308;
+  --importance-medium-bg: #fef9c3;
+  --importance-medium-border: #fef08a;
+  --importance-low: #22c55e;
+  --importance-low-bg: #dcfce7;
+  --importance-low-border: #bbf7d0;
+
+  /* Error Colors (for badges) */
+  --error-100: #fee2e2;
+  --error-200: #fecaca;
+  --error-500: #ef4444;
+  --error-600: #dc2626;
+  --error-700: #b91c1c;
+  --error-800: #991b1b;
+
+  /* Warning Colors */
+  --warning-100: #fef3c7;
+  --warning-200: #fde68a;
+  --warning-800: #92400e;
+
+  /* Success Colors */
+  --success-100: #d1fae5;
+  --success-200: #a7f3d0;
+  --success-800: #065f46;
+
+  /* Tracking (letter-spacing) */
+  --tracking-tight: -0.025em;
+  --tracking-wide: 0.025em;
 
   /* Opacity */
-  --opacity-0: 0;
-  --opacity-5: 0.05;
-  --opacity-10: 0.1;
-  --opacity-20: 0.2;
-  --opacity-25: 0.25;
-  --opacity-30: 0.3;
-  --opacity-40: 0.4;
-  --opacity-50: 0.5;
   --opacity-60: 0.6;
-  --opacity-70: 0.7;
-  --opacity-75: 0.75;
-  --opacity-80: 0.8;
-  --opacity-90: 0.9;
-  --opacity-95: 0.95;
-  --opacity-100: 1;
-
-  /* Backdrop Filter Blur */
-  --backdrop-blur-none: blur(0);
-  --backdrop-blur-sm: blur(4px);
-  --backdrop-blur-base: blur(8px);
-  --backdrop-blur-md: blur(12px);
-  --backdrop-blur-lg: blur(16px);
-  --backdrop-blur-xl: blur(24px);
-  --backdrop-blur-2xl: blur(40px);
-  --backdrop-blur-3xl: blur(64px);
-
-  /* Content max widths */
-  --content-max-width-sm: 640px;
-  --content-max-width-md: 768px;
-  --content-max-width-lg: 1024px;
-  --content-max-width-xl: 1280px;
-  --content-max-width-2xl: 1536px;
-  --content-max-width-full: 100%;
-
-  /* ============================================
-     🎨 그라데이션 시스템 (Gradient System)
-     ============================================ */
-
-  /* 배경 그라데이션 */
-  --gradient-page-bg: linear-gradient(135deg,
-      #f8fafc 0%,
-      #e0e7ff 35%,
-      #f0fdf4 70%,
-      #fefce8 100%);
-
-  --gradient-hero-bg: linear-gradient(160deg,
-      var(--brand-navy-50) 0%,
-      var(--white) 50%,
-      var(--brand-lime-50) 100%);
-
-  /* 버튼 그라데이션 */
-  --gradient-primary: linear-gradient(135deg, #181677 0%, #4c51bf 100%);
-  --gradient-primary-hover: linear-gradient(135deg, #1f1d8f 0%, #5b60d4 100%);
-  --gradient-secondary: linear-gradient(135deg, #1b5410 0%, #22c55e 100%);
-  --gradient-secondary-hover: linear-gradient(135deg, #15401a 0%, #16a34a 100%);
-  --gradient-accent: linear-gradient(135deg, #22c55e 0%, #88e83c 100%);
-  --gradient-accent-hover: linear-gradient(135deg, #16a34a 0%, #65a30d 100%);
-
-  /* 난이도 그라데이션 */
-  --gradient-easy: linear-gradient(135deg, #22c55e 0%, #4ade80 100%);
-  --gradient-medium: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
-  --gradient-hard: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
-
-  /* 카드/오버레이 그라데이션 */
-  --gradient-card-shine: linear-gradient(135deg,
-      rgba(255, 255, 255, 0.8) 0%,
-      rgba(255, 255, 255, 0.4) 50%,
-      rgba(255, 255, 255, 0.1) 100%);
-
-  /* ============================================
-     ✨ 글래스모피즘 시스템 (Glassmorphism)
-     ============================================ */
-
-  /* 글래스 배경 */
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-bg-strong: rgba(255, 255, 255, 0.85);
-  --glass-bg-subtle: rgba(255, 255, 255, 0.5);
-  --glass-bg-dark: rgba(15, 23, 42, 0.8);
-
-  /* 글래스 보더 */
-  --glass-border: rgba(255, 255, 255, 0.8);
-  --glass-border-subtle: rgba(255, 255, 255, 0.4);
-  --glass-border-dark: rgba(255, 255, 255, 0.1);
-
-  /* 글래스 그림자 */
-  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  --glass-shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.12);
-  --glass-shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.15);
-  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.5);
-
-
-  /* Code blocks and syntax highlighting - 가독성 강화 */
-  --code-bg: var(--gray-200);
-  --code-border: var(--gray-300);
-  --code-text: var(--gray-900);
-  --code-radius: var(--radius-md);
-  --code-padding-inline: var(--spacing-2);
-  --code-padding-block: var(--spacing-1);
-  --code-block-padding: var(--spacing-4);
-  --code-font-size: 0.875rem;
-  --code-line-height: 1.5;
-
-  /* File Tree Indentation System - 통합 들여쓰기 시스템 */
-  --file-tree-indent-per-level: 16px;
-  /* 데스크톱: 16px 들여쓰기로 계층 구조 표시 */
-  --file-tree-max-depth: 6;
-  /* 최대 깊이 제한 */
-
-  /* 파일 트리 기타 설정 */
-  --file-tree-padding: var(--spacing-1);
-  /* 내부 패딩 */
-  --file-tree-line-height: 1.5;
-  /* 줄 높이 */
-  --file-tree-transition: var(--transition-fast);
-  /* 전환 효과 */
 }
 
-/* ============================================
-   반응형 들여쓰기 시스템 (Responsive Indentation)
-   ============================================ */
 
-/* 태블릿: 768px 이상 1024px 미만 */
-@media (min-width: 768px) and (max-width: 1023px) {
-  :root {
-    --file-tree-indent-per-level: 12px;
-    /* 태블릿: 12px 들여쓰기 */
+/* ==========================================================
+   GLOBAL RESET & BASE STYLES (Enforce Fonts!)
+   ========================================================== */
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--color-text-secondary);
+  background-color: var(--color-background);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: var(--leading-tight);
+}
+
+h1 {
+  font-size: var(--text-4xl);
+  font-weight: var(--font-extrabold);
+}
+
+h2 {
+  font-size: var(--text-3xl);
+}
+
+h3 {
+  font-size: var(--text-2xl);
+}
+
+h4 {
+  font-size: var(--text-xl);
+}
+
+h5 {
+  font-size: var(--text-lg);
+}
+
+h6 {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+}
+
+a {
+  color: var(--primary-600);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+a:hover {
+  color: var(--primary-700);
+  text-decoration: underline;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+/* ==========================================================
+   UTILITY CLASSES (Glass Card)
+   ========================================================== */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition-base);
+}
+
+.glass-card:hover {
+  box-shadow: var(--glass-shadow-hover);
+  transform: translateY(-2px);
+}
+
+/* ==========================================================
+   CUSTOM SCROLLBAR (Premium thin scrollbar)
+   ========================================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gray-100);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--primary-400), var(--primary-600));
+  border-radius: var(--radius-full);
+  border: 2px solid var(--gray-100);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--primary-500), var(--primary-700));
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-500) var(--gray-100);
+}
+
+/* ==========================================================
+   PAGE TRANSITION ANIMATIONS
+   ========================================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 
-/* 모바일: 768px 미만 */
-@media (max-width: 767px) {
-  :root {
-    --file-tree-indent-per-level: 8px;
-    /* 모바일: 8px 들여쓰기 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* ============================================
-   고대비 모드 지원 (접근성)
-   ============================================ */
-@media (prefers-contrast: high) {
-  :root {
-    --primary-600: #1d4ed8;
-    --gray-500: #000000;
-    --gray-600: #000000;
-    --gray-700: #000000;
-    --gray-800: #000000;
-    --gray-900: #000000;
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
-/* ============================================
-   모션 감소 지원 (접근성)
-   ============================================ */
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --transition-fast: none;
-    --transition-normal: none;
-    --transition-slow: none;
-    --transition-all: none;
-    --transition-colors: none;
-  }
+/* Apply to main content areas */
+.page-content,
+.dashboard-content,
+.main-content {
+  animation: fadeIn 0.4s ease-out;
 }
 
-/* ============================================
-   파일 트리 반응형 들여쓰기 시스템 (수정됨)
-   ============================================ */
-
-/* 기본값을 데스크톱으로 설정 - 미디어 쿼리 밖에서 정의 */
-:root {
-  --file-tree-indent-per-level: 16px;
-  /* 데스크톱: 16px 들여쓰기로 계층 구조 표시 */
+/* ==========================================================
+   GLASS INPUT (Premium Form Fields)
+   ========================================================== */
+.glass-input {
+  width: 100%;
+  padding: var(--spacing-4) var(--spacing-5);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: var(--radius-xl);
+  font-size: var(--text-base);
+  color: var(--gray-800);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-/* 태블릿 (768px ~ 1023px) - 12px */
-@media (max-width: 1023px) and (min-width: 768px) {
-  :root {
-    --file-tree-indent-per-level: 12px;
-    /* 태블릿: 12px 들여쓰기 */
-  }
+.glass-input::placeholder {
+  color: var(--gray-400);
 }
 
-/* 모바일 (767px 이하) - 8px */
-@media (max-width: 767px) {
-  :root {
-    --file-tree-indent-per-level: 8px;
-    /* 모바일: 8px 들여쓰기 */
-  }
+.glass-input:focus {
+  outline: none;
+  border-color: var(--primary-400);
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.12),
+    0 4px 16px rgba(99, 102, 241, 0.15);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.glass-input:hover:not(:focus) {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+/* ==========================================================
+   GLASS NAVBAR (Premium Navigation Bar)
+   ========================================================== */
+.glass-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-sticky);
+  background: var(--glass-bg-heavy);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-bottom: var(--glass-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  padding: var(--spacing-4) var(--spacing-8);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.glass-navbar .nav-logo {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  background: linear-gradient(135deg, var(--primary-600), var(--primary-400));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.glass-navbar .nav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
 }

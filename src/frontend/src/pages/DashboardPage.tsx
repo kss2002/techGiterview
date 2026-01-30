@@ -39,7 +39,10 @@ import {
   TrendingUp,
   AlertTriangle,
   Info,
-  Terminal
+  Terminal,
+  ZoomIn,
+  ZoomOut,
+  Maximize
 } from 'lucide-react'
 import { FileContentModal } from '../components/FileContentModal'
 import { CriticalFilesPreview } from '../components/CriticalFilesPreview'
@@ -317,6 +320,8 @@ export const DashboardPage: React.FC = () => {
   const [isFileModalOpen, setIsFileModalOpen] = useState(false)
   const [selectedFilePath, setSelectedFilePath] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // 질문 카드 펼침/접기 상태 (Accordion)
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
   // CSS 클래스 기반 시스템에서는 강제 리렌더링 불필요
   const navigate = useNavigate()
   const { analysisId } = useParams<{ analysisId: string }>()
@@ -770,6 +775,17 @@ export const DashboardPage: React.FC = () => {
       newExpanded.add(path)
     }
     setExpandedFolders(newExpanded)
+  }
+
+  // 질문 카드 펼침/접기 토글
+  const toggleQuestionExpand = (questionId: string) => {
+    const newExpanded = new Set(expandedQuestions)
+    if (newExpanded.has(questionId)) {
+      newExpanded.delete(questionId)
+    } else {
+      newExpanded.add(questionId)
+    }
+    setExpandedQuestions(newExpanded)
   }
 
   const filterFiles = (nodes: FileTreeNode[], term: string): FileTreeNode[] => {
@@ -1242,7 +1258,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-header">
+      <div className="dashboard-header" style={{ marginLeft: '280px', padding: '0.75rem 2rem 0.5rem', borderBottom: '1px solid #e5e5e5', background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 40 }}>
         <div className="header-content">
           <h1><LayoutDashboard className="inline-block w-8 h-8 mr-3" /> 분석 결과 대시보드</h1>
           <p className="repo-url">
@@ -1252,7 +1268,7 @@ export const DashboardPage: React.FC = () => {
         </div>
         <div className="header-actions">
           <button
-            className="btn btn-primary btn-lg interview-cta"
+            className="btn btn-primary interview-cta"
             onClick={startInterview}
             disabled={isLoadingQuestions || questions.length === 0}
           >
@@ -1263,29 +1279,30 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       <div className="dashboard-content">
-        {/* 저장소 정보 */}
-        <div className="info-section">
-          <div className="card card-lg">
-            <div className="card-header">
-              <h3><Github className="section-icon" /> 저장소 정보</h3>
+        {/* 좌측 사이드바 (25%) */}
+        <aside className="dashboard-sidebar" style={{ position: 'fixed', top: 0, left: 0, width: '280px', height: '100vh', zIndex: 50, backgroundColor: '#f9fafb', borderRight: '1px solid #e5e5e5', display: 'flex', flexDirection: 'column' }}>
+          {/* 저장소 정보 */}
+          <div className="sidebar-section">
+            <div className="sidebar-section-header">
+              <Github className="section-icon" /> 저장소 정보
             </div>
-            <div className="card-body">
+            <div className="sidebar-section-content">
               <div className="repo-details">
-                <h3>{analysisResult.repo_info.owner}/{analysisResult.repo_info.name}</h3>
-                <p className="repo-description">{analysisResult.repo_info.description}</p>
-                <div className="repo-stats">
-                  <div className="stat">
-                    <Star className="section-icon" />
+                <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.5rem' }}>{analysisResult.repo_info.owner}/{analysisResult.repo_info.name}</h3>
+                <p className="repo-description" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{analysisResult.repo_info.description}</p>
+                <div className="repo-stats" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div className="stat" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Star className="section-icon" style={{ width: '1rem', height: '1rem' }} />
                     <span className="stat-value">{analysisResult.repo_info.stars.toLocaleString()}</span>
                     <span className="stat-label">Stars</span>
                   </div>
-                  <div className="stat">
-                    <GitFork className="section-icon" />
+                  <div className="stat" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <GitFork className="section-icon" style={{ width: '1rem', height: '1rem' }} />
                     <span className="stat-value">{analysisResult.repo_info.forks.toLocaleString()}</span>
                     <span className="stat-label">Forks</span>
                   </div>
-                  <div className="stat">
-                    <Code className="section-icon" />
+                  <div className="stat" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Code className="section-icon" style={{ width: '1rem', height: '1rem' }} />
                     <span className="stat-value">{analysisResult.repo_info.language}</span>
                     <span className="stat-label">Language</span>
                   </div>
@@ -1294,351 +1311,296 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 개선 제안 */}
-          <div className="card card-lg">
-            <div className="card-header">
-              <h3><Lightbulb className="section-icon" /> 개선 제안</h3>
-            </div>
-            <div className="card-body">
-              <div className="recommendations-list">
-                {analysisResult.recommendations.length > 0 ? (
-                  analysisResult.recommendations.map((recommendation, index) => (
-                    <div key={index} className="recommendation-item">
-                      <ArrowRight className="section-icon" />
-                      <span className="recommendation-text">{recommendation}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="no-recommendations">이 프로젝트는 잘 구성되어 있습니다!</p>
+          {/* 주요 파일 트리 - 사이드바로 이동 */}
+          <div className="sidebar-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '400px' }}>
+            <div className="sidebar-section-header">
+              <FileText className="section-icon" /> 주요 파일
+              <div className="file-actions" style={{ marginLeft: 'auto' }}>
+                {!showAllFiles && (
+                  <button
+                    className="btn btn-ghost btn-xs"
+                    onClick={loadAllFiles}
+                    disabled={isLoadingAllFiles}
+                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto' }}
+                  >
+                    {isLoadingAllFiles ? '...' : '전체'}
+                  </button>
                 )}
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* 기술 스택 */}
-        <div className="card card-lg">
-          <div className="card-header">
-            <h2><Tag className="section-icon" /> 기술 스택</h2>
-          </div>
-          <div className="tech-stack-grid">
-            {Object.entries(analysisResult.tech_stack || {})
-              .sort(([, a], [, b]) => b - a) // 점수 순으로 정렬
-              .map(([tech, score], index) => (
-                <span key={index} className="tech-tag">
-                  {tech} ({(score * 100).toFixed(1)}%)
-                </span>
-              ))
-            }
-          </div>
-        </div>
-
-        {/* 코드 흐름 그래프 */}
-        <div className="card card-lg" style={{ minHeight: '400px' }}>
-          <div className="card-header">
-            <h2><GitFork className="section-icon" /> 코드 흐름 그래프</h2>
-            {isLoadingGraph && <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginLeft: '1rem' }}>로딩 중...</span>}
-          </div>
-          <div className="card-body" style={{ padding: 0, overflow: 'hidden' }}>
-            {graphData ? (
-              <div style={{ width: '100%', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-                <CodeGraphViewer graphData={graphData} width={800} height={500} />
-              </div>
-            ) : (
-              <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                {isLoadingGraph ? (
-                  <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
-                ) : (
-                  <p>표시할 그래프 데이터가 없습니다.</p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 주요 파일 */}
-        <div className="card card-lg">
-          <div className="card-header">
-            <h2><FileText className="section-icon" /> 주요 파일</h2>
-            <div className="file-actions">
-              {!showAllFiles && (
-                <button
-                  className="btn btn-outline btn-sm"
-                  onClick={loadAllFiles}
-                  disabled={isLoadingAllFiles}
-                >
-                  {isLoadingAllFiles ? '로딩 중...' : '자세히 보기'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {!showAllFiles ? (
-            <div className="files-loading">
-              <div className="spinner"></div>
-              <p>파일 목록을 불러오는 중...</p>
-            </div>
-          ) : (
-            <div className="all-files-container">
-              {isLoadingAllFiles ? (
-                <div className="files-loading">
+            <div className="sidebar-section-content" style={{ padding: 0, flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {!showAllFiles ? (
+                <div className="files-loading" style={{ padding: '1rem' }}>
                   <div className="spinner"></div>
-                  <p>모든 파일을 불러오는 중...</p>
+                  <p>불러오는 중...</p>
                 </div>
               ) : (
-                <div className="file-tree">
-                  {allFiles.length > 0 ? (
-                    <>
-                      <div className="file-tree-header">
-                        <div className="file-tree-info">
-                          <p>
-                            {searchTerm ?
-                              `"${searchTerm}" 검색 결과: ${filteredFiles.length}개 항목` :
-                              `${allFiles.length}개의 최상위 항목`
-                            }
-                          </p>
-                        </div>
-                        <div className="file-tree-controls">
-                          <div className="relative">
-                            <Search className="section-icon" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }} />
-                            <input
-                              type="text"
-                              placeholder="파일 검색..."
-                              value={searchTerm}
-                              onChange={(e) => handleSearch(e.target.value)}
-                              className="form-input form-input-sm"
-                              style={{ paddingLeft: 'var(--spacing-10)' }}
-                            />
-                          </div>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => setExpandedFolders(new Set())}
-                            style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}
-                          >
-                            <Minus className="section-icon" style={{ width: '0.75rem', height: '0.75rem' }} />
-                            모두 접기
-                          </button>
-                        </div>
-                      </div>
-                      <div className="file-tree-content">
-                        {renderFileTree(searchTerm ? filteredFiles : allFiles)}
-                      </div>
-                    </>
+                <div className="all-files-container" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  {isLoadingAllFiles ? (
+                    <div className="files-loading" style={{ padding: '1rem' }}>
+                      <div className="spinner"></div>
+                      <p>로딩 중...</p>
+                    </div>
                   ) : (
-                    <p className="no-files">파일을 불러올 수 없습니다.</p>
+                    <div className="file-tree" style={{ maxHeight: 'none', height: '100%', overflowY: 'auto' }}>
+                      {allFiles.length > 0 ? (
+                        <>
+                          <div className="file-tree-header" style={{ padding: '0.5rem' }}>
+                            <div className="file-tree-controls mb-2">
+                              <div className="relative w-full">
+                                <Search className="section-icon" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: '0.875rem' }} />
+                                <input
+                                  type="text"
+                                  placeholder="검색..."
+                                  value={searchTerm}
+                                  onChange={(e) => handleSearch(e.target.value)}
+                                  className="form-input form-input-sm w-full"
+                                  style={{ paddingLeft: '1.75rem', fontSize: '0.75rem' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="file-tree-content px-2 pb-2">
+                            {renderFileTree(searchTerm ? filteredFiles : allFiles)}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="no-files p-4">파일을 불러올 수 없습니다.</p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        </aside>
 
-        {/* 면접 질문 */}
-        <div className="card card-lg">
-          <div className="card-header">
-            <h2><MessageSquare className="section-icon" /> 생성된 면접 질문</h2>
-            {questionsGenerated && questions.length > 0 && (
-              <p className="questions-info">
-                이미 생성된 질문을 불러왔습니다. 다른 질문을 원하시면 재생성하세요.
-              </p>
-            )}
-            <div className="question-actions">
-              <button
-                className="btn btn-outline"
-                onClick={regenerateQuestions}
-                disabled={isLoadingQuestions}
-              >
-                {isLoadingQuestions ? '생성 중...' : '질문 재생성'}
-              </button>
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={startInterview}
-                disabled={questions.length === 0 || isLoadingQuestions}
-                style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', justifyContent: 'center' }}
-              >
-                <Play className="section-icon" style={{ width: '1rem', height: '1rem' }} />
-                {isLoadingQuestions ? '준비 중...' : '모의면접 시작'}
-              </button>
+        {/* 우측 메인 콘텐츠 (75%) */}
+        <main className="dashboard-main" style={{ marginLeft: '280px', paddingTop: '0.5rem', paddingLeft: '2rem', paddingRight: '2rem', width: 'auto' }}>
+          {/* 1. 기술 스택 & 중요 정보 */}
+          {/* 1. 기술 스택 & 개선 제안 (Compact Grid) */}
+          <div className="grid-cols-2">
+            {/* Tech Stack */}
+            <div className="card-premium">
+              <div className="card-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                <h2><Tag className="section-icon" /> 기술 스택</h2>
+              </div>
+              <div className="tech-stack-grid" style={{ marginTop: '0', padding: '0 1.5rem 1.5rem' }}>
+                {Object.entries(analysisResult.tech_stack || {})
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([tech, score], index) => (
+                    <span key={index} className="tech-tag" style={{
+                      backgroundColor: '#f3f4f6', /* gray-100 */
+                      color: '#4b5563', /* gray-600 */
+                      border: '1px solid #e5e5e5', /* gray-200 */
+                      borderRadius: '6px',
+                      padding: '2px 10px',
+                      fontWeight: 500
+                    }}>
+                      {tech} ({(score * 100).toFixed(0)}%)
+                    </span>
+                  ))
+                }
+              </div>
+            </div>
+
+            {/* Suggestions */}
+            <div className="card-premium">
+              <div className="card-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                <h2><CheckCircle className="section-icon" style={{ color: '#10b981' }} /> 개선 제안</h2>
+              </div>
+              <div className="card-body" style={{ paddingTop: '0.5rem' }}>
+                <div className="recommendations-list">
+                  {analysisResult.recommendations.length > 0 ? (
+                    analysisResult.recommendations.slice(0, 3).map((recommendation, index) => (
+                      <div key={index} className="recommendation-item" style={{ fontSize: '0.9rem', padding: '0.5rem 0' }}>
+                        <ArrowRight className="section-icon" style={{ width: '14px' }} />
+                        <span className="recommendation-text">{recommendation}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="no-recommendations">프로젝트 구조가 훌륭합니다!</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          {isLoadingQuestions ? (
-            <div className="questions-loading">
-              <div className="spinner"></div>
-              <p>
-                {questionsGenerated ?
-                  'AI가 새로운 질문을 생성하고 있습니다...' :
-                  'AI가 맞춤형 질문을 확인하고 있습니다...'
-                }
-              </p>
+          {/* 3. 코드 흐름 그래프 */}
+          <div className="card-premium graph-canvas" style={{ minHeight: '600px' }}>
+            <div className="graph-toolbar">
+              <button className="graph-tool-btn" title="Zoom In"><ZoomIn size={18} /></button>
+              <button className="graph-tool-btn" title="Zoom Out"><ZoomOut size={18} /></button>
+              <button className="graph-tool-btn" title="Fit View"><Maximize size={18} /></button>
             </div>
-          ) : (
-            <>
-              {/* 중요 파일 미리보기 섹션 - questions-grid 상단에 추가 */}
-              {(() => {
-                // smart_file_analysis가 있으면 사용, 없으면 key_files를 변환해서 사용
-                const criticalFiles = analysisResult?.smart_file_analysis?.critical_files
-                  || (analysisResult?.key_files ? convertKeyFilesToSmartAnalysis(analysisResult.key_files) : [])
+            <div className="card-header" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', background: 'rgba(255,255,255,0.8)' }}>
+              <h2><GitFork className="section-icon" /> 코드 흐름 그래프</h2>
+              <div className="header-actions">
+                {isLoadingGraph && <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginLeft: '1rem' }}>로딩 중...</span>}
+              </div>
+            </div>
+            <div className="card-body" style={{ padding: 0, overflow: 'hidden' }}>
+              {graphData ? (
+                <div style={{ width: '100%', height: '600px', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+                  <CodeGraphViewer graphData={graphData} width={900} height={580} />
+                </div>
+              ) : (
+                <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  {isLoadingGraph ? (
+                    <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
+                  ) : (
+                    <p>표시할 그래프 데이터가 없습니다.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
-                console.log('[DEBUG] CriticalFilesPreview 렌더링 조건:', {
-                  hasSmartAnalysis: !!analysisResult?.smart_file_analysis?.critical_files,
-                  hasKeyFiles: !!analysisResult?.key_files,
-                  keyFilesCount: analysisResult?.key_files?.length || 0,
-                  criticalFilesCount: criticalFiles.length,
-                  criticalFiles: criticalFiles.map((file, idx) => ({
-                    index: idx,
-                    file_path: file.file_path,
-                    file_path_type: typeof file.file_path,
-                    file_path_length: file.file_path?.length,
-                    importance_score: file.importance_score
-                  }))
-                })
+          {/* 4. 면접 질문 리스트 */}
+          <div className="card card-lg">
+            <div className="card-header">
+              <h2><MessageSquare className="section-icon" /> 생성된 면접 질문</h2>
+              {/* 질문 액션 버튼들 */}
+              <div className="question-actions">
+                <button
+                  className="btn btn-outline"
+                  onClick={regenerateQuestions}
+                  disabled={isLoadingQuestions}
+                >
+                  {isLoadingQuestions ? '생성 중...' : '질문 재생성'}
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={startInterview}
+                  disabled={questions.length === 0 || isLoadingQuestions}
+                  style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', justifyContent: 'center' }}
+                >
+                  <Play className="section-icon" style={{ width: '1rem', height: '1rem' }} />
+                  {isLoadingQuestions ? '준비 중...' : '모의면접 시작'}
+                </button>
+              </div>
+            </div>
 
-                return criticalFiles.length > 0 ? (
-                  <CriticalFilesPreview
-                    criticalFiles={criticalFiles}
-                    onFileClick={(filePath: string) => {
-                      setSelectedFilePath(filePath)
-                      setIsFileModalOpen(true)
-                    }}
-                  />
-                ) : null
-              })()}
+            {/* 중요 파일 미리보기 */}
+            {(() => {
+              const criticalFiles = analysisResult?.smart_file_analysis?.critical_files
+                || (analysisResult?.key_files ? convertKeyFilesToSmartAnalysis(analysisResult.key_files) : [])
+              return criticalFiles.length > 0 ? (
+                <CriticalFilesPreview
+                  criticalFiles={criticalFiles}
+                  onFileClick={(filePath: string) => {
+                    setSelectedFilePath(filePath)
+                    setIsFileModalOpen(true)
+                  }}
+                />
+              ) : null
+            })()}
 
-              <div className="questions-grid">
-                {/* Debug: render-time questions state check */}
-                {(() => {
-                  console.log('[Render Debug] questions-grid 렌더 시점:', {
-                    questionsLength: questions.length,
-                    questionsGenerated,
-                    isLoadingQuestions,
-                    firstQuestion: questions[0] ? { id: questions[0].id, question: questions[0].question?.slice(0, 50) } : null
-                  })
-                  return null
-                })()}
-                {questions.length === 0 ? (
-                  <div className="questions-empty-state">
-                    <div className="empty-state-content">
-                      <MessageSquare className="empty-state-icon" />
-                      <h3>질문을 불러오는 중입니다</h3>
-                      <p>
-                        {questionsGenerated
-                          ? "질문 생성이 완료되었지만 표시되지 않고 있습니다. 잠시 후 다시 시도해주세요."
-                          : "AI가 저장소를 분석하여 맞춤형 면접 질문을 준비하고 있습니다."
-                        }
-                      </p>
-                      <button
-                        className="btn btn-outline"
-                        onClick={() => analysisResult && loadOrGenerateQuestions(analysisResult)}
-                        disabled={isLoadingQuestions}
-                      >
-                        {isLoadingQuestions ? '로딩 중...' : '질문 다시 불러오기'}
-                      </button>
-                    </div>
+            {/* 질문 그리드 */}
+            <div className="questions-grid">
+              {questions.length === 0 ? (
+                /* Empty State */
+                <div className="questions-empty-state">
+                  <div className="empty-state-content">
+                    <MessageSquare className="empty-state-icon" />
+                    <h3>질문을 불러오는 중입니다</h3>
+                    <p>
+                      {questionsGenerated
+                        ? "질문 생성이 완료되었지만 표시되지 않고 있습니다. 잠시 후 다시 시도해주세요."
+                        : "AI가 저장소를 분석하여 맞춤형 면접 질문을 준비하고 있습니다."
+                      }
+                    </p>
+                    <button className="btn btn-outline" onClick={() => analysisResult && loadOrGenerateQuestions(analysisResult)} disabled={isLoadingQuestions}>
+                      {isLoadingQuestions ? '로딩 중...' : '질문 다시 불러오기'}
+                    </button>
                   </div>
-                ) : (
-                  questions.map((question, index) => (
-                    <div
-                      key={question.id}
-                      className="question-card"
-                      data-has-real-content={question.code_snippet?.has_real_content ?? 'unknown'}
-                    >
-                      <div className="question-header">
-                        <div className="question-meta">
-                          <span className="question-number">Q{index + 1}</span>
-                          {getCategoryIcon(question.type)}
-                          <span className="category-name">{question.type}</span>
-                          {question.parent_question_id && (
-                            <span className="sub-question-indicator">
-                              ({question.sub_question_index}/{question.total_sub_questions})
-                            </span>
-                          )}
-                        </div>
-                        <span
-                          className="difficulty-badge"
-                          style={{ backgroundColor: getDifficultyColor(question.difficulty) }}
-                        >
-                          {question.difficulty}
-                        </span>
-                      </div>
-                      <div className="question-content">
-                        <div className="question-text">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                          >
-                            {question.question}
-                          </ReactMarkdown>
-                        </div>
+                </div>
+              ) : (
+                /* Questions List */
+                <>
+                  {questions.map((question, index) => {
+                    const isExpanded = expandedQuestions.has(question.id);
+                    return (
+                      <div key={question.id} className={`question-card ${isExpanded ? 'expanded' : ''}`}
+                        data-has-real-content={question.code_snippet?.has_real_content ?? 'unknown'}>
 
-                        {/* 질문 기반 파일 정보 표시 */}
-                        {question.source_file && (
-                          <div className="question-source-file">
-                            {getFileIcon(question.source_file)}
-                            <span className="source-file-text">
-                              <FileText className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)' }} />
-                              기반 파일: {question.source_file}
-                            </span>
-                            {question.importance && (
-                              <span className={`importance-badge ${question.importance}`}>
-                                {question.importance === 'high' ? '[CORE] 핵심' : '[SUB] 보조'}
+                        <div className="question-header">
+                          <div className="question-meta">
+                            <span className="question-number">Q{index + 1}</span>
+                            {getCategoryIcon(question.type)}
+                            <span className="category-name">{question.type}</span>
+                            {question.parent_question_id && (
+                              <span className="sub-question-indicator">
+                                ({question.sub_question_index}/{question.total_sub_questions})
                               </span>
                             )}
                           </div>
-                        )}
+                          <span className="difficulty-badge" style={{ backgroundColor: getDifficultyColor(question.difficulty) }}>{question.difficulty}</span>
+                        </div>
 
-                        {question.context && (
-                          <p className="question-context">
-                            <Info className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)' }} />
-                            {question.context}
-                          </p>
-                        )}
-                        {question.technology && (
-                          <p className="question-tech">
-                            <Tag className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)' }} />
-                            기술: {question.technology}
-                          </p>
-                        )}
-                        {question.code_snippet && (
-                          <div className="question-code">
-                            <div className="code-header">
-                              {getFileIcon(question.code_snippet.file_path)}
-                              <span className="code-file-path">
-                                <File className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-1)' }} />
-                                {question.code_snippet.file_path}
+                        <div className="question-content">
+                          <div className="question-text">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {question.question}
+                            </ReactMarkdown>
+                          </div>
+
+                          {/* Source File */}
+                          {question.source_file && (
+                            <div className="question-source-file">
+                              {getFileIcon(question.source_file)}
+                              <span className="source-file-text">
+                                <FileText className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)' }} />
+                                기반 파일: {question.source_file}
                               </span>
-                              {question.code_snippet.has_real_content === false && (
-                                <span className="content-status warning">
-                                  [WARN] 내용 없음 ({question.code_snippet.content_unavailable_reason})
+                              {question.importance && (
+                                <span className={`importance-badge ${question.importance}`}>
+                                  {question.importance === 'high' ? '[CORE] 핵심' : '[SUB] 보조'}
                                 </span>
                               )}
-                              {question.code_snippet.has_real_content === true && (
-                                <span className="content-status success">[OK] 실제 코드</span>
-                              )}
                             </div>
-                            <pre className="code-snippet">{question.code_snippet.content}</pre>
-                          </div>
-                        )}
-                        {question.time_estimate && (
-                          <p className="question-time"><Clock className="w-4 h-4 inline mr-2" /> 예상 시간: {question.time_estimate}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
-          )}
-        </div>
+                          )}
 
-        {/* 요약 */}
-        <div className="summary-section">
-          <div className="card-header">
-            <h2><BarChart3 className="section-icon" /> 분석 요약</h2>
+                          {question.code_snippet && (
+                            <div className="question-code">
+                              <div className="code-header">
+                                {getFileIcon(question.code_snippet.file_path)}
+                                <span className="code-file-path">
+                                  <File className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-1)' }} />
+                                  {question.code_snippet.file_path}
+                                </span>
+                                {question.code_snippet.has_real_content === false && (
+                                  <span className="content-status warning">[WARN] 내용 없음 ({question.code_snippet.content_unavailable_reason})</span>
+                                )}
+                                {question.code_snippet.has_real_content === true && (
+                                  <span className="content-status success">[OK] 실제 코드</span>
+                                )}
+                              </div>
+                              <pre className="code-snippet">{question.code_snippet.content}</pre>
+                            </div>
+                          )}
+                          {question.time_estimate && (
+                            <p className="question-time"><Clock className="w-4 h-4 inline mr-2" /> 예상 시간: {question.time_estimate}</p>
+                          )}
+                        </div>
+                        <button className="expand-toggle-btn" onClick={() => toggleQuestionExpand(question.id)}>{isExpanded ? '접기 ▲' : '더 보기 ▼'}</button>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
           </div>
-          <div className="summary-content">
-            <p>{analysisResult.summary}</p>
+
+          {/* 요약 */}
+          <div className="summary-section">
+            <div className="card-header">
+              <h2><BarChart3 className="section-icon" /> 분석 요약</h2>
+            </div>
+            <div className="summary-content"><p>{analysisResult.summary}</p></div>
           </div>
-        </div>
+        </main>
       </div>
 
       {/* 파일 내용 모달 */}
