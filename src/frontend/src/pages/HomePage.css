@@ -1,296 +1,700 @@
 /**
- * TechGiterview HomePage - 브랜드 통합 디자인 시스템
- * 
- * 모든 스타일은 design-tokens.css를 기반으로 합니다.
- * !important 사용 금지, 하드코딩 색상값 금지
+ * TechGiterview HomePage - TECH MINIMAL DESIGN
+ * ==========================================================
+ * - Subtle dot grid pattern (Engineering feel)
+ * - Monochrome + Electric Blue accent
+ * - Monospace for developer context
+ * - Terminal-style input
  */
 @import '../styles/design-tokens.css';
 
-/* ============================================
-   메인 페이지 레이아웃
-   ============================================ */
-
+/* ==========================================================
+   PAGE BACKGROUND (Dot Grid Pattern - Engineering Feel)
+   ========================================================== */
 .home-page {
   min-height: 100vh;
-  background: var(--gradient-page-bg);
-  background-attachment: fixed;
-  color: var(--color-text-secondary);
-  font-family: var(--font-sans);
+  background-color: #fafafa;
+  background-image: radial-gradient(circle, #d4d4d4 1px, transparent 1px);
+  background-size: 24px 24px;
+  font-family: var(--font-body);
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  color: var(--color-text-secondary);
+}
+
+/* ==========================================================
+   LAYOUT HELPERS (Compact for Functionality)
+   ========================================================== */
+.section {
+  padding: var(--spacing-10) var(--spacing-6);
   position: relative;
 }
 
-/* 홈페이지 섹션 간 마진 조정 */
-.home-page .section+.section {
-  margin-top: 0.5rem;
+.section+.section {
+  padding-top: var(--spacing-4);
 }
 
-/* 카드 간 마진 조정 */
-.home-page .container .card+.card {
-  margin-top: 0.5rem;
+.container {
+  max-width: var(--container-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-4);
+  width: 100%;
 }
 
-/* Hero 섹션은 이제 .section + .container + 표준 타이포그래피 컴포넌트 사용 */
-
-/* ============================================
-   Quick Access 섹션 배경
-   ============================================ */
-
-.bg-gray-50 {
-  background-color: var(--gray-50, #f9fafb);
+.text-center {
+  text-align: center;
 }
 
-/* ============================================
-   상태 표시 컴포넌트
-   ============================================ */
+/* ==========================================================
+   FUNDAMENTAL REDESIGN: SEARCH CENTRIC (Perplexity Style)
+   ========================================================== */
 
-.status-indicators {
-  margin-top: var(--spacing-2);
+/* Navbar Container - ULTRA-MINIMAL: Pure white, 1px border only */
+.navbar-container {
   display: flex;
-  gap: var(--spacing-2);
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.navbar-content {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* FIX #4: Polished Dropdown UI */
+.navbar-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-700);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.navbar-dropdown-trigger:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.navbar-dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  width: 280px;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 20px 25px -5px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  z-index: 50;
+  overflow: hidden;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.navbar-dropdown-header {
+  padding: 0.75rem 1rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-400);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.navbar-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.navbar-dropdown-item:hover {
+  background: var(--gray-50);
+}
+
+.navbar-dropdown-item.selected {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.navbar-dropdown-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.navbar-dropdown-item-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-800);
+}
+
+.navbar-dropdown-badge {
+  display: inline-flex;
+  padding: 0.125rem 0.375rem;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--secondary-600);
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.navbar-dropdown-item-model {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  font-family: var(--font-mono);
+}
+
+/* Central Search Hero Section */
+.search-hero-section {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
+  padding-bottom: 5vh;
+  /* Visual balance */
+}
+
+/* Main Search Input Container - TECH MINIMAL */
+.main-search-container {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Terminal-style input container */
+.main-search-container .url-input-group.terminal-style {
+  margin-top: 0;
+  background: #ffffff;
+  border: 1px solid #d4d4d4;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.main-search-container .url-input-group.terminal-style:hover {
+  border-color: #a3a3a3;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.main-search-container .url-input-group.terminal-style:focus-within {
+  border-color: #3b82f6;
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.15),
+    0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+/* Terminal prompt icon */
+.terminal-prompt {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #3b82f6;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* Terminal input field */
+.main-search-container .terminal-input {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  padding: 0.625rem 0;
+  color: #171717;
+  border: none;
+  background: transparent;
+  outline: none;
+}
+
+.main-search-container .terminal-input::placeholder {
+  color: #a3a3a3;
+  font-family: var(--font-mono);
+}
+
+/* Analyze button */
+.main-search-container .btn-analyze {
+  flex-shrink: 0;
+  border-radius: 0.375rem;
+  padding: 0.625rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  background: #171717;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.main-search-container .btn-analyze:hover:not(:disabled) {
+  background: #3b82f6;
+  transform: translateY(-1px);
+}
+
+.main-search-container .btn-analyze:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sample Repos - ULTRA-MINIMAL: Simple text links */
+.sample-repos-section {
+  margin-top: 2rem;
+}
+
+.sample-repos-label {
+  font-size: 0.75rem;
+  color: #a3a3a3;
+  margin-bottom: 0.5rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sample-repo-chips {
+  display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  gap: 1rem;
+}
+
+.sample-repo-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  background: transparent;
+  color: #525252;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: color 0.15s ease;
+  text-decoration: underline;
+  text-decoration-color: #e5e5e5;
+  text-underline-offset: 3px;
+}
+
+.sample-repo-chip:hover:not(:disabled) {
+  color: #171717;
+  text-decoration-color: #171717;
+}
+
+.sample-repo-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
+/* ==========================================================
+   LAYOUT RESTRUCTURING: ACTION PANEL (Distinct Zone)
+   ========================================================== */
+.action-panel {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-3xl);
+  padding: var(--spacing-8);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.03),
+    0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* ==========================================================
+   CARDS (Clean & Minimalist - Calibration V3)
+   ========================================================== */
+.card {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-2xl);
+  padding: var(--spacing-8);
+  margin-bottom: var(--spacing-6);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 12px -1px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary-200);
+}
+
+/* Removed ::before gradient border effect */
+
+/* ==========================================================
+   MODEL CARD SELECTION STATES (UX Fix #1)
+   ========================================================== */
+.model-card {
+  position: relative;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  transition: all 0.2s ease;
+}
+
+.model-card-unselected:hover {
+  border-color: var(--primary-400);
+  background-color: var(--gray-50);
+}
+
+.model-card-selected {
+  border: 2px solid var(--primary-600) !important;
+  background-color: var(--primary-50);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+}
+
+
+.model-card-recommended {
+  border-color: var(--secondary-300);
+}
+
+.model-card-recommended.model-card-selected {
+  border-color: var(--primary-500) !important;
+}
+
+/* Check icon for selected state */
+.model-check-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--primary-600);
+  background: var(--white);
+  border-radius: var(--radius-full);
+  padding: 2px;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  animation: checkPop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes checkPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Compact card for small info sections (like API Key Setup) */
+.card-compact {
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: var(--spacing-5) var(--spacing-6);
+}
+
+/* ==========================================================
+   URL INPUT GROUP (Glass Style 2.0 - UX Fix #4: Enhanced Prominence)
+   ========================================================== */
+.url-input-group {
+  display: flex;
+  align-items: stretch;
+  margin-top: var(--spacing-6);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  padding: var(--spacing-3);
+  border-radius: var(--radius-2xl);
+  box-shadow:
+    0 8px 32px rgba(99, 102, 241, 0.15),
+    0 4px 16px rgba(0, 0, 0, 0.1);
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.url-input-group:focus-within {
+  border-color: var(--primary-400);
+  box-shadow:
+    0 0 0 4px rgba(99, 102, 241, 0.1),
+    var(--glass-shadow-hover);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.url-input-group:hover:not(:focus-within) {
+  border-color: rgba(99, 102, 241, 0.25);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.form-input {
+  flex: 1;
+  border: none;
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-4) var(--spacing-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  color: var(--gray-800);
+  background: transparent;
+  min-width: 0;
+}
+
+.form-input::placeholder {
+  color: var(--gray-400);
+}
+
+.form-input:focus {
+  outline: none;
+}
+
+/* ==========================================================
+   BUTTONS (Unified)
+   ========================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-6);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  border: none;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+  color: var(--white);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.2) 25%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0.2) 75%,
+      transparent 100%);
+  transition: left 0.6s ease;
+}
+
+.btn-primary:hover::after {
+  left: 100%;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--primary-700), var(--primary-800));
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5);
+}
+
+.btn-primary:active {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.btn-secondary {
+  background: var(--white);
+  color: var(--primary-600);
+  border: 1px solid var(--primary-200);
+}
+
+.btn-secondary:hover {
+  background: var(--primary-50);
+  border-color: var(--primary-400);
+}
+
+/* ==========================================================
+   STATUS BADGES
+   ========================================================== */
+.status-indicators {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+  margin-top: var(--spacing-4);
 }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: var(--spacing-1);
-  padding: var(--spacing-1) var(--spacing-2);
-  border-radius: var(--radius-xl);
+  gap: var(--spacing-2);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
-  border: 1px solid;
-  transition: var(--transition-fast);
+  border: 1px solid transparent;
 }
 
 .status-badge.local {
-  background-color: var(--color-info-bg);
-  color: var(--color-info);
-  border-color: var(--color-info);
+  background: var(--primary-50);
+  color: var(--primary-700);
+  border-color: var(--primary-200);
 }
 
 .status-badge.error {
-  background-color: var(--color-error-bg);
+  background: rgba(239, 68, 68, 0.1);
   color: var(--color-error);
-  border-color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 .status-badge.online {
-  background-color: var(--color-success-bg);
-  color: var(--color-success);
-  border-color: var(--color-success);
+  background: var(--secondary-50);
+  color: var(--secondary-700);
+  border-color: var(--secondary-200);
 }
 
-/* 분석 입력 섹션은 이제 표준 .container + .card 컴포넌트 사용 */
-
-/* ============================================
-   URL 입력 그룹 - 가로 레이아웃
-   ============================================ */
-
-/* URL 입력 그룹 메인 컨테이너 */
-.url-input-group {
-  display: flex;
-  gap: 0;
-  /* gap을 0으로 설정하여 완전히 붙임 */
-  align-items: stretch;
-  width: 100%;
-  margin: 0 auto;
-  box-shadow: var(--shadow-sm);
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-  /* 자식 요소의 border-radius 제어 */
-}
-
-/* 입력 필드 - flex로 확장 */
-.url-input-group .form-input {
-  flex: 1;
-  min-width: 0;
-  /* flex shrink 허용 */
-  height: auto;
-  border-radius: 0;
-  /* 모든 radius 제거 */
-  border-right: none;
-  /* 오른쪽 테두리 제거하여 버튼과 완전히 붙임 */
-  box-shadow: none;
-  /* 개별 그림자 제거 */
-}
-
-/* 버튼 - 고정 크기 유지 */
-.url-input-group .btn {
-  flex-shrink: 0;
-  white-space: nowrap;
-  min-width: 140px;
-  align-self: stretch;
-  /* 입력 필드와 높이 맞춤 */
-  border-radius: 0;
-  /* 모든 radius 제거 */
-  margin-left: 0;
-  /* margin 제거 */
-  box-shadow: none;
-  /* 개별 그림자 제거 */
-}
-
-/* 연결된 입력 필드와 버튼 스타일 */
-.url-input-group .form-input:focus {
-  z-index: 2;
-  position: relative;
-}
-
-.url-input-group .btn:hover,
-.url-input-group .btn:focus {
-  z-index: 1;
-  position: relative;
-}
-
-/* URL 입력 필드만의 특별한 스타일 오버라이드 */
-.form-input.form-input-lg {
-  font-family: var(--font-mono);
-}
-
-.form-input.form-input-lg::placeholder {
-  font-family: var(--font-sans);
-}
-
-/* ============================================
-   설정 섹션
-   ============================================ */
-
-.settings-section {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-6);
-  margin-top: var(--spacing-8);
-}
-
-.setting-group {
-  background: var(--white);
-  padding: var(--spacing-6);
-  border-radius: var(--radius-2xl);
-  border: 1px solid var(--gray-200);
-  box-shadow: var(--shadow-sm);
-}
-
-.setting-label {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--gray-700);
-  margin-bottom: var(--spacing-2);
-}
-
-/* 설정 select는 이제 .form-input 표준 컴포넌트 사용 */
-
-/* 기능 소개 섹션은 이제 표준 .section + .container + .grid + .card 컴포넌트 사용 */
-
-/* 작동 원리 섹션은 이제 표준 .section + .container + .flex + .card 컴포넌트 사용 */
-
-/* ============================================
-   샘플 저장소 섹션
-   ============================================ */
-
+/* ==========================================================
+   SAMPLE REPOS SECTION
+   ========================================================== */
 .sample-repos-section {
-  padding: var(--spacing-16) var(--spacing-6);
-  max-width: var(--content-max-width-xl);
-  margin: 0 auto;
+  padding: var(--spacing-10) 0;
 }
 
 .sample-repos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--spacing-6);
 }
 
 .sample-repo-card {
   background: var(--white);
-  padding: var(--spacing-6);
+  border: 1px solid var(--gray-200);
   border-radius: var(--radius-xl);
-  border: 2px solid var(--gray-200);
-  transition: var(--transition-normal);
+  padding: var(--spacing-6);
   cursor: pointer;
+  transition: var(--transition-base);
 }
 
 .sample-repo-card:hover {
-  border-color: var(--brand-navy-400);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-.repo-header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  margin-bottom: var(--spacing-4);
+  border-color: var(--primary-400);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: var(--shadow-xl);
 }
 
 .repo-name {
-  font-size: var(--text-lg);
+  font-family: var(--font-display);
   font-weight: var(--font-semibold);
-  color: var(--brand-navy-800);
-  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--gray-900);
+  margin-bottom: var(--spacing-2);
 }
 
 .repo-description {
   font-size: var(--text-sm);
-  color: var(--gray-600);
+  color: var(--gray-500);
   line-height: var(--leading-relaxed);
   margin-bottom: var(--spacing-4);
 }
 
-.repo-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
-}
-
 .repo-tag {
-  padding: var(--spacing-1) var(--spacing-2);
-  background: var(--brand-lime-100);
-  color: var(--brand-lime-800);
-  border-radius: var(--radius-md);
+  background: var(--secondary-100);
+  color: var(--secondary-700);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
+  display: inline-block;
+  margin-right: var(--spacing-1);
+  margin-bottom: var(--spacing-1);
 }
 
-/* ============================================
-   반응형 디자인
-   ============================================ */
-
-/* ============================================
-   반응형 디자인 - URL 입력 그룹
-   ============================================ */
-
-/* 태블릿 이하에서 세로 배치 */
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
 @media (max-width: 768px) {
+  .section {
+    padding: var(--spacing-12) var(--spacing-4);
+  }
+
+  .heading-1 {
+    font-size: var(--text-4xl);
+  }
+
+  .text-subtitle {
+    font-size: var(--text-xl);
+  }
+
+  .text-lead {
+    font-size: var(--text-base);
+  }
+
   .url-input-group {
     flex-direction: column;
-    gap: 0;
-    /* 모바일에서도 gap 0 유지 */
-    max-width: 100%;
-    border-radius: var(--radius-xl);
-    overflow: hidden;
+    padding: var(--spacing-4);
+    background: transparent;
+    box-shadow: none;
+    border: none;
   }
 
-  /* 모바일에서도 붙은 상태 유지 */
   .url-input-group .form-input {
-    border-radius: 0;
-    border-right: 1px solid var(--gray-300);
-    /* 모바일에서는 오른쪽 테두리 복원 */
-    border-bottom: none;
-    /* 아래쪽 테두리 제거하여 버튼과 붙임 */
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    margin-bottom: var(--spacing-4);
+    box-shadow: var(--shadow-sm);
   }
 
-  .url-input-group .btn {
-    border-radius: 0;
-    margin-left: 0;
+  .btn {
     width: 100%;
-    min-width: auto;
+    padding: var(--spacing-4);
   }
-}
 
-/* 매우 작은 화면에서 추가 최적화 */
-@media (max-width: 480px) {
-  .url-input-group {
-    gap: var(--spacing-2);
+  .sample-repos-grid {
+    grid-template-columns: 1fr;
   }
 }

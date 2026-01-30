@@ -1,30 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap } from 'lucide-react';
 import { ApiKeySetup } from '../components/ApiKeySetup';
 import { QuickAccessSection } from '../components/QuickAccessSection';
 import { usePageInitialization } from '../hooks/usePageInitialization';
 import {
-  ApiKeySetupCard,
-  AISelectionAndAnalysisCard,
   SampleRepositoriesSection,
-  MainFeaturesSection,
-  WorkflowSection,
   HomePageFooter,
+  HomePageNavbar,
+  RepositoryAnalysisForm,
 } from '../components/HomePage';
-import { handleRepositoryAnalysis } from '../utils/repositoryAnalysisService';
+import { handleRepositoryAnalysis } from '../utils/repositoryAnalysisService'
 import type { HomePageState } from '../types/homePage';
-import Particles from '@/ui/Particles';
-import AnimatedContent from '@/ui/AnimatedContent';
 import './HomePage.css';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-
-  let maintitle = 'TechGiterview';
-  let subtitle = 'GitHub 저장소를 분석하여 맞춤형 기술면접을 준비하세요';
-  let desc =
-    'AI가 당신의 코드를 분석하고 실제 면접에서 나올 수 있는 질문들을 생성합니다. 실시간 모의면접으로 완벽한 준비를 해보세요.';
 
   // 모든 초기화 로직을 Hook으로 위임
   const {
@@ -94,80 +84,59 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="home-page">
-      <Particles
-        particleColors={['#18167797', '#18167775']}
-        particleCount={500}
-        particleSpread={10}
-        speed={0.2}
-        particleBaseSize={150}
-        moveParticlesOnHover={false}
-        alphaParticles={true}
-        disableRotation={true}
+      {/* Top Navigation Bar */}
+      <HomePageNavbar
+        onShowApiKeySetup={() => updateState({ showApiKeySetup: true })}
+        needsApiKeySetup={needsApiKeySetup}
+        isConnected={!error && !isLoading}
+        providers={providers}
+        selectedAI={selectedAI}
+        onSelectedAIChange={setSelectedAI}
       />
-      <AnimatedContent
-        distance={150}
-        direction="vertical"
-        reverse={false}
-        duration={1.2}
-        ease="bounce.out"
-        initialOpacity={0.2}
-        animateOpacity
-        scale={1.1}
-        threshold={0.2}
-        delay={0.3}
-      >
-        <section className="section">
-          <div className="container">
-            <h1 className="heading-1 text-center">
-              <Zap className="title-icon" aria-hidden="true" />
-              {maintitle}
-            </h1>
-            <p className="text-subtitle text-center">{subtitle}</p>
-            <p className="text-lead text-center">{desc}</p>
-          </div>
 
-          <div className="container">
-            {/* API 키 설정 버튼 */}
-            <ApiKeySetupCard
-              onShowApiKeySetup={() => updateState({ showApiKeySetup: true })}
-              isUsingLocalData={isUsingLocalData}
-              error={error}
-              isLoading={isLoading}
-              needsSetup={needsApiKeySetup}
-            />
+      {/* Centered Search Hero - ULTRA-MINIMAL */}
+      <section className="search-hero-section">
+        <div style={{ maxWidth: '640px', margin: '0 auto', textAlign: 'center', padding: '0 1.5rem' }}>
 
-            {/* AI 모델 선택 및 분석 시작 통합 섹션 */}
-            <AISelectionAndAnalysisCard
-              providers={providers}
-              selectedAI={selectedAI}
-              onSelectedAIChange={setSelectedAI}
-              isLoading={isLoading}
+          {/* Simple Title */}
+          <h1 style={{
+            fontSize: '1.75rem',
+            fontWeight: 500,
+            color: '#171717',
+            marginBottom: '2rem',
+            letterSpacing: '-0.01em'
+          }}>
+            분석할 GitHub 저장소를 입력하세요
+          </h1>
+
+          {/* The Main Search Input */}
+          <div className="main-search-container">
+            <RepositoryAnalysisForm
               repoUrl={state.repoUrl}
               isAnalyzing={state.isAnalyzing}
-              onRepoUrlChange={(url) => updateState({ repoUrl: url })}
+              selectedAI={selectedAI}
+              onRepoUrlChange={(url: string) => updateState({ repoUrl: url })}
               onSubmit={handleSubmit}
             />
+          </div>
 
+          {/* Sample links */}
+          <div style={{ marginTop: '2.5rem' }}>
             <SampleRepositoriesSection
-              onRepoSelect={(url) => updateState({ repoUrl: url })}
+              onRepoSelect={(url: string) => updateState({ repoUrl: url })}
               isAnalyzing={state.isAnalyzing}
             />
           </div>
-        </section>
 
-        {/* 최근 활동 섹션 */}
-        <section className="section bg-gray-50">
-          <div className="container">
-            <QuickAccessSection />
-          </div>
-        </section>
+        </div>
+      </section>
 
-        {/* 기능 섹션 */}
-        <MainFeaturesSection />
-
-        {/* 작동 원리 */}
-        <WorkflowSection />
-      </AnimatedContent>
+      {/* Recent Activity - Simple section */}
+      <section style={{ padding: '3rem 1.5rem', background: '#fafafa', borderTop: '1px solid #e5e5e5' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <QuickAccessSection />
+        </div>
+      </section>
 
       {/* API 키 설정 모달 */}
       {shouldShowApiKeySetup && (
