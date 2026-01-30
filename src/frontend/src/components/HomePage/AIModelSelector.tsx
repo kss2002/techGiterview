@@ -1,4 +1,5 @@
 import React from 'react';
+import { CheckCircle } from 'lucide-react';
 
 interface AIProvider {
   id: string;
@@ -51,39 +52,46 @@ export const AIModelSelector: React.FC<AIModelSelectorProps> = ({
       className="grid grid-auto-fit gap-md"
       style={{ marginBottom: '1.5rem' }}
     >
-      {providers.map((provider) => (
-        <label
-          key={provider.id}
-          className={`card hover-lift-sm cursor-pointer transition-fast ${
-            selectedAI === provider.id ? 'border-primary-500 bg-primary-50' : ''
-          } ${provider.recommended ? 'border-brand-green-300' : ''}`}
-        >
-          <input
-            type="radio"
-            name="aiProvider"
-            value={provider.id}
-            checked={selectedAI === provider.id}
-            onChange={(e) => onSelectedAIChange(e.target.value)}
-            className="form-radio sr-only"
-          />
-          <div className="card-body">
-            <div className="heading-4 flex items-center justify-between">
-              {provider.name}
-              {provider.recommended && (
-                <span className="badge badge-success">추천</span>
+      {providers.map((provider) => {
+        const isSelected = selectedAI === provider.id;
+        return (
+          <label
+            key={provider.id}
+            className={`card model-card cursor-pointer transition-fast ${isSelected ? 'model-card-selected' : 'model-card-unselected'
+              } ${provider.recommended ? 'model-card-recommended' : ''}`}
+          >
+            <input
+              type="radio"
+              name="aiProvider"
+              value={provider.id}
+              checked={isSelected}
+              onChange={(e) => onSelectedAIChange(e.target.value)}
+              className="form-radio sr-only"
+            />
+            <div className="card-body" style={{ position: 'relative' }}>
+              {/* 선택 상태 체크 아이콘 */}
+              {isSelected && (
+                <div className="model-check-icon">
+                  <CheckCircle size={24} />
+                </div>
               )}
+              <div className="heading-4 flex items-center justify-between">
+                {provider.name}
+                {provider.recommended && (
+                  <span className="badge badge-success">추천</span>
+                )}
+              </div>
+              <div className="text-body-sm text-muted">{provider.model}</div>
+              <div
+                className={`text-body-sm ${provider.status === 'ready' ? 'text-success' : 'text-muted'
+                  }`}
+              >
+                {provider.status === 'ready' ? '● 사용 가능' : '○ 설정됨'}
+              </div>
             </div>
-            <div className="text-body-sm text-muted">{provider.model}</div>
-            <div
-              className={`text-body-sm ${
-                provider.status === 'ready' ? 'text-success' : 'text-muted'
-              }`}
-            >
-              {provider.status === 'ready' ? '● 사용 가능' : '○ 설정됨'}
-            </div>
-          </div>
-        </label>
-      ))}
+          </label>
+        );
+      })}
     </div>
   );
 };

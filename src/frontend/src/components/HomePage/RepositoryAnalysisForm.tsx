@@ -22,7 +22,9 @@ export const RepositoryAnalysisForm: React.FC<RepositoryAnalysisFormProps> = ({
       role="form"
       aria-label="저장소 분석 요청"
     >
-      <div className="url-input-group">
+      <div className="url-input-group terminal-style">
+        {/* Terminal prompt icon */}
+        <span className="terminal-prompt" aria-hidden="true">›_</span>
         <label htmlFor="repo-url-input" className="sr-only">
           GitHub 저장소 URL
         </label>
@@ -31,19 +33,18 @@ export const RepositoryAnalysisForm: React.FC<RepositoryAnalysisFormProps> = ({
           type="url"
           value={repoUrl}
           onChange={(e) => onRepoUrlChange(e.target.value)}
-          placeholder="GitHub 저장소 URL을 입력하세요 (예: https://github.com/facebook/react)"
-          className="form-input form-input-lg focus-ring transition-fast"
+          placeholder="github.com/owner/repo"
+          className="form-input form-input-lg terminal-input"
           required
           disabled={isAnalyzing}
           aria-describedby="url-help"
         />
         <div id="url-help" className="sr-only">
-          분석하고 싶은 GitHub 저장소의 전체 URL을 입력해주세요. 예:
-          https://github.com/facebook/react
+          분석하고 싶은 GitHub 저장소의 전체 URL을 입력해주세요.
         </div>
         <button
           type="submit"
-          className="btn btn-primary btn-xl hover-lift active-scale focus-ring"
+          className="btn btn-primary btn-analyze"
           disabled={isAnalyzing || !repoUrl.trim() || !selectedAI}
           aria-label={isAnalyzing ? '저장소 분석 중...' : '저장소 분석 시작'}
         >
@@ -53,7 +54,7 @@ export const RepositoryAnalysisForm: React.FC<RepositoryAnalysisFormProps> = ({
               분석 중...
             </>
           ) : (
-            '분석 시작'
+            'Analyze'
           )}
         </button>
       </div>
