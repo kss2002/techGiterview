@@ -9,17 +9,53 @@ interface CodeGraphViewerProps {
     height?: number;
 }
 
-const CodeGraphViewer: React.FC<CodeGraphViewerProps> = ({ graphData, width = 600, height = 400 }) => {
+const CodeGraphViewer: React.FC<CodeGraphViewerProps> = ({ graphData, width: propWidth, height: propHeight }) => {
     const graphRef = useRef<any>();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [dimensions, setDimensions] = React.useState({ width: propWidth || 600, height: propHeight || 400 });
     const isFirstZoom = useRef(true);
+
+    // Auto-resize logic
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                // Only update if dimensions changed significantly to prevent loops
+                setDimensions(prev => {
+                    if (Math.abs(prev.width - width) > 10 || Math.abs(prev.height - height) > 10) {
+                        return { width, height };
+                    }
+                    return prev;
+                });
+            }
+        });
+
+        resizeObserver.observe(containerRef.current);
+        return () => resizeObserver.disconnect();
+    }, []);
 
     // Compatibility: map edges to links if needed
     const data = React.useMemo(() => {
         if (!graphData) return { nodes: [], links: [] };
-        return {
+        const result = {
             nodes: graphData.nodes.map(node => ({ ...node })), // Shallow copy to prevent mutation issues
             links: (graphData.links || graphData.edges || []).map((link: any) => ({ ...link }))
         };
+
+        // Determine Highlight Threshold (Dynamic Median)
+        const vals = result.nodes.map((n: any) => n.val || 0).sort((a: number, b: number) => a - b);
+        const midPoint = Math.floor(vals.length / 2);
+        const median = vals.length > 0 ? vals[midPoint] : 0;
+
+        // Mark nodes: Strictly above Median (and > 0)
+        // If all nodes have same value, median == val, so NONE strictly greater. Correct.
+        result.nodes.forEach((n: any) => {
+            n.isHighValue = (n.val || 0) > median && (n.val || 0) > 0;
+        });
+
+        return result;
     }, [graphData]);
 
     useEffect(() => {
@@ -37,13 +73,7 @@ const CodeGraphViewer: React.FC<CodeGraphViewerProps> = ({ graphData, width = 60
         }
     }, [data]);
 
-    if (!data.nodes || data.nodes.length === 0) {
-        return (
-            <div className="flex items-center justify-center p-8 bg-gray-50 border border-gray-200 rounded-lg" style={{ width, height }}>
-                <span className="text-gray-500">Loading Graph...</span>
-            </div>
-        );
-    }
+    const isLoading = !data.nodes || data.nodes.length === 0;
 
     // Zoom to fit only once when engine stops
     const handleEngineStop = () => {
@@ -143,11 +173,23 @@ const CodeGraphViewer: React.FC<CodeGraphViewerProps> = ({ graphData, width = 60
         ctx.fillText(`Why: ${reason}`, node.x, node.y + cardHeight / 2 - reasonFontSize * 0.8);
 
         // 8. Border (Visual definition)
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1; // Fixed width
+        // Use pre-calculated dynamic logic: Entry Point OR Strictly Above Median
+        const isImportant = node.type === 'entry_point' || node.isHighValue;
+        ctx.strokeStyle = isImportant ? '#111827' : color; // Dark border for important
+        ctx.lineWidth = isImportant ? 3 : 1;
+
+        if (isImportant) {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 10;
+        }
+
         ctx.beginPath();
         ctx.roundRect(node.x - cardWidth / 2, node.y - cardHeight / 2, cardWidth, cardHeight, radius);
         ctx.stroke();
+
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
 
         // Interaction area
         node.__bckgDimensions = [cardWidth + 10, cardHeight + 10]; // Padding for easier grabbing
@@ -205,38 +247,44 @@ const CodeGraphViewer: React.FC<CodeGraphViewerProps> = ({ graphData, width = 60
     };
 
     return (
-        <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50 shadow-sm">
-            <ForceGraph2D
-                ref={graphRef}
-                width={width}
-                height={height}
-                graphData={data}
+        <div ref={containerRef} className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50 shadow-sm w-full h-full" style={{ minHeight: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {isLoading ? (
+                <div className="flex items-center justify-center p-8 bg-gray-50 w-full h-full" style={{ flex: 1 }}>
+                    <span className="text-gray-500">Loading Graph...</span>
+                </div>
+            ) : (
+                <ForceGraph2D
+                    ref={graphRef}
+                    width={dimensions.width}
+                    height={dimensions.height}
+                    graphData={data}
 
-                // Custom Node Rendering
-                nodeCanvasObject={paintNode}
-                nodeCanvasObjectMode={() => 'replace'}
+                    // Custom Node Rendering
+                    nodeCanvasObject={paintNode}
+                    nodeCanvasObjectMode={() => 'replace'}
 
-                // Link Styling (Default Line + Arrow)
-                linkColor={() => '#94A3B8'}
-                linkWidth={1.5}
-                linkDirectionalArrowLength={4}
-                linkDirectionalArrowRelPos={0.5} // Arrow in middle
-                linkCurvature={0.2}
+                    // Link Styling (Default Line + Arrow)
+                    linkColor={() => '#94A3B8'}
+                    linkWidth={1.5}
+                    linkDirectionalArrowLength={4}
+                    linkDirectionalArrowRelPos={0.5} // Arrow in middle
+                    linkCurvature={0.2}
 
-                // Custom Link Label (Draw AFTER default link)
-                linkCanvasObject={paintLink}
-                linkCanvasObjectMode={() => 'after'}
+                    // Custom Link Label (Draw AFTER default link)
+                    linkCanvasObject={paintLink}
+                    linkCanvasObjectMode={() => 'after'}
 
-                // Interaction
-                onNodeDragEnd={node => {
-                    node.fx = node.x;
-                    node.fy = node.y;
-                }}
-                cooldownTicks={100}
-                onEngineStop={handleEngineStop}
+                    // Interaction
+                    onNodeDragEnd={node => {
+                        node.fx = node.x;
+                        node.fy = node.y;
+                    }}
+                    cooldownTicks={100}
+                    onEngineStop={handleEngineStop}
 
-                backgroundColor="#F8FAFC"
-            />
+                    backgroundColor="#F8FAFC"
+                />
+            )}
         </div>
     );
 };
