@@ -1522,3 +1522,86 @@ footer a:hover {
 .grid-cols-2 {
   margin-top: 0 !important;
 }
+
+/* ==========================================================
+   PHASE 10: DESIGN POLISH & REFACTORING
+   ========================================================== */
+
+/* 1. Layout Fixes (Refactored from Inline Styles) */
+.layout-fixed-sidebar {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  z-index: 50;
+  background-color: #f9fafb; /* gray-50 */
+  border-right: 1px solid #e5e5e5;
+  display: flex !important;
+  flex-direction: column;
+}
+
+.layout-fixed-main {
+  margin-left: 280px !important;
+  padding: 0.5rem 2rem !important; /* Tight top padding */
+  width: auto;
+}
+
+.layout-fixed-header {
+  margin-left: 280px !important;
+  padding: 0.75rem 2rem 0.5rem !important;
+  border-bottom: 1px solid #e5e5e5;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  position: sticky !important;
+  top: 0;
+  z-index: 40;
+}
+
+/* 2. Question Card Visual Polish */
+.question-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e5e5e5;
+  /* Ensure overflow visible for shadow */
+}
+
+.question-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  border-color: #d1d5db;
+}
+
+/* Typography Improvements inside Card */
+.question-content {
+  line-height: 1.6;
+}
+
+.question-text p {
+  margin-bottom: 1em; /* Increased spacing */
+}
+
+.question-text ul, .question-text ol {
+  margin-bottom: 1em;
+  padding-left: 1.5em;
+}
+
+.question-text li {
+  margin-bottom: 0.5em;
+}
+
+/* Badge Enhancements */
+.difficulty-badge, .category-name {
+  background-color: #f3f4f6; /* Subtle gray background */
+  border: 1px solid #e5e5e5; /* Definition border */
+  color: #4b5563; /* Mono text */
+}
+
+/* Spacing Helpers */
+.spacer-y-sm {
+  height: 0.75rem;
+}
+
+/* PHASE 10.1: Fill Width Fix */
+.layout-fixed-main {
+  max-width: none !important; /* Remove 1200px limit */
+}

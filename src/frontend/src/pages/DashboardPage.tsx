@@ -1258,7 +1258,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-header" style={{ marginLeft: '280px', padding: '0.75rem 2rem 0.5rem', borderBottom: '1px solid #e5e5e5', background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 40 }}>
+      <div className="dashboard-header layout-fixed-header">
         <div className="header-content">
           <h1><LayoutDashboard className="inline-block w-8 h-8 mr-3" /> 분석 결과 대시보드</h1>
           <p className="repo-url">
@@ -1280,7 +1280,7 @@ export const DashboardPage: React.FC = () => {
 
       <div className="dashboard-content">
         {/* 좌측 사이드바 (25%) */}
-        <aside className="dashboard-sidebar" style={{ position: 'fixed', top: 0, left: 0, width: '280px', height: '100vh', zIndex: 50, backgroundColor: '#f9fafb', borderRight: '1px solid #e5e5e5', display: 'flex', flexDirection: 'column' }}>
+        <aside className="dashboard-sidebar layout-fixed-sidebar">
           {/* 저장소 정보 */}
           <div className="sidebar-section">
             <div className="sidebar-section-header">
@@ -1377,7 +1377,7 @@ export const DashboardPage: React.FC = () => {
         </aside>
 
         {/* 우측 메인 콘텐츠 (75%) */}
-        <main className="dashboard-main" style={{ marginLeft: '280px', paddingTop: '0.5rem', paddingLeft: '2rem', paddingRight: '2rem', width: 'auto' }}>
+        <main className="dashboard-main layout-fixed-main">
           {/* 1. 기술 스택 & 중요 정보 */}
           {/* 1. 기술 스택 & 개선 제안 (Compact Grid) */}
           <div className="grid-cols-2">
@@ -1442,8 +1442,8 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div className="card-body" style={{ padding: 0, overflow: 'hidden' }}>
               {graphData ? (
-                <div style={{ width: '100%', height: '600px', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-                  <CodeGraphViewer graphData={graphData} width={900} height={580} />
+                <div style={{ width: '100%', height: '600px', backgroundColor: '#fff' }}>
+                  <CodeGraphViewer graphData={graphData} />
                 </div>
               ) : (
                 <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
