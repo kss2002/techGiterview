@@ -539,15 +539,31 @@ class AdvancedFileAnalyzer:
         critical_files = []
         for file_path, metrics in sorted_files[:limit]:
             
-            # 파일 내용 가져오기 (실제 질문 생성용)
+            # 파일 내용 가져올 때 SHA 사용 권장 (일관성 유지)
+            # 현재는 repo_url에서 기본 브랜치/HEAD를 사용함
+            
             try:
                 client = getattr(self, '_current_client', None) or self.github_client
-                file_content = await client.get_file_content(repo_url, file_path)  # repo_url 매개변수 추가 필요
+                file_content = await client.get_file_content(repo_url, file_path)
+                
                 if not file_content:
-                    file_content = "# 파일 내용을 가져올 수 없습니다"
-            except:
-                file_content = "# 파일 내용을 가져올 수 없습니다"
-            
+                    # 빈 내용 대신 언어별 최소 유효 구문 제공
+                    if metrics.language == 'python':
+                        file_content = f"# {file_path} content unavailable\nclass Placeholder:\n    pass"
+                    elif metrics.language in ['javascript', 'typescript']:
+                        file_content = f"// {file_path} content unavailable\nexport const placeholder = {{}};"
+                    elif metrics.language == 'java':
+                        class_name = file_path.split('/')[-1].split('.')[0]
+                        file_content = f"// {file_path} content unavailable\npublic class {class_name} {{ }}"
+                    else:
+                        file_content = f"# {file_path} content unavailable"
+                        
+                    print(f"[중요 파일 선별] 내용 수집 실패 - 대체 콘텐츠 생성: {file_path}")
+            except Exception as e:
+                print(f"[중요 파일 선별] 내용 수집 예외 발생 ({file_path}): {e}")
+                # Fallback content
+                file_content = f"# Content unavailable: {str(e)}"
+
             critical_files.append({
                 "path": file_path,
                 "content": file_content,

@@ -266,6 +266,12 @@ class GitHubClient:
             if data.get("truncated"):
                 print(f"[GITHUB_CLIENT] Warning: 파일 트리가 너무 커서 잘렸습니다 (truncated=true).")
             
+            # Return tuple of (files, sha, truncated) if needed, but for compatibility let's attach to list or return dict?
+            # Keeping list return for compatibility, but maybe we should store SHA in the client or return extended structure.
+            # For now, let's just return the files list as is to avoid breaking callers, 
+            # but usually the SHA is key. 
+            # data["sha"] is the tree SHA.
+            
             return files
     
     async def get_file_content(self, repo_url: str, file_path: str) -> Optional[str]:
