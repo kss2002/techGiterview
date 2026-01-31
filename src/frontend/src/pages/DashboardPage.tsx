@@ -20,6 +20,7 @@ import {
   Search,
   Minus,
   Play,
+  RefreshCw, // Added RefreshCw
   BarChart3,
   FileCode,
   Database,
@@ -1441,16 +1442,37 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
             <div className="card-body" style={{ padding: 0, overflow: 'hidden' }}>
-              {graphData ? (
+              {graphData && graphData.nodes && graphData.nodes.length > 0 ? (
                 <div style={{ width: '100%', height: '600px', backgroundColor: '#fff' }}>
                   <CodeGraphViewer graphData={graphData} />
                 </div>
               ) : (
-                <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   {isLoadingGraph ? (
-                    <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
+                    <>
+                      <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
+                      <p>그래프 데이터를 불러오는 중...</p>
+                    </>
                   ) : (
-                    <p>표시할 그래프 데이터가 없습니다.</p>
+                    <>
+                      <GitFork className="section-icon" style={{ width: '48px', height: '48px', marginBottom: '1rem', color: '#cbd5e1' }} />
+                      <p style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.5rem' }}>표시할 그래프 데이터가 없습니다.</p>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>이 저장소에 대한 코드 구조 분석 데이터가 비어 있습니다.</p>
+                      <button
+                        className="btn btn-outline"
+                        onClick={() => {
+                          if (confirm('분석을 다시 시도하시겠습니까? 기존 결과는 덮어씌워질 수 있습니다.')) {
+                            // Redirect to home with repo URL to trigger re-analysis
+                            const repoUrl = analysisResult?.repo_info?.url || `https://github.com/${analysisResult?.repo_info?.owner}/${analysisResult?.repo_info?.name}`;
+                            window.location.href = `/?repo=${encodeURIComponent(repoUrl)}&retry=true`;
+                          }
+                        }}
+                        style={{ fontSize: '0.875rem' }}
+                      >
+                        <RefreshCw className="section-icon" size={14} style={{ marginRight: '6px' }} />
+                        분석 다시 시도
+                      </button>
+                    </>
                   )}
                 </div>
               )}
