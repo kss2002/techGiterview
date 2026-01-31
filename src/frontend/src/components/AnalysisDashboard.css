@@ -1,75 +1,81 @@
 /**
- * 고도화된 분석 대시보드 스타일 - 브랜드 통합 디자인 시스템
+ * 분석 대시보드 스타일 - TECH MINIMAL DESIGN
  * 
- * 반응형 디자인과 현대적인 UI를 제공하는 대시보드 스타일시트
+ * Dot grid background, minimal shadows, monospace fonts
  */
 @import '../styles/design-tokens.css';
 
 .analysis-dashboard {
   max-width: var(--content-max-width-xl);
   margin: 0 auto;
-  padding: var(--spacing-5);
-  font-family: var(--font-sans);
+  padding: 1.5rem;
+  font-family: var(--font-body);
 }
 
-/* 헤더 - 브랜드 네이비 기반 깔끔한 디자인 */
+/* 헤더 - Tech Minimal Style */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-8);
-  padding: var(--spacing-5);
-  background: var(--brand-navy-600);
-  border-radius: var(--radius-xl);
-  color: var(--white);
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.5rem;
+  color: #171717;
 }
 
 .dashboard-header h2 {
   margin: 0;
-  font-size: var(--text-3xl);
-  font-weight: var(--font-semibold);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #171717;
 }
 
 .performance-indicators {
   display: flex;
-  gap: var(--spacing-4);
+  gap: 0.75rem;
 }
 
 .indicator {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--spacing-2) var(--spacing-3);
-  border-radius: var(--radius-lg);
-  min-width: 80px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: var(--backdrop-blur-sm);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  min-width: 70px;
+  background: #f5f5f5;
+  border: 1px solid #e5e5e5;
 }
 
 .indicator.good {
-  background: rgba(27, 84, 16, 0.2);
-  border: 1px solid rgba(27, 84, 16, 0.3);
+  background: #f0fdf4;
+  border-color: #bbf7d0;
 }
 
 .indicator.warning {
-  background: rgba(245, 158, 11, 0.2);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: #fffbeb;
+  border-color: #fde68a;
 }
 
 .indicator.critical {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: #fef2f2;
+  border-color: #fecaca;
 }
 
 .indicator-label {
-  font-size: var(--text-xs);
-  opacity: 0.9;
-  margin-bottom: var(--spacing-0-5);
+  font-size: 0.6875rem;
+  color: #737373;
+  margin-bottom: 0.125rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
 }
 
 .indicator-value {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: #171717;
 }
 
 /* 탭 네비게이션 */
@@ -101,8 +107,8 @@
 }
 
 .tab-button.active {
-  background: var(--white);
-  color: var(--brand-navy-700);
+  background: var(--color-background);
+  color: var(--primary-700);
   box-shadow: var(--shadow-sm);
 }
 
@@ -137,7 +143,7 @@
   align-items: center;
   gap: var(--spacing-4);
   padding: var(--spacing-5);
-  background: var(--white);
+  background: var(--color-background);
   border-radius: var(--radius-xl);
   border: 1px solid var(--gray-200);
   box-shadow: var(--shadow-sm);
@@ -152,7 +158,7 @@
   justify-content: center;
   background: var(--gray-100);
   border-radius: var(--radius-lg);
-  color: var(--brand-navy-600);
+  color: var(--primary-600);
 }
 
 .stat-info {
@@ -182,7 +188,7 @@
   align-items: center;
   gap: var(--spacing-3);
   padding: var(--spacing-3) var(--spacing-4);
-  background: var(--white);
+  background: var(--color-background);
   border-radius: var(--radius-lg);
   border: 1px solid var(--gray-200);
 }
@@ -234,7 +240,7 @@
 }
 
 .file-type-card {
-  background: var(--white);
+  background: var(--color-background);
   border-radius: var(--radius-xl);
   border: 1px solid var(--gray-200);
   overflow: hidden;
@@ -252,7 +258,7 @@
 
 .file-type-icon {
   font-size: var(--text-xl);
-  color: var(--brand-navy-600);
+  color: var(--primary-600);
 }
 
 .file-type-name {
@@ -326,7 +332,7 @@
 }
 
 .importance-level-card {
-  background: var(--white);
+  background: var(--color-background);
   border-radius: var(--radius-xl);
   border: 1px solid var(--gray-200);
   overflow: hidden;
@@ -390,7 +396,7 @@
 .importance-count {
   font-size: var(--text-sm);
   color: var(--gray-600);
-  background: var(--white);
+  background: var(--color-background);
   padding: var(--spacing-1) var(--spacing-2);
   border-radius: var(--radius-md);
 }
@@ -453,7 +459,7 @@
   font-weight: var(--font-semibold);
   padding: var(--spacing-0-5) var(--spacing-1);
   border-radius: var(--radius-sm);
-  color: var(--white);
+  color: var(--color-background);
 }
 
 .important-file-score.critical {
@@ -508,8 +514,8 @@
 
 .retry-button {
   padding: var(--spacing-3) var(--spacing-6);
-  background: var(--brand-navy-600);
-  color: var(--white);
+  background: var(--primary-600);
+  color: var(--color-background);
   border: none;
   border-radius: var(--radius-lg);
   font-size: var(--text-base);
@@ -519,7 +525,7 @@
 }
 
 .retry-button:hover {
-  background: var(--brand-navy-700);
+  background: var(--primary-700);
 }
 
 /* 로딩 상태 */
@@ -537,15 +543,20 @@
   width: 40px;
   height: 40px;
   border: 4px solid var(--gray-200);
-  border-top: 4px solid var(--brand-navy-600);
+  border-top: 4px solid var(--primary-600);
   border-radius: var(--radius-full);
   animation: spin 1s linear infinite;
   margin-bottom: var(--spacing-4);
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-text {
@@ -564,22 +575,22 @@
   .analysis-dashboard {
     padding: var(--spacing-4);
   }
-  
+
   .dashboard-header {
     flex-direction: column;
     gap: var(--spacing-4);
     text-align: center;
   }
-  
+
   .performance-indicators {
     justify-content: center;
   }
-  
+
   .repo-stats {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: var(--spacing-4);
   }
-  
+
   .file-type-grid,
   .importance-levels {
     grid-template-columns: 1fr;
@@ -590,49 +601,49 @@
   .analysis-dashboard {
     padding: var(--spacing-3);
   }
-  
+
   .dashboard-header {
     padding: var(--spacing-4);
   }
-  
+
   .dashboard-header h2 {
     font-size: var(--text-2xl);
   }
-  
+
   .performance-indicators {
     flex-wrap: wrap;
     gap: var(--spacing-2);
   }
-  
+
   .indicator {
     min-width: 70px;
     padding: var(--spacing-1-5) var(--spacing-2);
   }
-  
+
   .tab-navigation {
     flex-direction: column;
     gap: var(--spacing-1);
   }
-  
+
   .tab-button {
     text-align: center;
   }
-  
+
   .repo-stats {
     grid-template-columns: 1fr;
     gap: var(--spacing-3);
   }
-  
+
   .stat-card {
     padding: var(--spacing-4);
   }
-  
+
   .stat-icon {
     width: 40px;
     height: 40px;
     font-size: var(--text-2xl);
   }
-  
+
   .stat-value {
     font-size: var(--text-2xl);
   }
@@ -642,25 +653,25 @@
   .analysis-dashboard {
     padding: var(--spacing-2);
   }
-  
+
   .dashboard-header {
     padding: var(--spacing-3);
   }
-  
+
   .performance-indicators {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-1);
   }
-  
+
   .indicator {
     min-width: 60px;
     padding: var(--spacing-1) var(--spacing-1-5);
   }
-  
+
   .indicator-label {
     font-size: 10px;
   }
-  
+
   .indicator-value {
     font-size: 11px;
   }

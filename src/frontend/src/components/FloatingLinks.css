@@ -1,12 +1,14 @@
 .floating-links {
   position: fixed;
-  bottom: 20px;
+  bottom: 80px;
+  /* UX Fix #5: Moved higher to avoid interference with main action area */
   right: 20px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
+
 
 .floating-link {
   display: flex;
@@ -30,22 +32,23 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
+/* FIX #5: Muted FAB Colors - Blend with background */
 .floating-link.github {
-  background: linear-gradient(135deg, #333 0%, #24292e 100%);
+  background: rgba(100, 116, 139, 0.9);
   color: white;
 }
 
 .floating-link.github:hover {
-  background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
+  background: rgba(71, 85, 105, 0.95);
 }
 
 .floating-link.coffee {
-  background: linear-gradient(135deg, #ff813f 0%, #ff6b35 100%);
+  background: rgba(148, 163, 184, 0.9);
   color: white;
 }
 
 .floating-link.coffee:hover {
-  background: linear-gradient(135deg, #ff6b35 0%, #ff5722 100%);
+  background: rgba(100, 116, 139, 0.95);
 }
 
 .floating-link svg {
@@ -88,19 +91,20 @@
     right: 16px;
     gap: 10px;
   }
-  
+
   .floating-link {
     width: 48px;
     height: 48px;
   }
-  
+
   .floating-link svg {
     width: 20px;
     height: 20px;
   }
-  
+
   .floating-link::before {
-    display: none; /* 모바일에서는 툴팁 숨김 */
+    display: none;
+    /* 모바일에서는 툴팁 숨김 */
   }
 }
 
@@ -110,6 +114,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

@@ -18,7 +18,7 @@
 }
 
 .file-modal-content {
-  background: var(--white);
+  background: var(--color-background);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-2xl);
   max-width: 95vw;
@@ -50,7 +50,7 @@
 
 .file-modal-icon {
   font-size: var(--text-2xl);
-  color: var(--brand-navy-600);
+  color: var(--primary-600);
   flex-shrink: 0;
 }
 
@@ -89,9 +89,9 @@
 }
 
 .source-badge.cached {
-  background: var(--brand-green-50);
-  color: var(--brand-green-700);
-  border: 1px solid var(--brand-green-200);
+  background: var(--secondary-50);
+  color: var(--secondary-700);
+  border: 1px solid var(--secondary-200);
 }
 
 .source-badge.live {
@@ -159,7 +159,7 @@
   width: 32px;
   height: 32px;
   border: 3px solid var(--gray-200);
-  border-top: 3px solid var(--brand-navy-600);
+  border-top: 3px solid var(--primary-600);
   border-radius: var(--radius-full);
   animation: spin 1s linear infinite;
   margin-bottom: var(--spacing-4);
@@ -187,8 +187,8 @@
 }
 
 .retry-btn {
-  background: var(--brand-navy-600);
-  color: var(--white);
+  background: var(--primary-600);
+  color: var(--color-background);
   border: none;
   padding: var(--spacing-2) var(--spacing-4);
   border-radius: var(--radius-md);
@@ -198,7 +198,7 @@
 }
 
 .retry-btn:hover {
-  background: var(--brand-navy-700);
+  background: var(--primary-700);
 }
 
 .file-modal-binary {
@@ -328,12 +328,12 @@
 
 /* 키보드 접근성 */
 .file-modal-close:focus {
-  outline: 2px solid var(--brand-navy-600);
+  outline: 2px solid var(--primary-600);
   outline-offset: 2px;
 }
 
 .retry-btn:focus {
-  outline: 2px solid var(--brand-navy-600);
+  outline: 2px solid var(--primary-600);
   outline-offset: 2px;
 }
 
