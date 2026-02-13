@@ -60,8 +60,8 @@ export const useQuickAccessData = (limit: number = 3): UseQuickAccessDataResult 
       const reportsResult = await reportsResponse.json()
 
       // 중복 제거 로직 추가
-      const analyses = analysesResult.success ? analysesResult.data : []
-      const reports = reportsResult.success ? reportsResult.data.reports : []
+      const analyses: RecentAnalysis[] = analysesResult.success ? (analysesResult.data as RecentAnalysis[]) : []
+      const reports: RecentReport[] = reportsResult.success ? (reportsResult.data.reports as RecentReport[]) : []
       
       const uniqueAnalyses = analyses.filter((analysis: RecentAnalysis, index: number, arr: RecentAnalysis[]) => 
         arr.findIndex(a => a.analysis_id === analysis.analysis_id) === index
@@ -161,8 +161,8 @@ export const useQuickAccessDataWithCache = (limit: number = 3, enabled: boolean 
       const reportsResult = await reportsResponse.json()
 
       // 중복 제거 로직 추가
-      const analyses = analysesResult.success ? analysesResult.data : []
-      const reports = reportsResult.success ? reportsResult.data.reports : []
+      const analyses: RecentAnalysis[] = analysesResult.success ? (analysesResult.data as RecentAnalysis[]) : []
+      const reports: RecentReport[] = reportsResult.success ? (reportsResult.data.reports as RecentReport[]) : []
       
       const uniqueAnalyses = analyses.filter((analysis: RecentAnalysis, index: number, arr: RecentAnalysis[]) => 
         arr.findIndex(a => a.analysis_id === analysis.analysis_id) === index

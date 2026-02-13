@@ -48,6 +48,7 @@ import {
 import { FileContentModal } from '../components/FileContentModal'
 import { CriticalFilesPreview } from '../components/CriticalFilesPreview'
 import CodeGraphViewer from '../components/CodeGraphViewer'
+import { apiFetch } from '../utils/apiUtils'
 import './DashboardPage-CLEAN.css'
 
 // TypeScript 타입 확장
@@ -60,6 +61,7 @@ declare global {
 interface RepositoryInfo {
   name: string
   owner: string
+  url?: string
   description: string | null
   language: string | null
   stars: number
@@ -468,7 +470,7 @@ export const DashboardPage: React.FC = () => {
     setError(null)
 
     try {
-      const response = await fetch('/api/v1/repository/analysis/recent?limit=50') // 더 많은 결과 가져오기
+      const response = await apiFetch('/api/v1/repository/analysis/recent?limit=50') // 더 많은 결과 가져오기
       console.log('[Dashboard] All analyses response received:', response.status)
 
       if (!response.ok) {
@@ -502,7 +504,7 @@ export const DashboardPage: React.FC = () => {
 
     try {
       console.log('[Dashboard] Making fetch request...')
-      const response = await fetch(`/api/v1/repository/analysis/${analysisId}`)
+      const response = await apiFetch(`/api/v1/repository/analysis/${analysisId}`)
       console.log('[Dashboard] Response received:', {
         status: response.status,
         statusText: response.statusText,
@@ -544,7 +546,7 @@ export const DashboardPage: React.FC = () => {
 
       // 자동으로 전체 파일 목록 로드
       try {
-        const filesResponse = await fetch(`/api/v1/repository/analysis/${result.analysis_id}/all-files?max_depth=3&max_files=500`)
+        const filesResponse = await apiFetch(`/api/v1/repository/analysis/${result.analysis_id}/all-files?max_depth=3&max_files=500`)
         if (filesResponse.ok) {
           const files = await filesResponse.json()
           setAllFiles(files)
@@ -585,7 +587,7 @@ export const DashboardPage: React.FC = () => {
   const fetchGraphData = async (id: string) => {
     setIsLoadingGraph(true)
     try {
-      const res = await fetch(`/api/v1/repository/analysis/${id}/graph`)
+      const res = await apiFetch(`/api/v1/repository/analysis/${id}/graph`)
       if (res.ok) {
         const data = await res.json()
         setGraphData(data)
@@ -611,7 +613,7 @@ export const DashboardPage: React.FC = () => {
       const checkUrl = `/api/v1/questions/analysis/${analysisToUse.analysis_id}`
       console.log('[Questions] Fetching existing questions from:', checkUrl)
 
-      const checkResponse = await fetch(checkUrl, {
+      const checkResponse = await apiFetch(checkUrl, {
         method: 'GET',
         headers: createApiHeaders(false) // 질문 조회는 API 키 불필요
       })
@@ -659,7 +661,7 @@ export const DashboardPage: React.FC = () => {
       }
       console.log('[Questions] Generation payload:', generatePayload)
 
-      const generateResponse = await fetch('/api/v1/questions/generate', {
+      const generateResponse = await apiFetch('/api/v1/questions/generate', {
         method: 'POST',
         headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
         body: JSON.stringify(generatePayload)
@@ -715,7 +717,7 @@ export const DashboardPage: React.FC = () => {
     setIsLoadingQuestions(true)
     try {
       // 강제 재생성 옵션을 사용하여 질문 생성
-      const response = await fetch('/api/v1/questions/generate', {
+      const response = await apiFetch('/api/v1/questions/generate', {
         method: 'POST',
         headers: createApiHeaders(true), // API 키 포함하여 헤더 생성
         body: JSON.stringify({
@@ -749,7 +751,7 @@ export const DashboardPage: React.FC = () => {
 
     setIsLoadingAllFiles(true)
     try {
-      const response = await fetch(`/api/v1/repository/analysis/${analysisId}/all-files?max_depth=3&max_files=500`)
+      const response = await apiFetch(`/api/v1/repository/analysis/${analysisId}/all-files?max_depth=3&max_files=500`)
 
       if (!response.ok) {
         throw new Error('전체 파일 목록을 불러올 수 없습니다.')
@@ -928,7 +930,7 @@ export const DashboardPage: React.FC = () => {
         googleApiKey: localStorage.getItem('techgiterview_google_api_key') ? '설정됨' : '없음'
       })
 
-      const response = await fetch('/api/v1/interview/start', {
+      const response = await apiFetch('/api/v1/interview/start', {
         method: 'POST',
         headers: apiHeaders,
         body: JSON.stringify({

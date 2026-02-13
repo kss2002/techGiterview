@@ -91,7 +91,7 @@ export const apiFetch = async (path: string, options?: RequestInit): Promise<Res
 // API 상태 확인 함수
 export const checkApiConnection = async (): Promise<boolean> => {
   try {
-    const response = await apiFetch('/api/v1/health');
+    const response = await apiFetch('/health');
     return response.ok;
   } catch (error) {
     console.warn('[API_CONNECTION] Backend connection failed:', error);

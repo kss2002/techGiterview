@@ -623,7 +623,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
           <SmartFileImportanceSection
             criticalFiles={smartFileAnalysis.files}
             distribution={smartFileAnalysis.distribution}
-            suggestions={smartFileAnalysis.suggestions}
+            suggestions={smartFileAnalysis.suggestions.map((suggestion) => suggestion.message)}
             onFileSelect={(file) => {
               // SmartFileAnalysis를 CriticalFile 형태로 변환
               const criticalFile: CriticalFile = {

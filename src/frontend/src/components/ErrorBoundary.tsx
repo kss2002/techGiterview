@@ -48,7 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
     
     this.setState({
       error,
-      errorInfo: errorInfo.componentStack
+      errorInfo: errorInfo.componentStack || ''
     })
   }
 

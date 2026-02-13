@@ -20,6 +20,7 @@ import {
   Lightbulb,
   AlertCircle
 } from 'lucide-react'
+import { apiFetch } from '../utils/apiUtils'
 import './ReportsPage.css'
 
 interface InterviewReport {
@@ -105,7 +106,7 @@ export const ReportsPage: React.FC = () => {
   const loadReports = async () => {
     try {
       console.log('[REPORTS] API 요청 시작: /api/v1/reports/list')
-      const response = await fetch('/api/v1/reports/list')
+      const response = await apiFetch('/api/v1/reports/list')
       
       console.log('[REPORTS] API 응답 상태:', response.status)
       
@@ -134,7 +135,7 @@ export const ReportsPage: React.FC = () => {
   const loadDetailedReport = async (interviewId: string) => {
     setIsLoadingDetail(true)
     try {
-      const response = await fetch(`/api/v1/reports/${interviewId}/detailed`)
+      const response = await apiFetch(`/api/v1/reports/${interviewId}/detailed`)
       
       if (!response.ok) {
         throw new Error('상세 리포트를 불러올 수 없습니다.')

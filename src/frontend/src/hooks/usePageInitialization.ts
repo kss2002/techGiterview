@@ -58,8 +58,7 @@ const fetchPageInitData = async (): Promise<PageInitData> => {
 
     // 새로운 통합 API 호출
     const response = await apiFetch('/api/v1/homepage/init', {
-      headers,
-      timeout: 5000 // 5초 타임아웃
+      headers
     })
 
     if (!response.ok) {

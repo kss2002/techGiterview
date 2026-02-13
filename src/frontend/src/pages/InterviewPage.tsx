@@ -55,6 +55,7 @@ import {
 } from 'lucide-react'
 import { AnswerFeedback } from '../components/AnswerFeedback'
 import { debugLog } from '../utils/debugUtils'
+import { apiFetch } from '../utils/apiUtils'
 import './InterviewPage.css'
 
 interface Question {
@@ -632,7 +633,7 @@ export const InterviewPage: React.FC = () => {
 
     try {
       debugLog.info('history', '세션 히스토리 로딩 시작');
-      const response = await fetch(`/api/v1/interview/session/${interviewId}/data`)
+      const response = await apiFetch(`/api/v1/interview/session/${interviewId}/data`)
 
       if (!response.ok) {
         console.warn('[세션 데이터] 불러오기 실패:', response.status)
@@ -680,9 +681,11 @@ export const InterviewPage: React.FC = () => {
               timestamp: new Date(answer.feedback.created_at || answer.submitted_at),
               question_id: answer.question_id,
               feedback: {
+                overall_score: answer.feedback.overall_score || answer.feedback.score || 0,
                 score: answer.feedback.score,
+                feedback: answer.feedback.feedback || answer.feedback.message || '피드백이 생성되었습니다.',
                 message: answer.feedback.message,
-                feedback_type: answer.feedback.feedback_type || 'general',
+                feedback_type: answer.feedback.feedback_type || 'suggestion',
                 details: answer.feedback.details,
                 keywords_found: answer.feedback.keywords_found || [],
                 keywords_missing: answer.feedback.keywords_missing || [],
@@ -761,8 +764,8 @@ export const InterviewPage: React.FC = () => {
       debugLog.info('api', '면접 세션 및 질문 데이터 로딩 시작');
       // 병렬 API 호출로 성능 개선
       const [sessionResponse, questionsResponse] = await Promise.all([
-        fetch(`/api/v1/interview/session/${interviewId}`),
-        fetch(`/api/v1/interview/session/${interviewId}/questions`)
+        apiFetch(`/api/v1/interview/session/${interviewId}`),
+        apiFetch(`/api/v1/interview/session/${interviewId}/questions`)
       ])
 
       console.log('[API] API 응답 상태:', {
@@ -868,7 +871,7 @@ export const InterviewPage: React.FC = () => {
       console.log('[DEDUP] 제거된 질문 수:', questionsData.length - uniqueQuestionsData.length);
 
       // 질문 데이터 형식 변환 (context 객체를 문자열로 변환)
-      const transformedQuestions = uniqueQuestionsData.map((q: any) => ({
+      const transformedQuestions: Question[] = uniqueQuestionsData.map((q: any): Question => ({
         id: q.id,
         question: q.question,
         category: q.category,
@@ -1125,7 +1128,7 @@ export const InterviewPage: React.FC = () => {
 
       console.log('[API] API 요청 시작:', requestBody);
 
-      const response = await fetch('/api/v1/interview/answer', {
+      const response = await apiFetch('/api/v1/interview/answer', {
         method: 'POST',
         headers: createApiHeaders(true), // localStorage API 키 포함
         body: JSON.stringify(requestBody)
@@ -1259,7 +1262,7 @@ export const InterviewPage: React.FC = () => {
 
   const finishInterview = async () => {
     try {
-      const response = await fetch(`/api/v1/interview/${interviewId}/finish`, {
+      const response = await apiFetch(`/api/v1/interview/${interviewId}/finish`, {
         method: 'POST'
       })
 
@@ -1358,7 +1361,7 @@ export const InterviewPage: React.FC = () => {
       setMessages(prev => [...prev, userQuestion]);
 
       // 백엔드 대화 API 호출
-      const response = await fetch('/api/v1/interview/conversation', {
+      const response = await apiFetch('/api/v1/interview/conversation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1703,18 +1706,6 @@ export const InterviewPage: React.FC = () => {
                           <span className="feedback-score">
                             {(() => {
                               const score = message.feedback?.overall_score || message.feedback?.score || 0;
-
-                              // 개발 환경에서만 중요한 변경사항 로깅
-                              if (import.meta.env.DEV && message.feedback && !message.feedback._logged) {
-                                console.log('[DEBUG] 피드백 처리됨:', {
-                                  messageId: message.id,
-                                  score,
-                                  timestamp: new Date().toISOString()
-                                });
-                                // 중복 로그 방지 플래그
-                                message.feedback._logged = true;
-                              }
-
                               return score;
                             })()}/10
                           </span>

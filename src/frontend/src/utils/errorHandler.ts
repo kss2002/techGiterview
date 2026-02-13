@@ -105,7 +105,11 @@ export const errorHandler = ErrorHandler.getInstance()
 
 // 개발 환경에서 콘솔에 오류 통계 노출
 if (import.meta.env.DEV) {
-  (window as any).getErrorStats = () => errorHandler.getErrorStats()
-  (window as any).clearErrors = () => errorHandler.clearErrors()
+  const devWindow = window as Window & {
+    getErrorStats?: () => ReturnType<ErrorHandler['getErrorStats']>
+    clearErrors?: () => void
+  }
+  devWindow.getErrorStats = () => ErrorHandler.getInstance().getErrorStats()
+  devWindow.clearErrors = () => ErrorHandler.getInstance().clearErrors()
   console.log('DEV 개발 모드: 오류 통계는 getErrorStats(), 초기화는 clearErrors() 사용')
 }

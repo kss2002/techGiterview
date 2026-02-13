@@ -3,6 +3,7 @@ import {
   processAnalysisResponse,
   processError,
 } from './homePageUtils';
+import { apiFetch } from './apiUtils';
 
 /**
  * 저장소 분석 요청 처리 로직
@@ -40,7 +41,7 @@ export const handleRepositoryAnalysis = async (
         : '없음',
     });
 
-    const response = await fetch('/api/v1/repository/analyze-simple', {
+    const response = await apiFetch('/api/v1/repository/analyze-simple', {
       method: 'POST',
       headers: apiHeaders,
       body: JSON.stringify({

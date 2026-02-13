@@ -1,15 +1,7 @@
-import { ReportHandler } from 'web-vitals';
+type ReportHandler = (metric: unknown) => void
 
-const reportWebVitals = (onPerfEntry?: ReportHandler) => {
-  if (onPerfEntry && onPerfEntry instanceof Function) {
-    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
-      getCLS(onPerfEntry);
-      getFID(onPerfEntry);
-      getFCP(onPerfEntry);
-      getLCP(onPerfEntry);
-      getTTFB(onPerfEntry);
-    });
-  }
-};
+const reportWebVitals = (_onPerfEntry?: ReportHandler) => {
+  // web-vitals 패키지를 사용하지 않는 구성에서는 no-op 처리
+}
 
-export default reportWebVitals;
+export default reportWebVitals

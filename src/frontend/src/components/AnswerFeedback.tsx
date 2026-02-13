@@ -3,17 +3,24 @@ import './AnswerFeedback.css'
 
 interface AnswerFeedbackProps {
   feedback: {
-    score: number
-    message: string
-    feedback_type: 'strength' | 'improvement' | 'suggestion' | 'keyword_missing'
-    details: string
-    suggestions: string[]
+    overall_score?: number
+    score?: number
+    feedback?: string
+    message?: string
+    feedback_type?: 'strength' | 'improvement' | 'suggestion' | 'keyword_missing'
+    details?: string
+    suggestions?: string[]
   }
   isVisible: boolean
 }
 
 export const AnswerFeedback: React.FC<AnswerFeedbackProps> = ({ feedback, isVisible }) => {
   if (!isVisible || !feedback) return null
+  const effectiveScore = feedback.overall_score ?? feedback.score ?? 0
+  const effectiveMessage = feedback.feedback || feedback.message || ''
+  const effectiveType = feedback.feedback_type || 'suggestion'
+  const effectiveDetails = feedback.details || ''
+  const effectiveSuggestions = feedback.suggestions || []
 
   const getScoreClass = (score: number) => {
     if (score >= 8) return 'score-excellent' // 우수
@@ -44,43 +51,43 @@ export const AnswerFeedback: React.FC<AnswerFeedbackProps> = ({ feedback, isVisi
       <div className="feedback-header">
         <div className="score-container">
           <div 
-            className={`score-circle ${getScoreClass(feedback.score)}`}
+            className={`score-circle ${getScoreClass(effectiveScore)}`}
           >
-            <span className={`score-value ${getScoreClass(feedback.score)}`}>
-              {feedback.score}
+            <span className={`score-value ${getScoreClass(effectiveScore)}`}>
+              {effectiveScore}
             </span>
             <span className="score-max">/10</span>
           </div>
-          <div className={`score-label ${getScoreClass(feedback.score)}`}>
-            {getScoreLabel(feedback.score)}
+          <div className={`score-label ${getScoreClass(effectiveScore)}`}>
+            {getScoreLabel(effectiveScore)}
           </div>
         </div>
         
         <div className="feedback-type">
-          <span className="feedback-icon">{getFeedbackIcon(feedback.feedback_type)}</span>
+          <span className="feedback-icon">{getFeedbackIcon(effectiveType)}</span>
         </div>
       </div>
 
       {/* 메인 피드백 메시지 */}
       <div className="feedback-message">
-        <p>{feedback.message}</p>
+        <p>{effectiveMessage}</p>
       </div>
 
       {/* 상세 정보 */}
       <div className="feedback-details">
         <div className="detail-row">
           <span className="detail-label">[분석]</span>
-          <span className="detail-value">{feedback.details}</span>
+          <span className="detail-value">{effectiveDetails}</span>
         </div>
       </div>
 
 
       {/* 개선 제안 */}
-      {feedback.suggestions.length > 0 && (
+      {effectiveSuggestions.length > 0 && (
         <div className="suggestions-section">
           <h4 className="suggestions-title">[개선 제안]</h4>
           <ul className="suggestions-list">
-            {feedback.suggestions.map((suggestion, index) => (
+            {effectiveSuggestions.map((suggestion, index) => (
               <li key={index} className="suggestion-item">
                 {suggestion}
               </li>
