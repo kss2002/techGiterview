@@ -94,200 +94,92 @@ async def start_interview(
         # 질문 ID 유효성 검증
         if not request.question_ids:
             raise HTTPException(status_code=400, detail="질문 ID가 제공되지 않았습니다.")
-        
-        # 질문 캐시에서 질문 데이터 확인 (실제 질문이 없으면 오류 반환 - 더미데이터 생성 없음)
-        from app.api.questions import question_cache
-        # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
-        normalized_analysis_id = request.analysis_id.replace('-', '')
-        
-        if normalized_analysis_id not in question_cache:
-            print(f"[ERROR] 질문 캐시 없음: {normalized_analysis_id}")
-            raise HTTPException(
-                status_code=404, 
-                detail={
-                    "error": "QUESTIONS_NOT_FOUND", 
-                    "message": "해당 분석 ID에 대한 질문이 존재하지 않습니다.",
-                    "analysis_id": request.analysis_id,
-                    "suggestion": "먼저 질문 생성을 완료해주세요."
-                }
-            )
-        
-        cache_data = question_cache[normalized_analysis_id]
-        cached_questions = cache_data.parsed_questions
-        available_question_ids = {q.id for q in cached_questions}
-        
-        # 요청된 질문 ID가 모두 캐시에 있는지 확인 및 Fallback 처리
-        missing_question_ids = set(request.question_ids) - available_question_ids
-        if missing_question_ids:
-            print(f"[FALLBACK] 요청한 질문 ID가 캐시에 없음: {missing_question_ids}")
-            print(f"[FALLBACK] 데이터베이스에서 최신 질문으로 대체 시도...")
-            
-            # 🔧 핵심 수정: 데이터베이스에서 해당 analysis_id의 최신 질문들 조회
+
+        # 분석 ID 검증 (DB 우선)
+        analysis = None
+        analysis_uuid = None
+        try:
+            analysis_uuid = uuid.UUID(request.analysis_id)
+            analysis = db.query(RepositoryAnalysis).filter(
+                RepositoryAnalysis.id == analysis_uuid
+            ).first()
+        except ValueError:
+            pass
+
+        if not analysis:
             try:
-                # 먼저 analysis_uuid 확인이 필요하므로 분석 ID 검증을 먼저 수행
-                analysis = None
-                analysis_uuid = None
-                
-                # 1. 하이픈 포함된 원본 ID로 시도
-                try:
-                    analysis_uuid = uuid.UUID(request.analysis_id)
-                    analysis = db.query(RepositoryAnalysis).filter(
-                        RepositoryAnalysis.id == analysis_uuid
-                    ).first()
-                    if analysis:
-                        print(f"[FALLBACK] 분석 데이터 찾음 (하이픈 포함): {request.analysis_id}")
-                except ValueError:
-                    pass
-                
-                # 2. 하이픈 제거된 ID로 시도
-                if not analysis:
-                    try:
-                        cleaned_id = request.analysis_id.replace('-', '')
-                        analysis_uuid = uuid.UUID(f"{cleaned_id[:8]}-{cleaned_id[8:12]}-{cleaned_id[12:16]}-{cleaned_id[16:20]}-{cleaned_id[20:]}")
-                        analysis = db.query(RepositoryAnalysis).filter(
-                            RepositoryAnalysis.id == analysis_uuid
-                        ).first()
-                        if analysis:
-                            print(f"[FALLBACK] 분석 데이터 찾음 (하이픈 제거 후 재조합): {analysis_uuid}")
-                    except (ValueError, IndexError):
-                        pass
-                
-                if not analysis_uuid:
-                    raise HTTPException(status_code=404, detail="분석 데이터를 찾을 수 없어 질문 ID 대체가 불가능합니다.")
-                
-                # 데이터베이스에서 해당 analysis_id의 모든 질문 조회
-                db_questions = db.query(InterviewQuestion).filter(
-                    InterviewQuestion.analysis_id == analysis_uuid
-                ).order_by(InterviewQuestion.created_at.desc()).all()
-                
-                if not db_questions:
-                    print(f"[FALLBACK_ERROR] 데이터베이스에 질문이 없음 - analysis_id: {analysis_uuid}")
-                    raise HTTPException(
-                        status_code=404, 
-                        detail={
-                            "error": "NO_DATABASE_QUESTIONS",
-                            "message": "데이터베이스에 해당 분석의 질문이 존재하지 않습니다.",
-                            "analysis_id": request.analysis_id,
-                            "suggestion": "먼저 질문 생성을 완료해주세요."
-                        }
-                    )
-                
-                print(f"[FALLBACK] 데이터베이스에서 {len(db_questions)}개 질문 찾음")
-                
-                # 🔥 핵심 수정: 캐시를 데이터베이스 최신 질문들로 갱신
-                from app.api.questions import QuestionResponse
-                
-                # 데이터베이스 질문들을 캐시 형식으로 변환
-                updated_questions = []
-                for db_q in db_questions:
-                    question_data = {
-                        "id": str(db_q.id),
-                        "question": db_q.question_text,
-                        "type": db_q.category,
-                        "difficulty": db_q.difficulty,
-                        "expected_answer_points": db_q.context.get("expected_answer_points", []) if db_q.context else []
-                    }
-                    updated_questions.append(QuestionResponse(**question_data))
-                
-                # 캐시 업데이트
-                cache_data.parsed_questions = updated_questions
-                print(f"[FALLBACK] 캐시를 데이터베이스 최신 질문으로 갱신 완료: {len(updated_questions)}개")
-                
-                # 새로운 질문 ID 목록 생성 (요청한 개수만큼 최신 질문 선택)
-                new_question_ids = [str(q.id) for q in db_questions[:len(request.question_ids)]]
-                request.question_ids = new_question_ids
-                print(f"[FALLBACK] 새로운 질문 ID로 대체: {new_question_ids}")
-                
-                # 업데이트된 캐시로 질문 정보 재설정
-                cached_questions = cache_data.parsed_questions
-                available_question_ids = {q.id for q in cached_questions}
-                print(f"[FALLBACK] 캐시 갱신 완료 - 사용 가능한 질문 ID: {available_question_ids}")
-                
-            except HTTPException:
-                raise  # HTTPException은 그대로 전달
-            except Exception as e:
-                print(f"[FALLBACK_ERROR] 질문 ID 대체 실패: {str(e)}")
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": "FALLBACK_FAILED",
-                        "message": f"질문 ID 대체 처리 중 오류가 발생했습니다: {str(e)}",
-                        "original_missing_ids": list(missing_question_ids)
-                    }
+                cleaned_id = request.analysis_id.replace('-', '')
+                analysis_uuid = uuid.UUID(
+                    f"{cleaned_id[:8]}-{cleaned_id[8:12]}-{cleaned_id[12:16]}-{cleaned_id[16:20]}-{cleaned_id[20:]}"
                 )
-        
-        # 분석 ID 검증 - Fallback에서 이미 처리되지 않은 경우만 수행
-        # 🔧 최적화: Fallback 로직에서 분석 ID가 이미 검증되지 않은 경우만 처리
-        if missing_question_ids:
-            # Fallback 로직에서 이미 analysis와 analysis_uuid가 설정됨
-            print(f"[INFO] 분석 ID는 Fallback 로직에서 이미 검증됨: {analysis_uuid}")
-        else:
-            # Fallback이 실행되지 않은 경우에만 분석 ID 검증 수행
-            analysis = None
-            analysis_uuid = None
-            
-            # 1. 하이픈 포함된 원본 ID로 시도
-            try:
-                analysis_uuid = uuid.UUID(request.analysis_id)
                 analysis = db.query(RepositoryAnalysis).filter(
                     RepositoryAnalysis.id == analysis_uuid
                 ).first()
-                if analysis:
-                    print(f"[SUCCESS] 분석 데이터 찾음 (하이픈 포함): {request.analysis_id}")
-            except ValueError:
+            except (ValueError, IndexError):
                 pass
-            
-            # 2. 하이픈 제거된 ID로 시도
-            if not analysis:
-                try:
-                    cleaned_id = request.analysis_id.replace('-', '')
-                    analysis_uuid = uuid.UUID(f"{cleaned_id[:8]}-{cleaned_id[8:12]}-{cleaned_id[12:16]}-{cleaned_id[16:20]}-{cleaned_id[20:]}")
-                    analysis = db.query(RepositoryAnalysis).filter(
-                        RepositoryAnalysis.id == analysis_uuid
-                    ).first()
-                    if analysis:
-                        print(f"[SUCCESS] 분석 데이터 찾음 (하이픈 제거 후 재조합): {analysis_uuid}")
-                except (ValueError, IndexError):
-                    pass
-            
-            # 3. 문자열로 직접 조회 시도
-            if not analysis:
-                try:
-                    from sqlalchemy import text
-                    # 하이픈 포함/제거 모두 시도
-                    result = db.execute(text("SELECT * FROM repository_analyses WHERE id = :id1 OR id = :id2"), 
-                                      {"id1": request.analysis_id, "id2": request.analysis_id.replace('-', '')})
-                    row = result.fetchone()
-                    if row:
-                        analysis_uuid = uuid.UUID(str(row[0]))  # id 컬럼
-                        analysis = db.query(RepositoryAnalysis).filter(
-                            RepositoryAnalysis.id == analysis_uuid
-                        ).first()
-                        if analysis:
-                            print(f"[SUCCESS] 분석 데이터 찾음 (문자열 직접 조회): {analysis_uuid}")
-                except Exception as e:
-                    print(f"[DEBUG] 문자열 직접 조회 실패: {e}")
-            
-            if not analysis:
-                print(f"[ERROR] 분석 데이터 없음: {request.analysis_id}")
-                # 데이터베이스에 어떤 분석 데이터가 있는지 확인
-                try:
-                    from sqlalchemy import text
-                    result = db.execute(text("SELECT id FROM repository_analyses LIMIT 5"))
-                    existing_ids = [str(row[0]) for row in result.fetchall()]
-                    print(f"[DEBUG] 데이터베이스의 기존 분석 ID들: {existing_ids}")
-                except Exception as e:
-                    print(f"[DEBUG] 기존 분석 ID 조회 실패: {e}")
-                    
+
+        if not analysis or not analysis_uuid:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "ANALYSIS_NOT_FOUND",
+                    "message": "해당 분석 ID에 대한 분석 데이터가 존재하지 않습니다.",
+                    "analysis_id": request.analysis_id,
+                    "suggestion": "먼저 저장소 분석을 완료해주세요."
+                }
+            )
+
+        # 질문 데이터 로딩: DB 우선, 캐시 폴백
+        from app.api.questions import question_cache, QuestionResponse
+        cached_questions = []
+
+        db_questions = db.query(InterviewQuestion).filter(
+            InterviewQuestion.analysis_id == analysis_uuid
+        ).order_by(InterviewQuestion.created_at.asc()).all()
+
+        if db_questions:
+            requested_ids = set(request.question_ids)
+            selected_questions = [q for q in db_questions if str(q.id) in requested_ids]
+
+            if not selected_questions:
+                selected_questions = db_questions[:len(request.question_ids)]
+                request.question_ids = [str(q.id) for q in selected_questions]
+                print(f"[INTERVIEW_START] 요청 질문 ID가 DB와 불일치하여 최신 질문으로 대체: {request.question_ids}")
+
+            cached_questions = [
+                QuestionResponse(
+                    id=str(q.id),
+                    type=q.category,
+                    question=q.question_text,
+                    difficulty=q.difficulty,
+                    expected_answer_points=(q.context or {}).get("expected_answer_points", [])
+                )
+                for q in selected_questions
+            ]
+            print(f"[INTERVIEW_START] DB에서 질문 로딩 완료: {len(cached_questions)}개")
+        else:
+            normalized_analysis_id = request.analysis_id.replace('-', '')
+            if normalized_analysis_id not in question_cache:
                 raise HTTPException(
-                    status_code=404, 
+                    status_code=404,
                     detail={
-                        "error": "ANALYSIS_NOT_FOUND",
-                        "message": "해당 분석 ID에 대한 분석 데이터가 존재하지 않습니다.",
+                        "error": "QUESTIONS_NOT_FOUND",
+                        "message": "해당 분석 ID에 대한 질문이 존재하지 않습니다.",
                         "analysis_id": request.analysis_id,
-                        "suggestion": "먼저 저장소 분석을 완료해주세요."
+                        "suggestion": "먼저 질문 생성을 완료해주세요."
                     }
                 )
+
+            cache_data = question_cache[normalized_analysis_id]
+            cached_questions = cache_data.parsed_questions
+            available_question_ids = {q.id for q in cached_questions}
+            missing_question_ids = set(request.question_ids) - available_question_ids
+            if missing_question_ids:
+                fallback_questions = cached_questions[:len(request.question_ids)]
+                request.question_ids = [q.id for q in fallback_questions]
+                print(f"[INTERVIEW_START] 캐시 질문 ID 불일치로 대체: {request.question_ids}")
+
+            print(f"[INTERVIEW_START] 캐시에서 질문 로딩 완료: {len(cached_questions)}개")
         
         # InterviewRepository를 사용하여 세션 생성
         repo = InterviewRepository(db)
@@ -574,29 +466,16 @@ async def submit_answer(
         print(f"[SUBMIT_ANSWER]   - Google API Key 값: {google_api_key[:20]}...")
     
     try:
-        # Interview ID는 UUID 형식으로 정규화 및 변환
         normalized_interview_id = normalize_uuid_string(request.interview_id)
+        normalized_question_id = normalize_uuid_string(request.question_id)
         session_uuid = uuid.UUID(normalized_interview_id)
-        
-        # Question ID는 UUID 형식인지 확인하고, 아니면 문자열 그대로 사용
-        try:
-            normalized_question_id = normalize_uuid_string(request.question_id)
-            question_uuid = uuid.UUID(normalized_question_id)
-            question_id_is_uuid = True
-            print(f"[DEBUG] 질문 ID가 UUID 형식: {question_uuid}")
-        except ValueError:
-            # UUID 형식이 아니면 문자열 그대로 사용 (예: 'tech_stack_1632')
-            question_id_is_uuid = False
-            question_string_id = request.question_id
-            print(f"[DEBUG] 질문 ID가 문자열 형식: {question_string_id}")
-        
+        question_uuid = uuid.UUID(normalized_question_id)
         print(f"[DEBUG] 정규화된 ID:")
         print(f"  - interview_id: '{normalized_interview_id}' → UUID: {session_uuid}")
-        print(f"  - question_id: '{request.question_id}' → UUID 형식: {question_id_is_uuid}")
-        
+        print(f"  - question_id: '{normalized_question_id}' → UUID: {question_uuid}")
     except ValueError as e:
-        print(f"[ERROR] Interview ID UUID 변환 실패: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"올바르지 않은 면접 ID 형식입니다: {str(e)}")
+        print(f"[ERROR] UUID 변환 실패: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"올바르지 않은 ID 형식입니다: {str(e)}")
     
     repo = InterviewRepository(db)
     session = repo.get_session(session_uuid)
@@ -608,64 +487,21 @@ async def submit_answer(
         raise HTTPException(status_code=400, detail="활성화된 면접 세션에만 답변할 수 있습니다.")
     
     try:
-        # 질문 ID에 따른 조회 방식 결정
-        if question_id_is_uuid:
-            # UUID 형식의 질문 ID로 데이터베이스 조회
-            existing_answer = db.query(InterviewAnswer).filter(
-                InterviewAnswer.session_id == session_uuid,
-                InterviewAnswer.question_id == question_uuid
-            ).first()
-            
-            question = db.query(InterviewQuestion).filter(
-                InterviewQuestion.id == question_uuid
-            ).first()
-            
-            question_identifier = str(question_uuid)
-            print(f"[DEBUG] UUID 질문 조회: {question_uuid}")
-        else:
-            # 문자열 질문 ID로 메모리 캐시에서 정보 가져오기
-            existing_answer = None  # 문자열 ID는 데이터베이스에 저장되지 않음
-            question = None  # 메모리 캐시의 질문 사용
-            question_identifier = question_string_id
-            print(f"[DEBUG] 문자열 질문 ID 사용: {question_string_id}")
-            
+        existing_answer = db.query(InterviewAnswer).filter(
+            InterviewAnswer.session_id == session_uuid,
+            InterviewAnswer.question_id == question_uuid
+        ).first()
+        question = db.query(InterviewQuestion).filter(
+            InterviewQuestion.id == question_uuid
+        ).first()
+        question_identifier = str(question_uuid)
+        print(f"[DEBUG] UUID 질문 조회: {question_uuid}")
+
         is_first_answer = existing_answer is None
         print(f"[DEBUG] 질문 {question_identifier}: 첫 번째 답변? {is_first_answer}")
         print(f"[DEBUG] 기존 답변 존재: {existing_answer is not None}")
         
-        # 문자열 질문 ID의 경우 캐시에서 질문 정보 가져오기
-        if not question_id_is_uuid:
-            # 질문 캐시에서 질문 텍스트 찾기
-            from app.api.questions import question_cache
-            normalized_analysis_id = str(session.analysis_id).replace('-', '')  # 캐시 키 정규화
-            
-            if normalized_analysis_id in question_cache:
-                cache_data = question_cache[normalized_analysis_id]
-                cached_questions = cache_data.parsed_questions
-                
-                # 질문 ID로 질문 찾기
-                cached_question = None
-                for q in cached_questions:
-                    if q.id == question_string_id:
-                        cached_question = q
-                        break
-                
-                if not cached_question:
-                    raise HTTPException(status_code=404, detail=f"캐시에서 질문을 찾을 수 없습니다: {question_string_id}")
-                    
-                # 임시 질문 객체 생성
-                class TempQuestion:
-                    def __init__(self, q):
-                        self.question_text = q.question
-                        self.category = q.type
-                        self.difficulty = q.difficulty
-                        self.expected_points = getattr(q, 'expected_answer_points', [])
-                        
-                question = TempQuestion(cached_question)
-                print(f"[DEBUG] 캐시에서 질문 정보 가져옴: {question.question_text[:50]}...")
-            else:
-                raise HTTPException(status_code=404, detail="질문 캐시를 찾을 수 없습니다.")
-        elif not question:
+        if not question:
             raise HTTPException(status_code=404, detail="데이터베이스에서 질문을 찾을 수 없습니다.")
         
         # Mock Interview Agent를 사용하여 피드백 생성 (통합된 API 키 처리)
@@ -704,44 +540,24 @@ async def submit_answer(
         else:
             print(f"[FEEDBACK_RESULT] 피드백 생성 실패 또는 없음 - 기본 응답 사용")
         
-        # 답변 및 피드백 저장 (문자열 ID는 메모리만 사용, UUID ID는 데이터베이스에 저장)
+        # 답변 및 피드백 저장
         answer_data = {
             "answer": request.answer,
             "time_taken": request.time_taken,
             "feedback": feedback_data if feedback_data else None,  # 안전한 처리
-            "question_id_type": "uuid" if question_id_is_uuid else "string",
+            "question_id_type": "uuid",
             "question_identifier": question_identifier
         }
         
-        if question_id_is_uuid:
-            # UUID 질문은 데이터베이스에 저장
-            saved_answer = repo.save_answer(session_uuid, question_uuid, answer_data)
-            saved_answer_id = str(saved_answer.id)
-        else:
-            # 문자열 질문은 메모리만 사용 (임시 처리)
-            saved_answer_id = f"temp_answer_{question_string_id}_{session_uuid}"
-            print(f"[DEBUG] 문자열 질문 답변은 메모리 처리: {saved_answer_id}")
-        
-        # 다음 질문 확인 (현재는 간단히 처리)
-        # 문자열 질문의 경우 캐시의 전체 질문 수로 비교
-        if question_id_is_uuid:
-            total_questions = db.query(InterviewQuestion).filter(
-                InterviewQuestion.analysis_id == session.analysis_id
-            ).count()
-            
-            answered_questions = db.query(InterviewAnswer).filter(
-                InterviewAnswer.session_id == session_uuid
-            ).count()
-        else:
-            # 캐시에서 전체 질문 수 가져오기
-            normalized_analysis_id = str(session.analysis_id).replace('-', '')
-            if normalized_analysis_id in question_cache:
-                total_questions = len(question_cache[normalized_analysis_id].parsed_questions)
-            else:
-                total_questions = 1  # 기본값
-            
-            # 임시로 답변 수는 1로 처리 (실제 구현 시 세션별 답변 추적 필요)
-            answered_questions = 1
+        saved_answer = repo.save_answer(session_uuid, question_uuid, answer_data)
+        saved_answer_id = str(saved_answer.id)
+
+        total_questions = db.query(InterviewQuestion).filter(
+            InterviewQuestion.analysis_id == session.analysis_id
+        ).count()
+        answered_questions = db.query(InterviewAnswer).filter(
+            InterviewAnswer.session_id == session_uuid
+        ).count()
             
         is_completed = answered_questions >= total_questions
         print(f"[DEBUG] 질문 진행상황: {answered_questions}/{total_questions}, 완료: {is_completed}")

@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.agents.question_generator import QuestionGenerator
+from app.core.config import settings
 from app.core.database import engine
 
 router = APIRouter()
@@ -594,6 +595,8 @@ async def get_question_types():
 @router.get("/debug/cache")
 async def debug_question_cache():
     """질문 캐시 상태 확인 (디버깅용)"""
+    if not settings.debug:
+        raise HTTPException(status_code=404, detail="Not found")
     return {
         "cache_size": len(question_cache),
         "cached_analysis_ids": list(question_cache.keys()),
@@ -612,6 +615,8 @@ async def debug_question_cache():
 @router.get("/debug/original/{analysis_id}")
 async def debug_original_questions(analysis_id: str):
     """원본 질문 확인 (디버깅용)"""
+    if not settings.debug:
+        raise HTTPException(status_code=404, detail="Not found")
     try:
         # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
         normalized_analysis_id = analysis_id.replace('-', '')
@@ -642,6 +647,8 @@ async def debug_original_questions(analysis_id: str):
 @router.post("/debug/add-test-questions/{analysis_id}")
 async def add_test_questions(analysis_id: str):
     """테스트용 질문 추가 (디버깅용)"""
+    if not settings.debug:
+        raise HTTPException(status_code=404, detail="Not found")
     try:
         from datetime import datetime
         
@@ -703,36 +710,6 @@ async def add_test_questions(analysis_id: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/debug/cache")
-async def debug_question_cache():
-    """질문 캐시 상태 확인 (디버깅용)"""
-    return {
-        "cache_size": len(question_cache),
-        "cached_analysis_ids": list(question_cache.keys()),
-        "cache_details": [
-            {
-                "analysis_id": analysis_id,
-                "question_count": len(cache_data.parsed_questions),
-                "created_at": cache_data.created_at
-            }
-            for analysis_id, cache_data in question_cache.items()
-        ]
-    }
-
-
-@router.delete("/debug/cache")
-async def clear_question_cache():
-    """질문 캐시 초기화 (디버깅용)"""
-    cache_size_before = len(question_cache)
-    question_cache.clear()
-    
-    return {
-        "message": "질문 캐시가 성공적으로 초기화되었습니다",
-        "cleared_items": cache_size_before,
-        "current_cache_size": len(question_cache)
-    }
 
 
 async def _load_questions_from_db(analysis_id: str) -> List[QuestionResponse]:

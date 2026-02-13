@@ -906,7 +906,7 @@ async def analyze_repository(
 
 @router.get("/analysis/recent")
 async def get_recent_analyses(limit: int = 5, db: Session = Depends(get_db)):
-    """최근 분석 결과 요약 조회 (데이터베이스 기반)"""
+    """최근 분석 결과 요약 조회 (데이터베이스 기반, 추정치 미사용)"""
     try:
         # 개발 모드 활성화 여부 확인
         from app.core.config import is_development_mode_active
@@ -922,48 +922,15 @@ async def get_recent_analyses(limit: int = 5, db: Session = Depends(get_db)):
         
         # 데이터베이스에서 완료된 분석 결과 조회
         from app.models.repository import RepositoryAnalysis
-        from sqlalchemy import desc, or_
-        
-        # 모든 완료된 분석 결과 조회 (실제 데이터 우선, 그 다음 임시 데이터)
-        from sqlalchemy import case
-        
-        # 먼저 메모리 캐시에서 모든 분석 데이터 수집
-        cache_analyses = []
-        for analysis_id, result in analysis_cache.items():
-            cache_analyses.append({
-                "analysis_id": analysis_id,
-                "repository_name": result.repo_info.name,
-                "repository_owner": result.repo_info.owner,
-                "primary_language": result.repo_info.language or "Unknown",
-                "created_at": result.created_at.isoformat(),
-                "tech_stack": list(result.tech_stack.keys())[:3] if result.tech_stack else [],
-                "file_count": len(result.key_files) if result.key_files else 0,
-                "source": "cache"
-            })
-        
-        print(f"[RECENT_ANALYSES] 메모리 캐시에서 {len(cache_analyses)}개 분석 수집")
-        
-        # 데이터베이스에서 추가로 필요한 만큼만 조회
-        # 캐시 데이터가 최신이므로 더 많이 조회해서 나중에 정렬
-        db_limit = limit + 10  # 여유분 추가
-        
+        from sqlalchemy import desc
+
         recent_analyses_db = db.query(RepositoryAnalysis)\
             .filter(RepositoryAnalysis.status == "completed")\
-            .order_by(
-                desc(RepositoryAnalysis.created_at),
-                # 동일한 시간대에는 실제 데이터를 우선
-                case(
-                    (or_(
-                        RepositoryAnalysis.analysis_metadata.is_(None),
-                        ~RepositoryAnalysis.analysis_metadata.like('%"temporary": true%')
-                    ), 0),
-                    else_=1
-                )
-            )\
-            .limit(db_limit)\
+            .order_by(desc(RepositoryAnalysis.created_at))\
+            .limit(limit)\
             .all()
         
-        recent_analyses = []
+        final_analyses = []
         
         for analysis in recent_analyses_db:
             # URL에서 owner/repo 추출
@@ -971,65 +938,21 @@ async def get_recent_analyses(limit: int = 5, db: Session = Depends(get_db)):
             repo_owner = url_parts[0] if len(url_parts) > 0 else "Unknown"
             repo_name = url_parts[1] if len(url_parts) > 1 else analysis.repository_name or "Unknown"
             
-            # 기술 스택 정보 처리
+            # 기술 스택 정보 처리 (실데이터만)
             tech_stack_dict = analysis.tech_stack if analysis.tech_stack else {}
             tech_stack = list(tech_stack_dict.keys())[:3]
-            
-            # 저장소 URL에서 언어 추정
-            primary_language = analysis.primary_language or "Unknown"
-            if primary_language == "Unknown":
-                # URL 기반으로 언어 추정
-                if "react" in repo_name.lower():
-                    primary_language = "JavaScript"
-                    tech_stack = ["React", "JavaScript", "TypeScript"]
-                elif "django" in repo_name.lower():
-                    primary_language = "Python"
-                    tech_stack = ["Django", "Python", "Web"]
-                elif "node" in repo_name.lower():
-                    primary_language = "JavaScript"
-                    tech_stack = ["Node.js", "JavaScript", "Backend"]
-                elif "vue" in repo_name.lower():
-                    primary_language = "JavaScript"
-                    tech_stack = ["Vue.js", "JavaScript", "Frontend"]
-            
-            # 점수 계산 로직 제거 (가짜 점수 대신 실제 데이터만 사용)
-            
-            # 파일 수가 0인 경우 URL 기반으로 추정
-            file_count = analysis.file_count or 0
-            if file_count == 0:
-                # 인기 저장소는 일반적으로 많은 파일을 가짐
-                if "react" in repo_name.lower():
-                    file_count = 850
-                elif "django" in repo_name.lower():
-                    file_count = 620
-                elif "node" in repo_name.lower():
-                    file_count = 450
-            
-            recent_analyses.append({
+
+            final_analyses.append({
                 "analysis_id": analysis.id.hex if hasattr(analysis.id, 'hex') else str(analysis.id).replace('-', ''),
                 "repository_name": repo_name,
                 "repository_owner": repo_owner,
-                "primary_language": primary_language,
+                "primary_language": analysis.primary_language or "Unknown",
                 "created_at": analysis.created_at.isoformat(),
                 "tech_stack": tech_stack,
-                "file_count": file_count,
-                "source": "database"
+                "file_count": analysis.file_count or 0
             })
         
-        print(f"[RECENT_ANALYSES] 데이터베이스에서 {len(recent_analyses)}개 분석 반환")
-        
-        # 캐시와 데이터베이스 데이터를 합쳐서 생성시간 순으로 정렬
-        all_analyses = cache_analyses + recent_analyses
-        all_analyses.sort(key=lambda x: x["created_at"], reverse=True)
-        
-        # limit만큼만 반환
-        final_analyses = all_analyses[:limit]
-        
-        # source 필드 제거 (디버그용이었음)
-        for item in final_analyses:
-            item.pop("source", None)
-        
-        print(f"[RECENT_ANALYSES] 캐시: {len(cache_analyses)}개, DB: {len(recent_analyses)}개, 최종: {len(final_analyses)}개")
+        print(f"[RECENT_ANALYSES] 데이터베이스에서 {len(final_analyses)}개 분석 반환")
         
         return {
             "success": True,
@@ -1125,7 +1048,12 @@ async def get_analysis_result(analysis_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/analysis/{analysis_id}/all-files", response_model=List[FileTreeNode])
-async def get_all_repository_files(analysis_id: str, max_depth: int = 3, max_files: int = 500):
+async def get_all_repository_files(
+    analysis_id: str,
+    max_depth: int = 3,
+    max_files: int = 500,
+    db: Session = Depends(get_db)
+):
     """분석된 저장소의 모든 파일 트리 구조 조회"""
     try:
         # UUID 검증
@@ -1133,17 +1061,32 @@ async def get_all_repository_files(analysis_id: str, max_depth: int = 3, max_fil
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid analysis ID format")
     
-    # 메모리 캐시에서 분석 결과 조회
-    if analysis_id not in analysis_cache:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    
-    analysis_result = analysis_cache[analysis_id]
     analyzer = LocalRepositoryAnalyzer()
     
     try:
-        # 저장소 정보에서 owner와 repo 추출
-        owner = analysis_result.repo_info.owner
-        repo = analysis_result.repo_info.name
+        owner = None
+        repo = None
+
+        # 1. 메모리 캐시 우선
+        if analysis_id in analysis_cache:
+            analysis_result = analysis_cache[analysis_id]
+            owner = analysis_result.repo_info.owner
+            repo = analysis_result.repo_info.name
+        else:
+            # 2. DB 폴백
+            from app.models.repository import RepositoryAnalysis
+            analysis_db = db.query(RepositoryAnalysis).filter(
+                func.cast(RepositoryAnalysis.id, String).in_([analysis_id, analysis_id.replace('-', '')])
+            ).first()
+            if not analysis_db:
+                raise HTTPException(status_code=404, detail="Analysis not found")
+
+            repo_url_parts = analysis_db.repository_url.replace("https://github.com/", "").split("/")
+            owner = repo_url_parts[0] if len(repo_url_parts) > 0 else None
+            repo = repo_url_parts[1] if len(repo_url_parts) > 1 else None
+
+        if not owner or not repo:
+            raise HTTPException(status_code=404, detail="Repository information not found")
         
         # 모든 파일을 트리 구조로 가져오기
         file_tree = await analyzer.get_all_files(owner, repo, max_depth, max_files)
@@ -1489,13 +1432,43 @@ async def analyze_repository_simple(
 
 
 @router.get("/dashboard/{analysis_id}")
-async def get_dashboard_data(analysis_id: str):
+async def get_dashboard_data(analysis_id: str, db: Session = Depends(get_db)):
     """대시보드 데이터 조회"""
     try:
-        if analysis_id not in analysis_cache:
-            raise HTTPException(status_code=404, detail="분석 결과를 찾을 수 없습니다.")
-        
-        analysis_result = analysis_cache[analysis_id]
+        analysis_result = analysis_cache.get(analysis_id)
+        if analysis_result is None:
+            from app.models.repository import RepositoryAnalysis
+            analysis_db = db.query(RepositoryAnalysis).filter(
+                func.cast(RepositoryAnalysis.id, String).in_([analysis_id, analysis_id.replace('-', '')])
+            ).first()
+            if not analysis_db:
+                raise HTTPException(status_code=404, detail="분석 결과를 찾을 수 없습니다.")
+
+            repo_url_parts = analysis_db.repository_url.replace("https://github.com/", "").split("/")
+            owner = repo_url_parts[0] if len(repo_url_parts) > 0 else "Unknown"
+            repo_name = repo_url_parts[1] if len(repo_url_parts) > 1 else "Unknown"
+
+            repo_info = RepositoryInfo(
+                name=repo_name,
+                owner=owner,
+                description=f"{owner}/{repo_name} repository",
+                language=analysis_db.primary_language or "Unknown",
+                stars=0,
+                forks=0,
+                size=0,
+                topics=[],
+                default_branch="main"
+            )
+            analysis_result = AnalysisResult(
+                success=True,
+                analysis_id=str(analysis_db.id),
+                repo_info=repo_info,
+                tech_stack=analysis_db.tech_stack or {},
+                key_files=[],
+                summary=(analysis_db.analysis_metadata or {}).get("summary", f"{repo_name} 저장소 분석 결과"),
+                recommendations=(analysis_db.analysis_metadata or {}).get("recommendations", []),
+                created_at=analysis_db.created_at
+            )
         
         print(f"[DASHBOARD] 분석 ID {analysis_id} 조회 - 파일 수: {len(analysis_result.key_files)}개")
         
@@ -1528,6 +1501,8 @@ async def get_dashboard_data(analysis_id: str):
 @router.get("/debug/cache")
 async def debug_cache():
     """메모리 캐시 상태 확인 (디버깅용)"""
+    if not settings.debug:
+        raise HTTPException(status_code=404, detail="Not found")
     return {
         "cache_size": len(analysis_cache),
         "cached_analysis_ids": list(analysis_cache.keys()),
@@ -1545,6 +1520,8 @@ async def debug_cache():
 @router.delete("/debug/cache")
 async def clear_cache():
     """메모리 캐시 초기화 (디버깅용)"""
+    if not settings.debug:
+        raise HTTPException(status_code=404, detail="Not found")
     cache_size_before = len(analysis_cache)
     analysis_cache.clear()
     
@@ -1556,12 +1533,18 @@ async def clear_cache():
 
 
 @router.get("/analysis/{analysis_id}/graph")
-async def get_analysis_graph(analysis_id: str):
+async def get_analysis_graph(analysis_id: str, db: Session = Depends(get_db)):
     """분석 결과에 대한 코드 그래프 데이터 조회"""
     
     if analysis_id not in analysis_cache:
-        # DB에서 조회 시도 (옵션)
-        raise HTTPException(status_code=404, detail="분석 ID를 찾을 수 없습니다")
+        # 캐시 미스 시 DB 존재 여부만 확인하고 빈 그래프 반환
+        from app.models.repository import RepositoryAnalysis
+        analysis_db = db.query(RepositoryAnalysis).filter(
+            func.cast(RepositoryAnalysis.id, String).in_([analysis_id, analysis_id.replace('-', '')])
+        ).first()
+        if not analysis_db:
+            raise HTTPException(status_code=404, detail="분석 ID를 찾을 수 없습니다")
+        return {"nodes": [], "links": []}
     
     analysis_data = analysis_cache[analysis_id]
     

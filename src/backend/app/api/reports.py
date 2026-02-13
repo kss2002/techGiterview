@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import json
+import uuid
 
 from app.agents.mock_interview_agent import MockInterviewAgent
 from app.agents.repository_analyzer import RepositoryAnalyzer
@@ -20,6 +21,7 @@ from app.models.interview import (
     InterviewReport, ProjectTechnicalAnalysis, InterviewImprovementPlan
 )
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 router = APIRouter()
 
@@ -233,7 +235,8 @@ async def get_interview_summary(interview_id: str):
 @router.get("/analytics/overview")
 async def get_analytics_overview(
     days: int = Query(30, description="분석 기간 (일)"),
-    user_id: Optional[str] = Query(None, description="특정 사용자 필터")
+    user_id: Optional[str] = Query(None, description="특정 사용자 필터"),
+    db: Session = Depends(get_db)
 ):
     """
     분석 대시보드 개요
@@ -246,37 +249,48 @@ async def get_analytics_overview(
         분석 대시보드 데이터
     """
     try:
-        # 실제로는 데이터베이스에서 통계를 조회해야 하지만,
-        # 현재는 활성 세션 기반으로 모의 데이터 생성
-        
-        active_sessions = interview_agent.active_sessions
-        
-        # 기본 통계
-        total_interviews = len(active_sessions)
-        completed_interviews = len([s for s in active_sessions.values() 
-                                  if s.interview_status == "completed"])
-        in_progress_interviews = len([s for s in active_sessions.values() 
-                                    if s.interview_status == "in_progress"])
-        
-        # 평균 점수 계산
-        completed_sessions = [s for s in active_sessions.values() 
-                            if s.interview_status == "completed" and s.total_score > 0]
-        
-        avg_score = sum(s.total_score for s in completed_sessions) / len(completed_sessions) if completed_sessions else 0
-        
-        # 난이도별 분포
-        difficulty_distribution = {}
-        for session in active_sessions.values():
-            difficulty = session.difficulty_level
-            difficulty_distribution[difficulty] = difficulty_distribution.get(difficulty, 0) + 1
-        
-        # 사용자별 필터링
+        start_boundary = datetime.now() - timedelta(days=days)
+        base_query = db.query(InterviewSession).filter(InterviewSession.started_at >= start_boundary)
+
         if user_id:
-            user_sessions = [s for s in active_sessions.values() if s.user_id == user_id]
-            total_interviews = len(user_sessions)
-            completed_interviews = len([s for s in user_sessions 
-                                      if s.interview_status == "completed"])
-        
+            try:
+                user_uuid = uuid.UUID(user_id)
+                base_query = base_query.filter(InterviewSession.user_id == user_uuid)
+            except ValueError:
+                return {
+                    "success": True,
+                    "data": {
+                        "overview": {
+                            "total_interviews": 0,
+                            "completed_interviews": 0,
+                            "in_progress_interviews": 0,
+                            "completion_rate": 0,
+                            "average_score": 0
+                        },
+                        "difficulty_distribution": {},
+                        "period_days": days,
+                        "user_filter": user_id,
+                        "last_updated": datetime.now().isoformat()
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+
+        sessions = base_query.all()
+        total_interviews = len(sessions)
+        completed_interviews = sum(1 for s in sessions if s.status == "completed")
+        in_progress_interviews = sum(1 for s in sessions if s.status == "active")
+
+        completed_scores = [
+            float(s.overall_score) for s in sessions
+            if s.status == "completed" and s.overall_score is not None
+        ]
+        avg_score = sum(completed_scores) / len(completed_scores) if completed_scores else 0
+
+        difficulty_distribution = {}
+        for session in sessions:
+            difficulty = session.difficulty or "unknown"
+            difficulty_distribution[difficulty] = difficulty_distribution.get(difficulty, 0) + 1
+
         analytics_data = {
             "overview": {
                 "total_interviews": total_interviews,
@@ -304,7 +318,8 @@ async def get_analytics_overview(
 @router.get("/analytics/performance")
 async def get_performance_analytics(
     user_id: Optional[str] = Query(None, description="사용자 ID"),
-    repo_url: Optional[str] = Query(None, description="저장소 URL")
+    repo_url: Optional[str] = Query(None, description="저장소 URL"),
+    db: Session = Depends(get_db)
 ):
     """
     성능 분석 데이터
@@ -317,21 +332,28 @@ async def get_performance_analytics(
         성능 분석 데이터
     """
     try:
-        active_sessions = interview_agent.active_sessions
-        
-        # 필터링
-        filtered_sessions = list(active_sessions.values())
-        
+        from app.models.repository import RepositoryAnalysis
+
+        session_query = db.query(InterviewSession).filter(InterviewSession.status == "completed")
+
         if user_id:
-            filtered_sessions = [s for s in filtered_sessions if s.user_id == user_id]
-        
+            try:
+                user_uuid = uuid.UUID(user_id)
+                session_query = session_query.filter(InterviewSession.user_id == user_uuid)
+            except ValueError:
+                return {
+                    "success": True,
+                    "data": {"message": "분석할 완료된 면접이 없습니다.", "sessions_count": 0},
+                    "timestamp": datetime.now().isoformat()
+                }
+
         if repo_url:
-            filtered_sessions = [s for s in filtered_sessions if s.repo_url == repo_url]
-        
-        # 완료된 세션만 분석
-        completed_sessions = [s for s in filtered_sessions 
-                            if s.interview_status == "completed" and s.evaluations]
-        
+            session_query = session_query.join(
+                RepositoryAnalysis, InterviewSession.analysis_id == RepositoryAnalysis.id
+            ).filter(RepositoryAnalysis.repository_url == repo_url)
+
+        completed_sessions = session_query.all()
+
         if not completed_sessions:
             return {
                 "success": True,
@@ -341,61 +363,63 @@ async def get_performance_analytics(
                 },
                 "timestamp": datetime.now().isoformat()
             }
-        
-        # 성능 지표 계산
-        all_evaluations = []
-        for session in completed_sessions:
-            all_evaluations.extend(session.evaluations)
-        
-        # 평균 점수 계산
-        avg_overall_score = sum(eval_data.get("overall_score", 0) for eval_data in all_evaluations) / len(all_evaluations)
-        
-        # 카테고리별 평균 점수
-        criteria_averages = {}
+
+        session_ids = [s.id for s in completed_sessions]
+        answers = db.query(InterviewAnswer, InterviewQuestion).outerjoin(
+            InterviewQuestion, InterviewAnswer.question_id == InterviewQuestion.id
+        ).filter(
+            InterviewAnswer.session_id.in_(session_ids)
+        ).all()
+
+        scored_answers = [a for a, _ in answers if a.feedback_score is not None]
+        avg_overall_score = (
+            sum(float(a.feedback_score) for a in scored_answers) / len(scored_answers)
+            if scored_answers else 0
+        )
+
         criteria_keys = ["technical_accuracy", "code_quality", "problem_solving", "communication"]
-        
-        for criteria in criteria_keys:
-            scores = []
-            for eval_data in all_evaluations:
-                criteria_scores = eval_data.get("criteria_scores", {})
-                if criteria in criteria_scores:
-                    scores.append(criteria_scores[criteria])
-            
-            if scores:
-                criteria_averages[criteria] = sum(scores) / len(scores)
-            else:
-                criteria_averages[criteria] = 0
-        
-        # 시간 분석
-        avg_duration = sum(s.end_time.timestamp() - s.start_time.timestamp() 
-                         for s in completed_sessions 
-                         if s.start_time and s.end_time) / len(completed_sessions)
-        
-        # 질문 타입별 성능
-        question_type_performance = {}
+        criteria_scores_map = {k: [] for k in criteria_keys}
+        question_type_performance: Dict[str, List[float]] = {}
+
+        for answer, question in answers:
+            if answer.feedback_score is not None and question and question.category:
+                question_type_performance.setdefault(question.category, []).append(float(answer.feedback_score))
+
+            if answer.feedback_details and isinstance(answer.feedback_details, dict):
+                criteria_scores = answer.feedback_details.get("criteria_scores", {})
+                if isinstance(criteria_scores, dict):
+                    for key in criteria_keys:
+                        value = criteria_scores.get(key)
+                        if isinstance(value, (int, float)):
+                            criteria_scores_map[key].append(float(value))
+
+        criteria_averages = {
+            key: (sum(values) / len(values) if values else 0)
+            for key, values in criteria_scores_map.items()
+        }
+
+        avg_duration_minutes = 0
+        duration_values = []
         for session in completed_sessions:
-            for i, evaluation in enumerate(session.evaluations):
-                if i < len(session.questions):
-                    question_type = session.questions[i].get("type", "unknown")
-                    if question_type not in question_type_performance:
-                        question_type_performance[question_type] = []
-                    question_type_performance[question_type].append(evaluation.get("overall_score", 0))
-        
-        # 타입별 평균 계산
+            if session.started_at and session.ended_at:
+                duration_values.append((session.ended_at - session.started_at).total_seconds() / 60.0)
+        if duration_values:
+            avg_duration_minutes = sum(duration_values) / len(duration_values)
+
         question_type_averages = {
-            qtype: sum(scores) / len(scores)
+            qtype: (sum(scores) / len(scores) if scores else 0)
             for qtype, scores in question_type_performance.items()
         }
-        
+
         performance_data = {
             "overall_statistics": {
                 "sessions_analyzed": len(completed_sessions),
-                "total_questions_answered": sum(len(s.answers) for s in completed_sessions),
+                "total_questions_answered": len(answers),
                 "average_overall_score": round(avg_overall_score, 2),
-                "average_duration_minutes": round(avg_duration / 60, 1)
+                "average_duration_minutes": round(avg_duration_minutes, 1)
             },
             "criteria_performance": {
-                criteria: round(score, 2) 
+                criteria: round(score, 2)
                 for criteria, score in criteria_averages.items()
             },
             "question_type_performance": {
