@@ -11,6 +11,8 @@ import {
   MessageCircle,
   Book
 } from 'lucide-react'
+import { AppShellSidebar } from './AppShellSidebar'
+import { AppShellHeader } from './AppShellHeader'
 import './Layout.css'
 
 interface LayoutProps {
@@ -32,11 +34,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: '리포트', path: '/reports', icon: () => <FileText className="w-5 h-5" /> }
   ]
 
-  // 홈페이지에서는 네비게이션 숨김
-  const showNavigation = location.pathname !== '/'
+  const isHome = location.pathname === '/'
+  const isDashboardPage = location.pathname.startsWith('/dashboard')
+  const isAppShellPage =
+    location.pathname.startsWith('/reports') ||
+    location.pathname.startsWith('/interview')
+  const showNavigation = !isHome && !isAppShellPage && !isDashboardPage
 
   return (
     <div className="layout">
+      {isDashboardPage ? (
+        <main className="main-content full-width">{children}</main>
+      ) : isAppShellPage ? (
+        <div className="app-shell">
+          <AppShellSidebar isActive={isActive} />
+          <div className="app-shell-main">
+            <AppShellHeader />
+            <main className="app-shell-content">{children}</main>
+          </div>
+        </div>
+      ) : (
+        <>
       {showNavigation && (
         <nav className="navigation">
           <div className="nav-container">
@@ -123,6 +141,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           </div>
         </footer>
+      )}
+        </>
       )}
     </div>
   )
