@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -49,6 +49,8 @@ import { FileContentModal } from '../components/FileContentModal'
 import { CriticalFilesPreview } from '../components/CriticalFilesPreview'
 import CodeGraphViewer from '../components/CodeGraphViewer'
 import { apiFetch } from '../utils/apiUtils'
+import { createApiHeaders, getApiKeysFromStorage } from '../utils/apiHeaders'
+import { formatQuestionForDisplay } from '../utils/questionFormatter'
 import './DashboardPage-CLEAN.css'
 
 // TypeScript 타입 확장
@@ -132,6 +134,9 @@ interface Question {
   id: string
   type: string
   question: string
+  question_headline?: string
+  question_details_markdown?: string
+  question_has_details?: boolean
   difficulty: string
   context?: string
   time_estimate?: string
@@ -165,32 +170,33 @@ interface FileTreeNode {
   children?: FileTreeNode[]
 }
 
-// 로컬스토리지에서 API 키를 가져오는 헬퍼 함수
-const getApiKeysFromStorage = () => {
-  try {
+const sanitizeQuestions = (items: Question[]): Question[] => {
+  const sanitized = items.map((question) => {
+    const formatted = formatQuestionForDisplay(question)
     return {
-      githubToken: localStorage.getItem('techgiterview_github_token') || '',
-      googleApiKey: localStorage.getItem('techgiterview_google_api_key') || ''
+      ...question,
+      question: formatted.normalizedQuestion,
+      question_headline: formatted.headline || undefined,
+      question_details_markdown: formatted.detailsMarkdown || undefined,
+      question_has_details: formatted.hasDetails
     }
-  } catch (error) {
-    return { githubToken: '', googleApiKey: '' }
-  }
-}
+  })
 
-// API 요청용 헤더 생성 함수
-const createApiHeaders = (includeApiKeys: boolean = false) => {
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  }
+  const deduped: Question[] = []
+  const seen = new Set<string>()
 
-  if (includeApiKeys) {
-    const { githubToken, googleApiKey } = getApiKeysFromStorage()
-    if (githubToken) headers['X-GitHub-Token'] = githubToken
-    if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
-  }
+  sanitized.forEach((question) => {
+    const key = `${question.id}::${(question.question_headline || question.question || '').trim().toLowerCase()}`
+    const normalizedKey = `${(question.question_headline || question.question || '').trim().toLowerCase()}::${(question.type || '').toLowerCase()}`
+    if (seen.has(key) || seen.has(normalizedKey)) {
+      return
+    }
+    seen.add(key)
+    seen.add(normalizedKey)
+    deduped.push(question)
+  })
 
-  return headers
+  return deduped
 }
 
 // 파일 확장자에 따른 React 아이콘 컴포넌트 반환
@@ -289,6 +295,11 @@ interface RecentAnalysis {
 }
 
 export const DashboardPage: React.FC = () => {
+  const SIDEBAR_STORAGE_KEY = 'techgiterview_dashboard_sidebar_width'
+  const SIDEBAR_DEFAULT_WIDTH = 240
+  const SIDEBAR_MIN_WIDTH = 200
+  const SIDEBAR_MAX_WIDTH = 420
+
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [questions, setQuestionsInternal] = useState<Question[]>([])
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
@@ -305,14 +316,15 @@ export const DashboardPage: React.FC = () => {
 
   // 질문 상태 변경 추적을 위한 래퍼 함수
   const setQuestions = (newQuestions: Question[]) => {
+    const sanitizedQuestions = sanitizeQuestions(newQuestions || [])
     console.log('[Questions State] Updating questions state:', {
       previousCount: questions.length,
-      newCount: newQuestions.length,
+      newCount: sanitizedQuestions.length,
       timestamp: new Date().toISOString(),
       stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n')
     })
-    setQuestionsInternal(newQuestions)
-    console.log('[Questions State] Questions state updated:', newQuestions.length)
+    setQuestionsInternal(sanitizedQuestions)
+    console.log('[Questions State] Questions state updated:', sanitizedQuestions.length)
   }
   const [allFiles, setAllFiles] = useState<FileTreeNode[]>([])
   const [isLoadingAllFiles, setIsLoadingAllFiles] = useState(false)
@@ -323,8 +335,25 @@ export const DashboardPage: React.FC = () => {
   const [isFileModalOpen, setIsFileModalOpen] = useState(false)
   const [selectedFilePath, setSelectedFilePath] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+      const parsed = saved ? parseInt(saved, 10) : SIDEBAR_DEFAULT_WIDTH
+      return Number.isFinite(parsed) ? parsed : SIDEBAR_DEFAULT_WIDTH
+    } catch {
+      return SIDEBAR_DEFAULT_WIDTH
+    }
+  })
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false)
+  const sidebarWidthRef = useRef(sidebarWidth)
   // 질문 카드 펼침/접기 상태 (Accordion)
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null)
+  const [expandedCodeSnippets, setExpandedCodeSnippets] = useState<Set<string>>(new Set())
+  const [activeMainTab, setActiveMainTab] = useState<'questions' | 'graph'>('questions')
+  const [questionSearch, setQuestionSearch] = useState('')
+  const [questionCategory, setQuestionCategory] = useState('all')
+  const [questionDifficulty, setQuestionDifficulty] = useState('all')
   // CSS 클래스 기반 시스템에서는 강제 리렌더링 불필요
   const navigate = useNavigate()
   const { analysisId } = useParams<{ analysisId: string }>()
@@ -338,96 +367,6 @@ export const DashboardPage: React.FC = () => {
       error
     })
   }
-
-  // CSS 강제 적용 - 캐시 문제 해결
-  useEffect(() => {
-    const forceFileTreeAlignment = () => {
-      console.log('[CSS Force] 파일 트리 정렬 강제 적용 시작')
-
-      // 모든 파일 트리 관련 요소에 강제 스타일 적용
-      const fileTreeContent = document.querySelector('.file-tree-content')
-      const fileTreeItems = document.querySelectorAll('.file-tree-item')
-      const folderChildren = document.querySelectorAll('.folder-children')
-
-      if (fileTreeContent) {
-        const contentEl = fileTreeContent as HTMLElement
-        contentEl.style.setProperty('text-align', 'left', 'important')
-        contentEl.style.setProperty('display', 'block', 'important')
-        console.log('[CSS Force] .file-tree-content 정렬 강제 적용 완료')
-      }
-
-      fileTreeItems.forEach((item, index) => {
-        const itemEl = item as HTMLElement
-        itemEl.style.setProperty('display', 'flex', 'important')
-        itemEl.style.setProperty('justify-content', 'flex-start', 'important')
-        itemEl.style.setProperty('align-items', 'center', 'important')
-        itemEl.style.setProperty('text-align', 'left', 'important')
-        // 들여쓰기 완전 제거
-        itemEl.style.setProperty('padding-left', '0', 'important')
-        itemEl.style.setProperty('margin-left', '0', 'important')
-      })
-
-      folderChildren.forEach((child, index) => {
-        const childEl = child as HTMLElement
-        childEl.style.setProperty('display', 'block', 'important')
-        childEl.style.setProperty('text-align', 'left', 'important')
-        childEl.style.setProperty('width', '100%', 'important')
-        // 들여쓰기 완전 제거
-        childEl.style.setProperty('padding-left', '0', 'important')
-        childEl.style.setProperty('margin-left', '0', 'important')
-      })
-
-      // 모든 파일 트리 노드의 들여쓰기 강제 제거
-      const allNodes = document.querySelectorAll('.file-tree-node, .file-tree-node-simple')
-      allNodes.forEach((node) => {
-        const nodeEl = node as HTMLElement
-        nodeEl.style.setProperty('padding-left', '0', 'important')
-        nodeEl.style.setProperty('margin-left', '0', 'important')
-        nodeEl.style.setProperty('text-align', 'left', 'important')
-      })
-
-      console.log('[CSS Force] 파일 트리 정렬 강제 적용 완료:', {
-        fileTreeContent: !!fileTreeContent,
-        fileTreeItems: fileTreeItems.length,
-        folderChildren: folderChildren.length
-      })
-    }
-
-    // 컴포넌트 마운트 시 즉시 적용
-    forceFileTreeAlignment()
-
-    // DOM 변경 감지하여 지속적으로 적용
-    const observer = new MutationObserver((mutations) => {
-      let shouldReapply = false
-      mutations.forEach(mutation => {
-        if (mutation.type === 'childList' && mutation.target) {
-          const target = mutation.target as Element
-          if (target.classList?.contains('file-tree-content') ||
-            target.closest('.file-tree-content')) {
-            shouldReapply = true
-          }
-        }
-      })
-
-      if (shouldReapply) {
-        setTimeout(forceFileTreeAlignment, 100)
-      }
-    })
-
-    const targetNode = document.querySelector('.file-tree-content')
-    if (targetNode) {
-      observer.observe(targetNode, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class']
-      })
-    }
-
-    return () => {
-      observer.disconnect()
-    }
-  }, [])
 
   useEffect(() => {
     console.log('DashboardPage analysisId:', analysisId) // 디버깅용
@@ -445,6 +384,56 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     console.log("✅ 파일 트리 정렬 시스템이 성공적으로 단순화되었습니다.")
   }, [])
+
+  useEffect(() => {
+    sidebarWidthRef.current = sidebarWidth
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    if (!isResizingSidebar) return
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const maxWidth = Math.min(SIDEBAR_MAX_WIDTH, window.innerWidth - 360)
+      const nextWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(event.clientX, maxWidth))
+      setSidebarWidth(nextWidth)
+      sidebarWidthRef.current = nextWidth
+    }
+
+    const handleMouseUp = () => {
+      setIsResizingSidebar(false)
+      try {
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarWidthRef.current))
+      } catch {
+        // ignore localStorage errors
+      }
+    }
+
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizingSidebar])
+
+  const startSidebarResize = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsResizingSidebar(true)
+  }
+
+  const resetSidebarWidth = () => {
+    setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(SIDEBAR_DEFAULT_WIDTH))
+    } catch {
+      // ignore localStorage errors
+    }
+  }
 
   /**
    * ============================================
@@ -608,6 +597,33 @@ export const DashboardPage: React.FC = () => {
     })
 
     setIsLoadingQuestions(true)
+
+    const waitForGeneratedQuestions = async (analysisId: string, maxAttempts: number = 12, delayMs: number = 5000) => {
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        console.log(`[Questions] ⏳ Waiting for in-progress generation... (${attempt}/${maxAttempts})`)
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+
+        const pollResponse = await apiFetch(`/api/v1/questions/analysis/${analysisId}`, {
+          method: 'GET',
+          headers: createApiHeaders(false)
+        })
+
+        if (!pollResponse.ok) {
+          continue
+        }
+
+        const pollResult = await pollResponse.json()
+        if (pollResult.success && pollResult.questions && pollResult.questions.length > 0) {
+          console.log('[Questions] ✅ In-progress generation completed during polling:', pollResult.questions.length)
+          setQuestions(pollResult.questions)
+          setQuestionsGenerated(true)
+          return true
+        }
+      }
+
+      return false
+    }
+
     try {
       // 먼저 이미 생성된 질문이 있는지 확인
       const checkUrl = `/api/v1/questions/analysis/${analysisToUse.analysis_id}`
@@ -676,6 +692,13 @@ export const DashboardPage: React.FC = () => {
       if (!generateResponse.ok) {
         const errorText = await generateResponse.text()
         console.error('[Questions] Generate response error:', errorText)
+
+        // 백엔드에서 이미 생성 중인 경우(409)에는 폴링으로 완료 대기
+        if (generateResponse.status === 409) {
+          const recovered = await waitForGeneratedQuestions(analysisToUse.analysis_id)
+          if (recovered) return
+        }
+
         throw new Error(`질문 생성에 실패했습니다. (${generateResponse.status}: ${errorText})`)
       }
 
@@ -730,6 +753,24 @@ export const DashboardPage: React.FC = () => {
       })
 
       if (!response.ok) {
+        if (response.status === 409) {
+          // 이미 생성 중이면 기존 생성 완료를 기다린다.
+          for (let attempt = 1; attempt <= 12; attempt++) {
+            await new Promise((resolve) => setTimeout(resolve, 5000))
+            const poll = await apiFetch(`/api/v1/questions/analysis/${analysisResult.analysis_id}`, {
+              method: 'GET',
+              headers: createApiHeaders(false)
+            })
+            if (!poll.ok) continue
+            const pollResult = await poll.json()
+            if (pollResult.success && pollResult.questions && pollResult.questions.length > 0) {
+              setQuestions(pollResult.questions || [])
+              setQuestionsGenerated(true)
+              return
+            }
+          }
+        }
+
         throw new Error('질문 재생성에 실패했습니다.')
       }
 
@@ -789,6 +830,16 @@ export const DashboardPage: React.FC = () => {
       newExpanded.add(questionId)
     }
     setExpandedQuestions(newExpanded)
+  }
+
+  const toggleCodeSnippetExpand = (questionId: string) => {
+    const next = new Set(expandedCodeSnippets)
+    if (next.has(questionId)) {
+      next.delete(questionId)
+    } else {
+      next.add(questionId)
+    }
+    setExpandedCodeSnippets(next)
   }
 
   const filterFiles = (nodes: FileTreeNode[], term: string): FileTreeNode[] => {
@@ -866,7 +917,6 @@ export const DashboardPage: React.FC = () => {
           {/* 현재 노드 렌더링 */}
           <div
             className="file-tree-node"
-            style={{ paddingLeft: `${depth * 20}px` }}
           >
             {node.type === 'dir' ? (
               <button
@@ -895,7 +945,9 @@ export const DashboardPage: React.FC = () => {
 
           {/* 하위 폴더가 있고 확장된 경우에만 렌더링 */}
           {node.type === 'dir' && isExpanded && node.children && (
-            renderFileTree(node.children, depth + 1)
+            <div className="file-tree-children">
+              {renderFileTree(node.children, depth + 1)}
+            </div>
           )}
         </React.Fragment>
       )
@@ -924,10 +976,13 @@ export const DashboardPage: React.FC = () => {
     try {
       // API 키 헤더 포함하여 면접 시작 요청
       const apiHeaders = createApiHeaders(true)
+      const { githubToken, googleApiKey, upstageApiKey, selectedProvider } = getApiKeysFromStorage()
       console.log('[DASHBOARD] 면접 시작 요청 헤더:', JSON.stringify(apiHeaders, null, 2))
       console.log('[DASHBOARD] localStorage 키 확인:', {
-        githubToken: localStorage.getItem('techgiterview_github_token') ? '설정됨' : '없음',
-        googleApiKey: localStorage.getItem('techgiterview_google_api_key') ? '설정됨' : '없음'
+        githubToken: githubToken ? '설정됨' : '없음',
+        googleApiKey: googleApiKey ? '설정됨' : '없음',
+        upstageApiKey: upstageApiKey ? '설정됨' : '없음',
+        selectedProvider
       })
 
       const response = await apiFetch('/api/v1/interview/start', {
@@ -956,14 +1011,33 @@ export const DashboardPage: React.FC = () => {
     }
   }
 
-  const getDifficultyColor = (difficulty: string) => {
+  const getDifficultyClass = (difficulty: string) => {
     switch (difficulty.toLowerCase()) {
-      case 'beginner': return '#28a745'
-      case 'intermediate': return '#ffc107'
-      case 'advanced': return '#dc3545'
-      default: return '#6c757d'
+      case 'easy':
+      case 'beginner':
+      case 'low':
+        return 'difficulty-easy'
+      case 'medium':
+      case 'intermediate':
+      case 'normal':
+        return 'difficulty-medium'
+      case 'hard':
+      case 'advanced':
+      case 'high':
+        return 'difficulty-hard'
+      default: return 'difficulty-default'
     }
   }
+
+  const filteredQuestions = questions.filter(q => {
+    const matchSearch = !questionSearch ||
+      (q.question_headline || q.question || '').toLowerCase().includes(questionSearch.toLowerCase())
+    const matchCat = questionCategory === 'all' ||
+      (q.type || '').toLowerCase() === questionCategory.toLowerCase()
+    const matchDiff = questionDifficulty === 'all' ||
+      getDifficultyClass(q.difficulty) === `difficulty-${questionDifficulty}`
+    return matchSearch && matchCat && matchDiff
+  })
 
   const getCategoryIcon = (category: string): React.ReactNode => {
     if (!category) return <Code className="category-icon category-icon-default" />
@@ -1099,7 +1173,10 @@ export const DashboardPage: React.FC = () => {
   if (!analysisId) {
     console.log('[Dashboard] Rendering analyses list')
     return (
-      <div className="dashboard-page">
+      <div
+        className={`dashboard-page dx-dark ${isResizingSidebar ? 'sidebar-resizing' : ''}`}
+        style={{ ['--dashboard-sidebar-width' as any]: `${sidebarWidth}px` }}
+      >
         <div className="dashboard-header">
           <div className="header-content">
             <h1>
@@ -1260,14 +1337,21 @@ export const DashboardPage: React.FC = () => {
   console.log('[Dashboard] Rendering main dashboard content')
 
   return (
-    <div className="dashboard-page">
+    <div
+      className={`dashboard-page dx-dark ${isResizingSidebar ? 'sidebar-resizing' : ''}`}
+      style={{ ['--dashboard-sidebar-width' as any]: `${sidebarWidth}px` }}
+    >
       <div className="dashboard-header layout-fixed-header">
         <div className="header-content">
-          <h1><LayoutDashboard className="inline-block w-8 h-8 mr-3" /> 분석 결과 대시보드</h1>
-          <p className="repo-url">
-            https://github.com/{analysisResult.repo_info.owner}/{analysisResult.repo_info.name}
-          </p>
-          <p className="analysis-id">분석 ID: {analysisResult.analysis_id}</p>
+          <h1>
+            <LayoutDashboard className="inline-block w-8 h-8 mr-3" />
+            {analysisResult.repo_info.owner} / {analysisResult.repo_info.name}
+            {analysisResult.repo_info.language && (
+              <span className="header-lang-badge">{analysisResult.repo_info.language}</span>
+            )}
+            <span className="header-stat"><Star className="section-icon compact" />{analysisResult.repo_info.stars.toLocaleString()}</span>
+            <span className="header-stat"><GitFork className="section-icon compact" />{analysisResult.repo_info.forks.toLocaleString()}</span>
+          </h1>
         </div>
         <div className="header-actions">
           <button
@@ -1291,21 +1375,21 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div className="sidebar-section-content">
               <div className="repo-details">
-                <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.5rem' }}>{analysisResult.repo_info.owner}/{analysisResult.repo_info.name}</h3>
-                <p className="repo-description" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{analysisResult.repo_info.description}</p>
-                <div className="repo-stats" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div className="stat" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Star className="section-icon" style={{ width: '1rem', height: '1rem' }} />
+                <h3 className="repo-title">{analysisResult.repo_info.owner}/{analysisResult.repo_info.name}</h3>
+                <p className="repo-description">{analysisResult.repo_info.description}</p>
+                <div className="repo-stats">
+                  <div className="stat">
+                    <Star className="section-icon compact" />
                     <span className="stat-value">{analysisResult.repo_info.stars.toLocaleString()}</span>
                     <span className="stat-label">Stars</span>
                   </div>
-                  <div className="stat" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <GitFork className="section-icon" style={{ width: '1rem', height: '1rem' }} />
+                  <div className="stat">
+                    <GitFork className="section-icon compact" />
                     <span className="stat-value">{analysisResult.repo_info.forks.toLocaleString()}</span>
                     <span className="stat-label">Forks</span>
                   </div>
-                  <div className="stat" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Code className="section-icon" style={{ width: '1rem', height: '1rem' }} />
+                  <div className="stat">
+                    <Code className="section-icon compact" />
                     <span className="stat-value">{analysisResult.repo_info.language}</span>
                     <span className="stat-label">Language</span>
                   </div>
@@ -1315,16 +1399,15 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* 주요 파일 트리 - 사이드바로 이동 */}
-          <div className="sidebar-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '400px' }}>
+          <div className="sidebar-section sidebar-section-grow">
             <div className="sidebar-section-header">
               <FileText className="section-icon" /> 주요 파일
-              <div className="file-actions" style={{ marginLeft: 'auto' }}>
+              <div className="file-actions file-actions-right">
                 {!showAllFiles && (
                   <button
                     className="btn btn-ghost btn-xs"
                     onClick={loadAllFiles}
                     disabled={isLoadingAllFiles}
-                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto' }}
                   >
                     {isLoadingAllFiles ? '...' : '전체'}
                   </button>
@@ -1332,34 +1415,33 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="sidebar-section-content" style={{ padding: 0, flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="sidebar-section-content sidebar-section-content-nopad">
               {!showAllFiles ? (
-                <div className="files-loading" style={{ padding: '1rem' }}>
+                <div className="files-loading files-loading-pad">
                   <div className="spinner"></div>
                   <p>불러오는 중...</p>
                 </div>
               ) : (
-                <div className="all-files-container" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div className="all-files-container">
                   {isLoadingAllFiles ? (
-                    <div className="files-loading" style={{ padding: '1rem' }}>
+                    <div className="files-loading files-loading-pad">
                       <div className="spinner"></div>
                       <p>로딩 중...</p>
                     </div>
                   ) : (
-                    <div className="file-tree" style={{ maxHeight: 'none', height: '100%', overflowY: 'auto' }}>
+                    <div className="file-tree">
                       {allFiles.length > 0 ? (
                         <>
-                          <div className="file-tree-header" style={{ padding: '0.5rem' }}>
+                          <div className="file-tree-header">
                             <div className="file-tree-controls mb-2">
-                              <div className="relative w-full">
-                                <Search className="section-icon" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: '0.875rem' }} />
+                              <div className="file-search-wrapper">
+                                <Search className="section-icon file-search-icon" />
                                 <input
                                   type="text"
                                   placeholder="검색..."
                                   value={searchTerm}
                                   onChange={(e) => handleSearch(e.target.value)}
-                                  className="form-input form-input-sm w-full"
-                                  style={{ paddingLeft: '1.75rem', fontSize: '0.75rem' }}
+                                  className="form-input form-input-sm w-full file-search-input"
                                 />
                               </div>
                             </div>
@@ -1377,32 +1459,93 @@ export const DashboardPage: React.FC = () => {
               )}
             </div>
           </div>
+          <div
+            className={`sidebar-resize-handle ${isResizingSidebar ? 'active' : ''}`}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="사이드바 너비 조절"
+            title="드래그하여 사이드바 너비 조절 (더블클릭: 기본값)"
+            onMouseDown={startSidebarResize}
+            onDoubleClick={resetSidebarWidth}
+          />
         </aside>
 
         {/* 우측 메인 콘텐츠 (75%) */}
         <main className="dashboard-main layout-fixed-main">
-          {/* 1. 기술 스택 & 중요 정보 */}
-          {/* 1. 기술 스택 & 개선 제안 (Compact Grid) */}
-          <div className="grid-cols-2">
+          {/* Stats Bar */}
+          <div className="stats-bar">
+            {/* Tech Stack */}
+            <div className="stat-card">
+              <div className="stat-card-title">Tech Stack</div>
+              <div className="tech-stack-mini">
+                {Object.entries(analysisResult.tech_stack || {})
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 3)
+                  .map(([tech, score], i) => {
+                    const colors = ['#3b82f6', '#3fb950', '#d29922']
+                    return (
+                      <div key={i} className="tech-mini-row">
+                        <span className="tech-mini-name">{tech}</span>
+                        <div className="tech-mini-bar-track">
+                          <div className="tech-mini-bar-fill" style={{ width: `${Math.max(4, score * 100)}%`, background: colors[i] }} />
+                        </div>
+                        <span className="tech-mini-pct">{(score * 100).toFixed(0)}%</span>
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+            {/* Questions */}
+            <div className="stat-card">
+              <div className="stat-card-title">Questions</div>
+              <div className="stat-card-value accent">{questions.length}</div>
+              <div className="stat-card-sub">
+                {Object.entries(
+                  questions.reduce((acc: Record<string, number>, q) => {
+                    const t = (q.type || 'Other').slice(0, 8)
+                    acc[t] = (acc[t] || 0) + 1
+                    return acc
+                  }, {})
+                ).slice(0, 3).map(([t, c]) => `${t}: ${c}`).join(' · ')}
+              </div>
+            </div>
+            {/* Files */}
+            <div className="stat-card">
+              <div className="stat-card-title">Key Files</div>
+              <div className="stat-card-value accent">{analysisResult.key_files?.length || 0}</div>
+              <div className="stat-card-sub">{analysisResult.repo_info.language} · {analysisResult.repo_info.size.toLocaleString()} KB</div>
+            </div>
+            {/* Recommendations */}
+            <div className="stat-card">
+              <div className="stat-card-title">Insights</div>
+              <div className="stat-card-value accent">{analysisResult.recommendations?.length || 0}</div>
+              <div className="stat-card-sub">개선 제안 항목</div>
+              <div className="mini-progress-track">
+                <div className="mini-progress-fill" style={{ width: '60%', background: '#3fb950' }} />
+              </div>
+            </div>
+          </div>
+
+          {/* 1. Project Health Row */}
+          <div className="grid-cols-2 project-health-row">
             {/* Tech Stack */}
             <div className="card-premium">
-              <div className="card-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+              <div className="card-header card-header-compact">
                 <h2><Tag className="section-icon" /> 기술 스택</h2>
               </div>
-              <div className="tech-stack-grid" style={{ marginTop: '0', padding: '0 1.5rem 1.5rem' }}>
+              <div className="tech-stack-grid tech-stack-grid-compact">
                 {Object.entries(analysisResult.tech_stack || {})
                   .sort(([, a], [, b]) => b - a)
                   .map(([tech, score], index) => (
-                    <span key={index} className="tech-tag" style={{
-                      backgroundColor: '#f3f4f6', /* gray-100 */
-                      color: '#4b5563', /* gray-600 */
-                      border: '1px solid #e5e5e5', /* gray-200 */
-                      borderRadius: '6px',
-                      padding: '2px 10px',
-                      fontWeight: 500
-                    }}>
-                      {tech} ({(score * 100).toFixed(0)}%)
-                    </span>
+                    <div key={index} className="tech-stack-item">
+                      <div className="tech-tag tech-tag-compact">
+                        <span className="tech-tag-name">{tech}</span>
+                        <span className="tech-tag-value">{(score * 100).toFixed(0)}%</span>
+                      </div>
+                      <div className="tech-progress-track">
+                        <div className="tech-progress-fill" style={{ width: `${Math.max(4, score * 100)}%` }} />
+                      </div>
+                    </div>
                   ))
                 }
               </div>
@@ -1410,15 +1553,15 @@ export const DashboardPage: React.FC = () => {
 
             {/* Suggestions */}
             <div className="card-premium">
-              <div className="card-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-                <h2><CheckCircle className="section-icon" style={{ color: '#10b981' }} /> 개선 제안</h2>
+              <div className="card-header card-header-compact">
+                <h2><CheckCircle className="section-icon section-icon-success" /> 개선 제안</h2>
               </div>
-              <div className="card-body" style={{ paddingTop: '0.5rem' }}>
+              <div className="card-body card-body-compact">
                 <div className="recommendations-list">
                   {analysisResult.recommendations.length > 0 ? (
                     analysisResult.recommendations.slice(0, 3).map((recommendation, index) => (
-                      <div key={index} className="recommendation-item" style={{ fontSize: '0.9rem', padding: '0.5rem 0' }}>
-                        <ArrowRight className="section-icon" style={{ width: '14px' }} />
+                      <div key={index} className="recommendation-item recommendation-item-compact">
+                        <ArrowRight className="section-icon section-icon-xs" />
                         <span className="recommendation-text">{recommendation}</span>
                       </div>
                     ))
@@ -1430,59 +1573,25 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 3. 코드 흐름 그래프 */}
-          <div className="card-premium graph-canvas" style={{ minHeight: '600px' }}>
-            <div className="graph-toolbar">
-              <button className="graph-tool-btn" title="Zoom In"><ZoomIn size={18} /></button>
-              <button className="graph-tool-btn" title="Zoom Out"><ZoomOut size={18} /></button>
-              <button className="graph-tool-btn" title="Fit View"><Maximize size={18} /></button>
-            </div>
-            <div className="card-header" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', background: 'rgba(255,255,255,0.8)' }}>
-              <h2><GitFork className="section-icon" /> 코드 흐름 그래프</h2>
-              <div className="header-actions">
-                {isLoadingGraph && <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginLeft: '1rem' }}>로딩 중...</span>}
-              </div>
-            </div>
-            <div className="card-body" style={{ padding: 0, overflow: 'hidden' }}>
-              {graphData && graphData.nodes && graphData.nodes.length > 0 ? (
-                <div style={{ width: '100%', height: '600px', backgroundColor: '#fff' }}>
-                  <CodeGraphViewer graphData={graphData} />
-                </div>
-              ) : (
-                <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  {isLoadingGraph ? (
-                    <>
-                      <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
-                      <p>그래프 데이터를 불러오는 중...</p>
-                    </>
-                  ) : (
-                    <>
-                      <GitFork className="section-icon" style={{ width: '48px', height: '48px', marginBottom: '1rem', color: '#cbd5e1' }} />
-                      <p style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.5rem' }}>표시할 그래프 데이터가 없습니다.</p>
-                      <p style={{ fontSize: '0.9rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>이 저장소에 대한 코드 구조 분석 데이터가 비어 있습니다.</p>
-                      <button
-                        className="btn btn-outline"
-                        onClick={() => {
-                          if (confirm('분석을 다시 시도하시겠습니까? 기존 결과는 덮어씌워질 수 있습니다.')) {
-                            // Redirect to home with repo URL to trigger re-analysis
-                            const repoUrl = analysisResult?.repo_info?.url || `https://github.com/${analysisResult?.repo_info?.owner}/${analysisResult?.repo_info?.name}`;
-                            window.location.href = `/?repo=${encodeURIComponent(repoUrl)}&retry=true`;
-                          }
-                        }}
-                        style={{ fontSize: '0.875rem' }}
-                      >
-                        <RefreshCw className="section-icon" size={14} style={{ marginRight: '6px' }} />
-                        분석 다시 시도
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+          <div className="dashboard-main-tabs">
+            <button
+              className={`dashboard-main-tab ${activeMainTab === 'questions' ? 'active' : ''}`}
+              onClick={() => setActiveMainTab('questions')}
+            >
+              <MessageSquare className="section-icon section-icon-sm" />
+              면접 질문
+            </button>
+            <button
+              className={`dashboard-main-tab ${activeMainTab === 'graph' ? 'active' : ''}`}
+              onClick={() => setActiveMainTab('graph')}
+            >
+              <GitFork className="section-icon section-icon-sm" />
+              코드 그래프
+            </button>
           </div>
 
-          {/* 4. 면접 질문 리스트 */}
-          <div className="card card-lg">
+          {/* 2. 면접 질문 리스트 (Primary) */}
+          <div className="card card-lg questions-panel" style={{ display: activeMainTab === 'questions' ? 'block' : 'none' }}>
             <div className="card-header">
               <h2><MessageSquare className="section-icon" /> 생성된 면접 질문</h2>
               {/* 질문 액션 버튼들 */}
@@ -1498,12 +1607,55 @@ export const DashboardPage: React.FC = () => {
                   className="btn btn-primary"
                   onClick={startInterview}
                   disabled={questions.length === 0 || isLoadingQuestions}
-                  style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', justifyContent: 'center' }}
+                  title={
+                    isLoadingQuestions
+                      ? '질문 생성이 완료되면 면접을 시작할 수 있습니다.'
+                      : questions.length === 0
+                        ? '먼저 질문을 생성해주세요.'
+                        : '현재 화면의 질문들로 모의면접을 시작합니다.'
+                  }
                 >
-                  <Play className="section-icon" style={{ width: '1rem', height: '1rem' }} />
-                  {isLoadingQuestions ? '준비 중...' : '모의면접 시작'}
+                  <Play className="section-icon section-icon-sm" />
+                  {isLoadingQuestions ? '준비 중...' : '이 질문들로 모의면접 시작'}
                 </button>
               </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="questions-filter-bar">
+              <div className="filter-search-wrap">
+                <Search className="filter-search-icon" />
+                <input
+                  type="text"
+                  className="filter-search-input"
+                  placeholder="질문 검색..."
+                  value={questionSearch}
+                  onChange={(e) => setQuestionSearch(e.target.value)}
+                />
+              </div>
+              <select
+                className="filter-select"
+                value={questionCategory}
+                onChange={(e) => setQuestionCategory(e.target.value)}
+              >
+                <option value="all">전체 유형</option>
+                <option value="technical">Technical</option>
+                <option value="architectural">Architectural</option>
+                <option value="scenario">Scenario</option>
+                <option value="algorithm">Algorithm</option>
+                <option value="system-design">System Design</option>
+              </select>
+              <select
+                className="filter-select"
+                value={questionDifficulty}
+                onChange={(e) => setQuestionDifficulty(e.target.value)}
+              >
+                <option value="all">전체 난이도</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+              <span className="questions-count-badge">{filteredQuestions.length}/{questions.length}</span>
             </div>
 
             {/* 중요 파일 미리보기 */}
@@ -1521,98 +1673,245 @@ export const DashboardPage: React.FC = () => {
               ) : null
             })()}
 
-            {/* 질문 그리드 */}
-            <div className="questions-grid">
-              {questions.length === 0 ? (
-                /* Empty State */
-                <div className="questions-empty-state">
-                  <div className="empty-state-content">
-                    <MessageSquare className="empty-state-icon" />
-                    <h3>질문을 불러오는 중입니다</h3>
-                    <p>
-                      {questionsGenerated
-                        ? "질문 생성이 완료되었지만 표시되지 않고 있습니다. 잠시 후 다시 시도해주세요."
-                        : "AI가 저장소를 분석하여 맞춤형 면접 질문을 준비하고 있습니다."
-                      }
-                    </p>
-                    <button className="btn btn-outline" onClick={() => analysisResult && loadOrGenerateQuestions(analysisResult)} disabled={isLoadingQuestions}>
-                      {isLoadingQuestions ? '로딩 중...' : '질문 다시 불러오기'}
-                    </button>
+            {/* Master/Detail Split */}
+            <div className="questions-split">
+              {/* LEFT: Question List (Master) */}
+              <div className="questions-list-pane">
+                {filteredQuestions.length === 0 ? (
+                  <div className="questions-empty-state">
+                    <div className="empty-state-content">
+                      <MessageSquare className="empty-state-icon" />
+                      <h3>{questions.length === 0 ? '질문을 불러오는 중입니다' : '검색 결과가 없습니다'}</h3>
+                      <p>{questions.length === 0
+                        ? 'AI가 저장소를 분석하여 맞춤형 면접 질문을 준비하고 있습니다.'
+                        : '다른 검색어나 필터를 사용해보세요.'
+                      }</p>
+                      {questions.length === 0 && (
+                        <button className="btn btn-outline" onClick={() => analysisResult && loadOrGenerateQuestions(analysisResult)} disabled={isLoadingQuestions}>
+                          {isLoadingQuestions ? '로딩 중...' : '질문 다시 불러오기'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                /* Questions List */
-                <>
-                  {questions.map((question, index) => {
-                    const isExpanded = expandedQuestions.has(question.id);
-                    return (
-                      <div key={question.id} className={`question-card ${isExpanded ? 'expanded' : ''}`}
-                        data-has-real-content={question.code_snippet?.has_real_content ?? 'unknown'}>
+                ) : (
+                  filteredQuestions.map((question, index) => {
+                    const formattedQuestion = formatQuestionForDisplay(question)
+                    const isSelected = selectedQuestionId === question.id
+                    const globalIndex = questions.findIndex(q => q.id === question.id)
 
-                        <div className="question-header">
-                          <div className="question-meta">
-                            <span className="question-number">Q{index + 1}</span>
-                            {getCategoryIcon(question.type)}
-                            <span className="category-name">{question.type}</span>
-                            {question.parent_question_id && (
-                              <span className="sub-question-indicator">
-                                ({question.sub_question_index}/{question.total_sub_questions})
+                    return (
+                      <div
+                        key={question.id}
+                        className={`question-list-card ${isSelected ? 'selected' : ''}`}
+                        onClick={() => setSelectedQuestionId(isSelected ? null : question.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedQuestionId(isSelected ? null : question.id) } }}
+                      >
+                        <div className="qlc-header">
+                          <span className="question-number">Q{globalIndex + 1}</span>
+                          {getCategoryIcon(question.type)}
+                          <span className="category-name">{question.type}</span>
+                          <span className={`difficulty-badge ${getDifficultyClass(question.difficulty)}`}>{question.difficulty}</span>
+                          {question.time_estimate && (
+                            <span className="qlc-time"><Clock className="qlc-time-icon" />{question.time_estimate}</span>
+                          )}
+                        </div>
+                        <div className="qlc-preview">
+                          {formattedQuestion.headline || question.question}
+                        </div>
+                        {question.source_file && (
+                          <div className="qlc-file">
+                            {getFileIcon(question.source_file)}
+                            <span className="qlc-file-path">{question.source_file}</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* RIGHT: Question Detail (Detail) */}
+              <div className="questions-detail-pane">
+                {(() => {
+                  const selected = selectedQuestionId
+                    ? questions.find(q => q.id === selectedQuestionId)
+                    : null
+
+                  if (!selected) {
+                    return (
+                      <div className="detail-empty-state">
+                        <MessageSquare className="detail-empty-icon" />
+                        <p className="detail-empty-text">질문을 선택하세요</p>
+                        <p className="detail-empty-sub">왼쪽 목록에서 질문을 클릭하면 상세 내용이 표시됩니다</p>
+                      </div>
+                    )
+                  }
+
+                  const formattedSelected = formatQuestionForDisplay(selected)
+                  const selectedIndex = questions.findIndex(q => q.id === selected.id)
+                  const isCodeExpanded = expandedCodeSnippets.has(selected.id)
+
+                  return (
+                    <div className="detail-content">
+                      {/* Detail Header */}
+                      <div className="detail-header">
+                        <div className="detail-breadcrumb">
+                          <span className="question-number">Q{selectedIndex + 1}</span>
+                          {getCategoryIcon(selected.type)}
+                          <span className="category-name">{selected.type}</span>
+                          <span className={`difficulty-badge ${getDifficultyClass(selected.difficulty)}`}>{selected.difficulty}</span>
+                        </div>
+                        {selected.time_estimate && (
+                          <span className="detail-time"><Clock className="detail-time-icon" />예상 {selected.time_estimate}</span>
+                        )}
+                      </div>
+
+                      {/* Detail Body */}
+                      <div className="detail-body">
+                        {/* Full Question Text */}
+                        <div className="detail-question-title">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {formattedSelected.headline || selected.question}
+                          </ReactMarkdown>
+                        </div>
+
+                        {/* Details Markdown */}
+                        {formattedSelected.hasDetails && formattedSelected.detailsMarkdown && (
+                          <div className="detail-context-card">
+                            <div className="detail-section-label">문맥</div>
+                            <div className="question-details-markdown">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{formattedSelected.detailsMarkdown}</ReactMarkdown>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Source File */}
+                        {selected.source_file && (
+                          <div className="detail-source-file">
+                            <span className="detail-section-label">📄 근거 파일</span>
+                            {getFileIcon(selected.source_file)}
+                            <span className="detail-source-path">{selected.source_file}</span>
+                            {selected.importance && (
+                              <span className={`importance-badge ${selected.importance}`}>
+                                {selected.importance === 'high' ? '[CORE] 핵심' : '[SUB] 보조'}
                               </span>
                             )}
                           </div>
-                          <span className="difficulty-badge" style={{ backgroundColor: getDifficultyColor(question.difficulty) }}>{question.difficulty}</span>
-                        </div>
+                        )}
 
-                        <div className="question-content">
-                          <div className="question-text">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {question.question}
-                            </ReactMarkdown>
-                          </div>
-
-                          {/* Source File */}
-                          {question.source_file && (
-                            <div className="question-source-file">
-                              {getFileIcon(question.source_file)}
-                              <span className="source-file-text">
-                                <FileText className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-2)' }} />
-                                기반 파일: {question.source_file}
-                              </span>
-                              {question.importance && (
-                                <span className={`importance-badge ${question.importance}`}>
-                                  {question.importance === 'high' ? '[CORE] 핵심' : '[SUB] 보조'}
-                                </span>
+                        {/* Code Snippet */}
+                        {selected.code_snippet && (
+                          <div className="question-code">
+                            <div className="code-header">
+                              {getFileIcon(selected.code_snippet.file_path)}
+                              <span className="code-file-path">{selected.code_snippet.file_path}</span>
+                              {selected.code_snippet.has_real_content === false && (
+                                <span className="content-status warning">[WARN] 내용 없음</span>
+                              )}
+                              {selected.code_snippet.has_real_content === true && (
+                                <span className="content-status success">[OK] 실제 코드</span>
                               )}
                             </div>
-                          )}
+                            <pre className={`code-snippet ${isCodeExpanded ? 'expanded' : 'collapsed'}`}>
+                              {selected.code_snippet.content}
+                            </pre>
+                            {Boolean(selected.code_snippet.content) && (
+                              <button
+                                className="code-expand-btn"
+                                onClick={() => toggleCodeSnippetExpand(selected.id)}
+                              >
+                                {isCodeExpanded ? '코드 접기 ▲' : '코드 더 보기 ▼'}
+                              </button>
+                            )}
+                          </div>
+                        )}
 
-                          {question.code_snippet && (
-                            <div className="question-code">
-                              <div className="code-header">
-                                {getFileIcon(question.code_snippet.file_path)}
-                                <span className="code-file-path">
-                                  <File className="section-icon" style={{ width: '1rem', height: '1rem', display: 'inline', marginRight: 'var(--spacing-1)' }} />
-                                  {question.code_snippet.file_path}
-                                </span>
-                                {question.code_snippet.has_real_content === false && (
-                                  <span className="content-status warning">[WARN] 내용 없음 ({question.code_snippet.content_unavailable_reason})</span>
-                                )}
-                                {question.code_snippet.has_real_content === true && (
-                                  <span className="content-status success">[OK] 실제 코드</span>
-                                )}
-                              </div>
-                              <pre className="code-snippet">{question.code_snippet.content}</pre>
-                            </div>
-                          )}
-                          {question.time_estimate && (
-                            <p className="question-time"><Clock className="w-4 h-4 inline mr-2" /> 예상 시간: {question.time_estimate}</p>
-                          )}
-                        </div>
-                        <button className="expand-toggle-btn" onClick={() => toggleQuestionExpand(question.id)}>{isExpanded ? '접기 ▲' : '더 보기 ▼'}</button>
+                        {/* Expected Answer Points */}
+                        {selected.expected_answer_points && selected.expected_answer_points.length > 0 && (
+                          <div className="detail-answer-points">
+                            <div className="detail-section-label">핵심 답변 포인트</div>
+                            <ul className="answer-points-list">
+                              {selected.expected_answer_points.map((point, i) => (
+                                <li key={i} className="answer-point-item">{point}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                </>
+
+                      {/* Detail Footer CTA */}
+                      <div className="detail-footer">
+                        <button
+                          className="btn btn-outline"
+                          onClick={regenerateQuestions}
+                          disabled={isLoadingQuestions}
+                        >
+                          {isLoadingQuestions ? '생성 중...' : '질문 재생성'}
+                        </button>
+                        <button
+                          className="btn btn-primary detail-cta-primary"
+                          onClick={startInterview}
+                          disabled={questions.length === 0 || isLoadingQuestions}
+                        >
+                          <Play className="btn-icon" />
+                          이 질문으로 모의면접 시작
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. 코드 흐름 그래프 (Secondary) */}
+          <div className="card-premium graph-canvas graph-canvas-lg graph-panel" style={{ display: activeMainTab === 'graph' ? 'block' : 'none' }}>
+            <div className="graph-toolbar">
+              <button className="graph-tool-btn" title="Zoom In"><ZoomIn size={18} /></button>
+              <button className="graph-tool-btn" title="Zoom Out"><ZoomOut size={18} /></button>
+              <button className="graph-tool-btn" title="Fit View"><Maximize size={18} /></button>
+            </div>
+            <div className="card-header graph-header">
+              <h2><GitFork className="section-icon" /> 코드 흐름 그래프</h2>
+              <div className="header-actions">
+                {isLoadingGraph && <span className="graph-loading-status">로딩 중...</span>}
+              </div>
+            </div>
+            <div className="card-body graph-body">
+              {graphData && graphData.nodes && graphData.nodes.length > 0 ? (
+                <div className="graph-view">
+                  <CodeGraphViewer graphData={graphData} />
+                </div>
+              ) : (
+                <div className="graph-empty-state">
+                  {isLoadingGraph ? (
+                    <>
+                      <div className="spinner spinner-graph"></div>
+                      <p>그래프 데이터를 불러오는 중...</p>
+                    </>
+                  ) : (
+                    <>
+                      <GitFork className="section-icon section-icon-empty" />
+                      <p className="graph-empty-title">표시할 그래프 데이터가 없습니다.</p>
+                      <p className="graph-empty-description">이 저장소에 대한 코드 구조 분석 데이터가 비어 있습니다.</p>
+                      <button
+                        className="btn btn-outline"
+                        onClick={() => {
+                          if (confirm('분석을 다시 시도하시겠습니까? 기존 결과는 덮어씌워질 수 있습니다.')) {
+                            // Redirect to home with repo URL to trigger re-analysis
+                            const repoUrl = analysisResult?.repo_info?.url || `https://github.com/${analysisResult?.repo_info?.owner}/${analysisResult?.repo_info?.name}`;
+                            window.location.href = `/?repo=${encodeURIComponent(repoUrl)}&retry=true`;
+                          }
+                        }}
+                      >
+                        <RefreshCw className="section-icon section-icon-refresh" size={14} />
+                        분석 다시 시도
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           </div>
