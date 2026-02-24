@@ -60,12 +60,17 @@ class AIService:
         """사용 가능한 AI 제공업체 초기화"""
         
         try:
+            self.provider_priority = [
+                provider for provider in self.provider_priority
+                if provider not in (AIProvider.OPENAI_GPT, AIProvider.ANTHROPIC_CLAUDE)
+            ]
+
             # 기존 providers 초기화 (재초기화 시 중요)
             self.available_providers.clear()
             
             logger.info("Initializing AI providers...")
             
-            # Upstage Solar Pro 2 초기화 (최우선)
+            # Upstage Solar Pro 3 초기화 (최우선)
             try:
                 upstage_api_key = getattr(settings, 'upstage_api_key', None)
                 logger.info(f"Upstage API Key found: {upstage_api_key is not None}")
@@ -73,10 +78,10 @@ class AIService:
                 if upstage_api_key:
                     self.available_providers[AIProvider.UPSTAGE_SOLAR] = {
                         "client": None,  # OpenAI 호환 클라이언트 사용
-                        "model": "solar-pro2",
+                        "model": "solar-pro3",
                         "status": "ready"
                     }
-                    logger.info("Upstage Solar Pro 2 initialized successfully")
+                    logger.info("Upstage Solar Pro 3 initialized successfully")
                 else:
                     logger.warning("Upstage API key not found")
             except Exception as e:
@@ -208,6 +213,9 @@ class AIService:
         """사용 가능한 모든 AI 제공업체 목록 반환"""
         providers = []
         for provider_enum in self.provider_priority:
+            # OPENAI/ANTHROPIC: not yet implemented
+            if provider_enum in (AIProvider.OPENAI_GPT, AIProvider.ANTHROPIC_CLAUDE):
+                continue
             if provider_enum in self.available_providers:
                 provider_info = self.available_providers[provider_enum]
                 providers.append({
@@ -222,7 +230,7 @@ class AIService:
     def _get_provider_display_name(self, provider: AIProvider) -> str:
         """AI 제공업체의 사용자 친화적 이름 반환"""
         names = {
-            AIProvider.UPSTAGE_SOLAR: "Upstage Solar Pro 2 (추천)",
+            AIProvider.UPSTAGE_SOLAR: "Upstage Solar Pro 3 (추천)",
             AIProvider.GEMINI_FLASH: "Google Gemini 2.0 Flash",
             AIProvider.OPENAI_GPT: "OpenAI GPT",
             AIProvider.ANTHROPIC_CLAUDE: "Anthropic Claude"
@@ -441,16 +449,16 @@ class AIService:
     
     async def _generate_with_openai(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """OpenAI GPT로 분석 생성 (향후 구현)"""
-        # TODO: OpenAI 클라이언트 구현
-        raise NotImplementedError("OpenAI 통합은 향후 구현 예정입니다")
+        logger.warning("[AIService] OpenAI provider is not yet implemented")
+        raise NotImplementedError("OpenAI provider is not yet implemented. Use GEMINI or UPSTAGE.")
     
     async def _generate_with_anthropic(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Anthropic Claude로 분석 생성 (향후 구현)"""
-        # TODO: Anthropic 클라이언트 구현
-        raise NotImplementedError("Anthropic 통합은 향후 구현 예정입니다")
+        logger.warning("[AIService] Anthropic provider is not yet implemented")
+        raise NotImplementedError("Anthropic provider is not yet implemented. Use GEMINI or UPSTAGE.")
     
     async def _generate_with_upstage(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-        """Upstage Solar Pro 2로 분석 생성 (OpenAI 호환 API 사용)"""
+        """Upstage Solar Pro 3로 분석 생성 (OpenAI 호환 API 사용)"""
         import httpx
         
         try:
@@ -472,10 +480,11 @@ class AIService:
                         "Content-Type": "application/json"
                     },
                     json={
-                        "model": "solar-pro2",
+                        "model": "solar-pro3",
                         "messages": [
                             {"role": "user", "content": prompt}
                         ],
+                        "reasoning_effort": "medium",
                         "temperature": 0.7,
                         "max_tokens": 4096
                     },
@@ -491,7 +500,7 @@ class AIService:
                 
                 return {
                     "provider": AIProvider.UPSTAGE_SOLAR.value,
-                    "model": "solar-pro2",
+                    "model": "solar-pro3",
                     "content": content,
                     "usage": {
                         "prompt_tokens": usage.get("prompt_tokens", len(prompt.split())),

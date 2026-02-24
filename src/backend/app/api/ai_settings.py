@@ -38,12 +38,12 @@ def get_effective_providers(api_keys: Dict[str, str]) -> List[Dict[str, Any]]:
         # 배포 환경(.env.dev 없음): 헤더의 키를 기반으로 동적 생성
         providers = []
         
-        # Upstage API 키가 있으면 Upstage Solar Pro 2 추가 (우선 추천)
+        # Upstage API 키가 있으면 Upstage Solar Pro 3 추가 (우선 추천)
         if "upstage_api_key" in api_keys and api_keys["upstage_api_key"]:
             providers.append({
                 "id": AIProvider.UPSTAGE_SOLAR.value,
-                "name": "Upstage Solar Pro 2 (추천)",
-                "model": "solar-pro2-preview",
+                "name": "Upstage Solar Pro 3 (추천)",
+                "model": "solar-pro3",
                 "status": "ready",
                 "recommended": True
             })

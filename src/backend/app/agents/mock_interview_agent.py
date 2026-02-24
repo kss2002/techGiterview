@@ -5,43 +5,34 @@ Mock Interview Agent
 WebSocket을 통한 실시간 대화 및 질문-답변 평가 시스템
 """
 
-import json
-import asyncio
-from typing import Dict, List, Any, Optional, AsyncGenerator
-from dataclasses import dataclass, field
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 import uuid
 
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langgraph.graph import StateGraph, END
-# from langchain_openai import ChatOpenAI  # Replaced with Gemini
+from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.core.config import settings
 from app.agents.question_generator import QuestionGenerator
-from app.services.vector_db import VectorDBService
 from app.core.gemini_client import get_gemini_llm
 
 
-@dataclass
-class InterviewState:
-    """모의면접 상태를 관리하는 데이터 클래스"""
-    interview_id: str
-    repo_url: str
-    user_id: str
-    current_question_index: int = 0
-    questions: List[Dict[str, Any]] = field(default_factory=list)
-    answers: List[Dict[str, Any]] = field(default_factory=list)
-    evaluations: List[Dict[str, Any]] = field(default_factory=list)
-    interview_status: str = "preparing"  # preparing, in_progress, paused, completed
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    difficulty_level: str = "medium"
-    total_score: float = 0.0
-    feedback: List[str] = field(default_factory=list)
-    conversation_history: List[Dict[str, Any]] = field(default_factory=list)
-    follow_up_count: int = 0
-    time_per_question: int = 1800  # 30분 기본값
-    error: Optional[str] = None
+INTERVIEWER_PERSONA = """
+당신은 경험이 풍부한 시니어 개발자이자 기술면접관입니다.
+친근하고 전문적인 톤으로 면접을 진행하며, 지원자가 편안하게 답변할 수 있도록 도와줍니다.
+답변을 들은 후 적절한 후속 질문을 통해 지원자의 깊이 있는 사고를 유도합니다.
+
+면접 진행 원칙:
+1. 지원자의 답변을 주의 깊게 듣고 구체적인 피드백 제공
+2. 너무 어려운 질문보다는 지원자의 수준에 맞는 질문으로 조정
+3. 긍정적인 분위기 유지하며 지원자의 장점을 찾아 격려
+4. 기술적 깊이와 실무 경험을 균형있게 평가
+"""
+
+CRITERIA_DESCRIPTIONS: Dict[str, str] = {
+    "technical_accuracy": "기술적 정확성",
+    "code_quality": "코드 품질 이해도",
+    "problem_solving": "문제 해결 능력",
+    "communication": "의사소통 능력",
+}
 
 
 class MockInterviewAgent:
@@ -59,7 +50,6 @@ class MockInterviewAgent:
         self.api_key_available = bool(self.google_api_key)
         
         self.question_generator = QuestionGenerator()
-        # self.vector_db = VectorDBService()  # 미사용으로 주석 처리 (chromadb 의존성 제거)
         
         # Google Gemini LLM 초기화 (동적 API 키 사용)
         if self.google_api_key and self.google_api_key != "your_google_api_key_here":
@@ -95,42 +85,6 @@ class MockInterviewAgent:
                 
         if not self.api_key_available:
             print("[MOCK_INTERVIEW] Warning: Google API Key 없음 - 기본 응답만 제공됩니다")
-        
-        # 활성 면접 세션들
-        self.active_sessions: Dict[str, InterviewState] = {}
-        
-        # 평가 기준
-        self.evaluation_criteria = {
-            "technical_accuracy": {
-                "weight": 0.3,
-                "description": "기술적 정확성"
-            },
-            "code_quality": {
-                "weight": 0.25,
-                "description": "코드 품질 이해도"
-            },
-            "problem_solving": {
-                "weight": 0.25,
-                "description": "문제 해결 능력"
-            },
-            "communication": {
-                "weight": 0.2,
-                "description": "의사소통 능력"
-            }
-        }
-        
-        # 면접관 페르소나
-        self.interviewer_persona = """
-        당신은 경험이 풍부한 시니어 개발자이자 기술면접관입니다.
-        친근하고 전문적인 톤으로 면접을 진행하며, 지원자가 편안하게 답변할 수 있도록 도와줍니다.
-        답변을 들은 후 적절한 후속 질문을 통해 지원자의 깊이 있는 사고를 유도합니다.
-        
-        면접 진행 원칙:
-        1. 지원자의 답변을 주의 깊게 듣고 구체적인 피드백 제공
-        2. 너무 어려운 질문보다는 지원자의 수준에 맞는 질문으로 조정
-        3. 긍정적인 분위기 유지하며 지원자의 장점을 찾아 격려
-        4. 기술적 깊이와 실무 경험을 균형있게 평가
-        """
     
     async def start_interview(
         self, 
@@ -153,36 +107,37 @@ class MockInterviewAgent:
                 question_types=["code_analysis", "tech_stack", "architecture", "problem_solving"]
             )
             
-            if not question_result["success"]:
+            if not question_result.get("success"):
                 raise ValueError(f"질문 생성 실패: {question_result.get('error', '')}")
             
-            # 면접 상태 초기화
-            state = InterviewState(
-                interview_id=interview_id,
-                repo_url=repo_url,
-                user_id=user_id,
-                questions=question_result["questions"],
-                difficulty_level=difficulty_level,
-                time_per_question=time_per_question,
-                start_time=datetime.now()
-            )
-            
-            self.active_sessions[interview_id] = state
+            # DB 기반 세션 관리로 전환되어 in-memory 세션은 저장하지 않음.
+            state = {
+                "interview_id": interview_id,
+                "repo_url": repo_url,
+                "user_id": user_id,
+                "questions": question_result.get("questions", []),
+                "difficulty_level": difficulty_level,
+                "time_per_question": time_per_question,
+                "start_time": datetime.now(),
+                "end_time": None,
+                "current_question_index": 0,
+                "answers": [],
+                "evaluations": [],
+                "follow_up_count": 0,
+                "total_score": 0.0,
+                "feedback": [],
+                "interview_status": "in_progress",
+            }
             
             # 첫 질문 준비
-            first_question = await self._prepare_question(state, 0)
-            
-            state.interview_status = "in_progress"
-            state.conversation_history.append({
-                "type": "system",
-                "content": "면접이 시작되었습니다. 편안하게 답변해주세요.",
-                "timestamp": datetime.now().isoformat()
-            })
+            first_question = None
+            if state["questions"]:
+                first_question = await self._prepare_question(state, 0)
             
             return {
                 "success": True,
                 "interview_id": interview_id,
-                "total_questions": len(state.questions),
+                "total_questions": len(state["questions"]),
                 "current_question": first_question,
                 "difficulty_level": difficulty_level,
                 "time_per_question": time_per_question
@@ -195,152 +150,76 @@ class MockInterviewAgent:
                 "interview_id": interview_id
             }
     
-    async def submit_answer(
-        self, 
-        interview_id: str, 
-        answer: str,
-        time_taken: Optional[int] = None
-    ) -> Dict[str, Any]:
-        """답변 제출 및 평가"""
-        
-        if interview_id not in self.active_sessions:
-            return {"success": False, "error": "면접 세션을 찾을 수 없습니다."}
-        
-        state = self.active_sessions[interview_id]
-        
-        if state.interview_status != "in_progress":
-            return {"success": False, "error": "진행 중인 면접이 아닙니다."}
-        
-        try:
-            current_question = state.questions[state.current_question_index]
-            
-            # 답변 기록
-            answer_data = {
-                "question_id": current_question["id"],
-                "question": current_question["question"],
-                "answer": answer,
-                "timestamp": datetime.now().isoformat(),
-                "time_taken": time_taken or 0
-            }
-            state.answers.append(answer_data)
-            
-            # 답변 평가
-            evaluation = await self._evaluate_answer(current_question, answer, state)
-            state.evaluations.append(evaluation)
-            
-            # 대화 히스토리 업데이트
-            state.conversation_history.extend([
-                {
-                    "type": "question",
-                    "content": current_question["question"],
-                    "timestamp": datetime.now().isoformat()
-                },
-                {
-                    "type": "answer",
-                    "content": answer,
-                    "timestamp": datetime.now().isoformat()
-                }
-            ])
-            
-            # 후속 질문 생성 여부 결정
-            follow_up_question = None
-            if await self._should_generate_follow_up(evaluation, state):
-                follow_up_question = await self._generate_follow_up_question(
-                    current_question, answer, evaluation
-                )
-                state.follow_up_count += 1
-            
-            # 다음 질문으로 이동 또는 면접 종료
-            next_question = None
-            interview_completed = False
-            
-            if follow_up_question:
-                next_question = follow_up_question
-            else:
-                state.current_question_index += 1
-                if state.current_question_index < len(state.questions):
-                    next_question = await self._prepare_question(state, state.current_question_index)
-                else:
-                    # 면접 완료
-                    interview_completed = True
-                    await self._complete_interview(state)
-            
-            return {
-                "success": True,
-                "evaluation": evaluation,
-                "next_question": next_question,
-                "interview_completed": interview_completed,
-                "progress": {
-                    "current_question": state.current_question_index + 1,
-                    "total_questions": len(state.questions),
-                    "follow_up_count": state.follow_up_count
-                }
-            }
-            
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-    
     async def get_interview_status(self, interview_id: str) -> Dict[str, Any]:
         """면접 상태 조회"""
-        
-        if interview_id not in self.active_sessions:
-            return {"success": False, "error": "면접 세션을 찾을 수 없습니다."}
-        
-        state = self.active_sessions[interview_id]
-        
-        return {
-            "success": True,
-            "interview_id": interview_id,
-            "status": state.interview_status,
-            "progress": {
-                "current_question": state.current_question_index + 1,
-                "total_questions": len(state.questions),
-                "completed_questions": len(state.answers)
-            },
-            "elapsed_time": self._calculate_elapsed_time(state),
-            "total_score": state.total_score,
-            "difficulty_level": state.difficulty_level
-        }
-    
-    async def pause_interview(self, interview_id: str) -> Dict[str, Any]:
-        """면접 일시정지"""
-        
-        if interview_id not in self.active_sessions:
-            return {"success": False, "error": "면접 세션을 찾을 수 없습니다."}
-        
-        state = self.active_sessions[interview_id]
-        state.interview_status = "paused"
-        
-        return {"success": True, "message": "면접이 일시정지되었습니다."}
-    
-    async def resume_interview(self, interview_id: str) -> Dict[str, Any]:
-        """면접 재개"""
-        
-        if interview_id not in self.active_sessions:
-            return {"success": False, "error": "면접 세션을 찾을 수 없습니다."}
-        
-        state = self.active_sessions[interview_id]
-        if state.interview_status == "paused":
-            state.interview_status = "in_progress"
-            return {"success": True, "message": "면접이 재개되었습니다."}
-        else:
-            return {"success": False, "error": "일시정지된 면접이 아닙니다."}
+
+        from app.core.database import SessionLocal
+        from app.services.interview_repository import InterviewRepository
+
+        try:
+            session_uuid = uuid.UUID(interview_id)
+        except ValueError:
+            return {"success": False, "error": "올바르지 않은 면접 ID 형식입니다."}
+
+        db = SessionLocal()
+        try:
+            repo = InterviewRepository(db)
+            session_data = repo.get_session_with_details(session_uuid)
+
+            if not session_data:
+                return {"success": False, "error": "면접 세션을 찾을 수 없습니다."}
+
+            session = session_data["session"]
+            progress = session_data["progress"]
+
+            return {
+                "success": True,
+                "interview_id": interview_id,
+                "status": session.status,
+                "progress": {
+                    "current_question": progress.get("current_question", 1),
+                    "total_questions": progress.get("total_questions", 0),
+                    "completed_questions": progress.get("answered_questions", 0),
+                },
+                "elapsed_time": progress.get("elapsed_time", 0),
+                "total_score": float(session.overall_score) if session.overall_score is not None else 0.0,
+                "difficulty_level": session.difficulty,
+            }
+        finally:
+            db.close()
     
     async def end_interview(self, interview_id: str) -> Dict[str, Any]:
         """면접 강제 종료"""
-        
-        if interview_id not in self.active_sessions:
-            return {"success": False, "error": "면접 세션을 찾을 수 없습니다."}
-        
-        state = self.active_sessions[interview_id]
-        await self._complete_interview(state)
-        
-        return {"success": True, "message": "면접이 종료되었습니다."}
-    
-    async def _prepare_question(self, state: InterviewState, question_index: int) -> Dict[str, Any]:
+
+        from app.core.database import SessionLocal
+        from app.services.interview_repository import InterviewRepository
+
+        try:
+            session_uuid = uuid.UUID(interview_id)
+        except ValueError:
+            return {"success": False, "error": "올바르지 않은 면접 ID 형식입니다."}
+
+        db = SessionLocal()
+        try:
+            repo = InterviewRepository(db)
+            updated = repo.update_session_status(session_uuid, "completed")
+            if not updated:
+                return {"success": False, "error": "면접 세션을 찾을 수 없습니다."}
+            return {"success": True, "message": "면접이 종료되었습니다."}
+        finally:
+            db.close()
+
+    @staticmethod
+    def _state_value(state: Any, key: str, default: Any = None) -> Any:
+        """dict/object 상태 모두에서 안전하게 값을 조회한다."""
+        if isinstance(state, dict):
+            return state.get(key, default)
+        return getattr(state, key, default)
+
+    async def _prepare_question(self, state: Dict[str, Any], question_index: int) -> Dict[str, Any]:
         """질문 준비"""
-        
-        question = state.questions[question_index]
+
+        question = state["questions"][question_index]
         
         # AI 면접관의 질문 소개
         if self.llm:
@@ -348,171 +227,32 @@ class MockInterviewAgent:
             question["introduction"] = introduction
         
         return question
-    
-    async def _evaluate_answer(
-        self, 
-        question: Dict[str, Any], 
-        answer: str, 
-        state: InterviewState
-    ) -> Dict[str, Any]:
-        """답변 평가"""
-        
-        if not self.llm:
-            # LLM이 없는 경우 기본 평가
-            return {
-                "overall_score": 7.0,
-                "criteria_scores": {
-                    "technical_accuracy": 7.0,
-                    "code_quality": 7.0,
-                    "problem_solving": 7.0,
-                    "communication": 7.0
-                },
-                "feedback": "답변을 잘 해주셨습니다.",
-                "suggestions": ["더 구체적인 예시를 들어보세요."]
-            }
-        
-        # AI 기반 평가
-        evaluation_prompt = f"""
-        다음 기술면접 질문과 지원자의 답변을 평가해주세요.
-        
-        질문: {question['question']}
-        답변: {answer}
-        
-        평가 기준:
-        1. 기술적 정확성 (30%)
-        2. 코드 품질 이해도 (25%)
-        3. 문제 해결 능력 (25%)
-        4. 의사소통 능력 (20%)
-        
-        각 기준별로 1-10점으로 평가하고, 구체적인 피드백과 개선 제안을 제공해주세요.
-        JSON 형태로 응답해주세요.
-        """
-        
-        try:
-            messages = [
-                SystemMessage(content=self.interviewer_persona),
-                HumanMessage(content=evaluation_prompt)
-            ]
-            
-            response = await self.llm.ainvoke(messages)
-            
-            # AI 응답 파싱 (실제로는 더 정교한 파싱 필요)
-            return {
-                "overall_score": 8.0,
-                "criteria_scores": {
-                    "technical_accuracy": 8.0,
-                    "code_quality": 8.0,
-                    "problem_solving": 7.5,
-                    "communication": 8.5
-                },
-                "feedback": "기술적 이해도가 높고 설명을 명확하게 잘 해주셨습니다.",
-                "suggestions": [
-                    "실제 프로젝트 경험을 더 구체적으로 공유해보세요.",
-                    "성능 최적화 관점에서의 고려사항도 언급하면 좋겠습니다."
-                ],
-                "ai_feedback": response.content
-            }
-            
-        except Exception as e:
-            print(f"AI 평가 생성 오류: {e}")
-            return {
-                "overall_score": 7.0,
-                "criteria_scores": {
-                    "technical_accuracy": 7.0,
-                    "code_quality": 7.0,
-                    "problem_solving": 7.0,
-                    "communication": 7.0
-                },
-                "feedback": "답변해주신 내용이 좋습니다.",
-                "suggestions": ["추가적인 설명이 있으면 더 좋겠습니다."]
-            }
-    
-    async def _should_generate_follow_up(
-        self, 
-        evaluation: Dict[str, Any], 
-        state: InterviewState
-    ) -> bool:
-        """후속 질문 생성 여부 결정"""
-        
-        # 후속 질문 제한 (최대 2개)
-        if state.follow_up_count >= 2:
-            return False
-        
-        # 점수가 낮거나 높은 경우 후속 질문 생성
-        overall_score = evaluation.get("overall_score", 7.0)
-        if overall_score < 6.0 or overall_score > 8.5:
-            return True
-        
-        # 특정 기준에서 점수가 낮은 경우
-        criteria_scores = evaluation.get("criteria_scores", {})
-        if any(score < 6.0 for score in criteria_scores.values()):
-            return True
-        
-        return False
-    
-    async def _generate_follow_up_question(
-        self,
-        original_question: Dict[str, Any],
-        answer: str,
-        evaluation: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """후속 질문 생성"""
-        
-        follow_up_questions = await self.question_generator.generate_follow_up_questions(
-            original_question, answer
-        )
-        
-        if follow_up_questions:
-            return follow_up_questions[0]
-        else:
-            # 기본 후속 질문
-            return {
-                "id": f"follow_up_{original_question['id']}",
-                "type": "follow_up",
-                "question": "답변해주신 내용에 대해 실제 경험이나 구체적인 예시가 있다면 공유해주세요.",
-                "parent_question_id": original_question["id"],
-                "time_estimate": "3-5분"
-            }
-    
-    async def _complete_interview(self, state: InterviewState):
-        """면접 완료 처리"""
-        
-        state.interview_status = "completed"
-        state.end_time = datetime.now()
-        
-        # 전체 점수 계산
-        if state.evaluations:
-            total_score = sum(eval_data.get("overall_score", 0) for eval_data in state.evaluations)
-            state.total_score = round(total_score / len(state.evaluations), 2)
-        
-        # 종합 피드백 생성
-        state.feedback = await self._generate_final_feedback(state)
-        
-        # 세션에서 제거 (실제로는 DB에 저장)
-        # del self.active_sessions[state.interview_id]
-    
-    async def _generate_final_feedback(self, state: InterviewState) -> List[str]:
+
+    async def _generate_final_feedback(self, state: Any) -> List[str]:
         """최종 피드백 생성"""
         
         feedback = []
-        
-        if state.total_score >= 8.0:
+
+        total_score = float(self._state_value(state, "total_score", 0.0) or 0.0)
+
+        if total_score >= 8.0:
             feedback.append("전반적으로 우수한 답변을 해주셨습니다.")
-        elif state.total_score >= 6.0:
+        elif total_score >= 6.0:
             feedback.append("기본적인 이해도는 좋으나 더 깊이 있는 설명이 필요합니다.")
         else:
             feedback.append("기술적 이해도를 더 높이시길 권장합니다.")
         
         # 카테고리별 피드백
-        if state.evaluations:
-            avg_scores = {}
-            for criteria in self.evaluation_criteria.keys():
-                scores = [eval_data.get("criteria_scores", {}).get(criteria, 0) 
-                         for eval_data in state.evaluations]
-                avg_scores[criteria] = sum(scores) / len(scores) if scores else 0
-            
-            for criteria, avg_score in avg_scores.items():
-                criteria_desc = self.evaluation_criteria[criteria]["description"]
+        evaluations = self._state_value(state, "evaluations", []) or []
+        if evaluations:
+            for criteria, criteria_desc in CRITERIA_DESCRIPTIONS.items():
+                scores = [
+                    float(eval_data.get("criteria_scores", {}).get(criteria, 0) or 0)
+                    for eval_data in evaluations
+                ]
+                if not scores:
+                    continue
+                avg_score = sum(scores) / len(scores)
                 if avg_score >= 8.0:
                     feedback.append(f"{criteria_desc} 부분에서 뛰어난 역량을 보여주셨습니다.")
                 elif avg_score < 6.0:
@@ -523,7 +263,7 @@ class MockInterviewAgent:
     async def _generate_question_introduction(
         self, 
         question: Dict[str, Any], 
-        state: InterviewState
+        state: Dict[str, Any]
     ) -> str:
         """질문 소개 생성"""
         
@@ -537,53 +277,116 @@ class MockInterviewAgent:
         import random
         return random.choice(introductions)
     
-    def _calculate_elapsed_time(self, state: InterviewState) -> int:
+    def _calculate_elapsed_time(self, state: Any) -> int:
         """경과 시간 계산 (초)"""
-        
-        if not state.start_time:
+
+        start_time = self._state_value(state, "start_time")
+        if isinstance(start_time, str):
+            try:
+                start_time = datetime.fromisoformat(start_time)
+            except ValueError:
+                return 0
+        if not start_time:
             return 0
-        
-        end_time = state.end_time or datetime.now()
-        return int((end_time - state.start_time).total_seconds())
+
+        end_time = self._state_value(state, "end_time") or datetime.now()
+        if isinstance(end_time, str):
+            try:
+                end_time = datetime.fromisoformat(end_time)
+            except ValueError:
+                end_time = datetime.now()
+        return int((end_time - start_time).total_seconds())
     
     async def get_interview_report(self, interview_id: str) -> Dict[str, Any]:
         """면접 리포트 생성"""
-        
-        if interview_id not in self.active_sessions:
-            return {"success": False, "error": "면접 세션을 찾을 수 없습니다."}
-        
-        state = self.active_sessions[interview_id]
-        
-        if state.interview_status != "completed":
-            return {"success": False, "error": "완료되지 않은 면접입니다."}
-        
-        # 상세 리포트 생성
-        report = {
-            "interview_id": interview_id,
-            "repo_url": state.repo_url,
-            "user_id": state.user_id,
-            "start_time": state.start_time.isoformat() if state.start_time else None,
-            "end_time": state.end_time.isoformat() if state.end_time else None,
-            "total_duration": self._calculate_elapsed_time(state),
-            "difficulty_level": state.difficulty_level,
-            "total_score": state.total_score,
-            "questions_answered": len(state.answers),
-            "total_questions": len(state.questions),
-            "follow_up_questions": state.follow_up_count,
-            "overall_feedback": state.feedback,
-            "detailed_evaluation": state.evaluations,
-            "answers": state.answers,
-            "recommendations": await self._generate_recommendations(state)
-        }
-        
-        return {"success": True, "report": report}
-    
-    async def _generate_recommendations(self, state: InterviewState) -> List[str]:
+
+        from app.core.database import SessionLocal
+        from app.models.interview import InterviewAnswer, InterviewConversation, InterviewQuestion
+        from app.services.interview_repository import InterviewRepository
+
+        try:
+            session_uuid = uuid.UUID(interview_id)
+        except ValueError:
+            return {"success": False, "error": "올바르지 않은 면접 ID 형식입니다."}
+
+        db = SessionLocal()
+        try:
+            repo = InterviewRepository(db)
+            session_data = repo.get_session_with_details(session_uuid)
+
+            if not session_data:
+                return {"success": False, "error": "면접 세션을 찾을 수 없습니다."}
+
+            session = session_data["session"]
+            if session.status != "completed":
+                return {"success": False, "error": "완료되지 않은 면접입니다."}
+
+            answers: List[InterviewAnswer] = session_data.get("answers", [])
+            question_ids = [answer.question_id for answer in answers if answer.question_id is not None]
+            question_map: Dict[Any, InterviewQuestion] = {}
+            if question_ids:
+                questions = db.query(InterviewQuestion).filter(InterviewQuestion.id.in_(question_ids)).all()
+                question_map = {question.id: question for question in questions}
+
+            evaluations: List[Dict[str, Any]] = []
+            answers_payload: List[Dict[str, Any]] = []
+            for answer in answers:
+                feedback_details = answer.feedback_details if isinstance(answer.feedback_details, dict) else {}
+                if feedback_details:
+                    evaluations.append(feedback_details)
+
+                question_obj = question_map.get(answer.question_id)
+                answers_payload.append({
+                    "question_id": str(answer.question_id) if answer.question_id else None,
+                    "question": question_obj.question_text if question_obj else None,
+                    "answer": answer.user_answer,
+                    "timestamp": answer.submitted_at.isoformat() if answer.submitted_at else None,
+                    "time_taken": answer.time_taken_seconds or 0,
+                    "feedback": feedback_details,
+                })
+
+            follow_up_count = db.query(InterviewConversation).filter(
+                InterviewConversation.session_id == session_uuid,
+                InterviewConversation.speaker == "user"
+            ).count()
+
+            state = {
+                "total_score": float(session.overall_score) if session.overall_score is not None else 0.0,
+                "evaluations": evaluations,
+            }
+
+            report = {
+                "interview_id": interview_id,
+                "repo_url": None,
+                "user_id": str(session.user_id) if session.user_id else None,
+                "start_time": session.started_at.isoformat() if session.started_at else None,
+                "end_time": session.ended_at.isoformat() if session.ended_at else None,
+                "total_duration": self._calculate_elapsed_time({
+                    "start_time": session.started_at,
+                    "end_time": session.ended_at,
+                }),
+                "difficulty_level": session.difficulty,
+                "total_score": state["total_score"],
+                "questions_answered": len(answers_payload),
+                "total_questions": session_data.get("progress", {}).get("total_questions", 0),
+                "follow_up_questions": follow_up_count,
+                "overall_feedback": await self._generate_final_feedback(state),
+                "detailed_evaluation": evaluations,
+                "answers": answers_payload,
+                "recommendations": await self._generate_recommendations(state),
+            }
+
+            return {"success": True, "report": report}
+        finally:
+            db.close()
+
+    async def _generate_recommendations(self, state: Any) -> List[str]:
         """개선 권장사항 생성"""
         
         recommendations = []
-        
-        if state.total_score < 7.0:
+
+        total_score = float(self._state_value(state, "total_score", 0.0) or 0.0)
+        if total_score < 7.0:
             recommendations.extend([
                 "기술적 기초 지식을 더 체계적으로 학습하세요.",
                 "실제 프로젝트 경험을 쌓아보세요.",
@@ -591,9 +394,10 @@ class MockInterviewAgent:
             ])
         
         # 특정 약점 분야 찾기
-        if state.evaluations:
+        evaluations = self._state_value(state, "evaluations", []) or []
+        if evaluations:
             weak_areas = []
-            for eval_data in state.evaluations:
+            for eval_data in evaluations:
                 criteria_scores = eval_data.get("criteria_scores", {})
                 for criteria, score in criteria_scores.items():
                     if score < 6.0:
@@ -705,7 +509,7 @@ class MockInterviewAgent:
             print(f"[GEMINI_EVAL] Gemini API 호출 시작 - 질문 길이: {len(question)}, 답변 길이: {len(answer)}")
             
             response = await self.llm.ainvoke([
-                SystemMessage(content=self.interviewer_persona),
+                SystemMessage(content=INTERVIEWER_PERSONA),
                 HumanMessage(content=evaluation_prompt)
             ])
             
@@ -825,7 +629,7 @@ class MockInterviewAgent:
             print(f"[GEMINI_CONV] 대화 처리 시작 - 후속 질문: {follow_up_question[:50]}...")
             
             response = await self.llm.ainvoke([
-                SystemMessage(content=self.interviewer_persona),
+                SystemMessage(content=INTERVIEWER_PERSONA),
                 HumanMessage(content=conversation_prompt)
             ])
             
@@ -890,7 +694,7 @@ class MockInterviewAgent:
             print(f"[CONVERSATION] 대화형 응답 생성 시작")
             
             response = await self.llm.ainvoke([
-                SystemMessage(content=self.interviewer_persona),
+                SystemMessage(content=INTERVIEWER_PERSONA),
                 HumanMessage(content=conversation_prompt)
             ])
             

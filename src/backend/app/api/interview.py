@@ -11,6 +11,7 @@ from pydantic import BaseModel, HttpUrl
 from datetime import datetime
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.services.interview_repository import InterviewRepository
 from app.models.interview import InterviewSession, InterviewQuestion, InterviewAnswer
@@ -56,8 +57,6 @@ async def start_interview(
     """새 면접 세션 시작"""
     try:
         # API 키 우선순위 결정: .env.dev > 헤더 > 기본값
-        from app.core.config import settings
-        
         # GitHub Token 우선순위
         effective_github_token = None
         if settings.github_token and settings.github_token != "your_github_token_here":
@@ -87,9 +86,9 @@ async def start_interview(
         print(f"[INTERVIEW_START]   - GitHub Token: {github_token_source}")
         print(f"[INTERVIEW_START]   - Google API Key: {google_api_key_source}")
         if effective_github_token:
-            print(f"[INTERVIEW_START]   - 사용될 GitHub Token: {effective_github_token[:20]}...")
+            print("[INTERVIEW_START]   - 사용될 GitHub Token: 설정됨")
         if effective_google_api_key:
-            print(f"[INTERVIEW_START]   - 사용될 Google API Key: {effective_google_api_key[:20]}...")
+            print("[INTERVIEW_START]   - 사용될 Google API Key: 설정됨")
         
         # 질문 ID 유효성 검증
         if not request.question_ids:
@@ -130,7 +129,12 @@ async def start_interview(
             )
 
         # 질문 데이터 로딩: DB 우선, 캐시 폴백
-        from app.api.questions import question_cache, QuestionResponse
+        from app.api.questions import (
+            question_cache,
+            QuestionResponse,
+            normalize_question_payload,
+            normalize_question_response
+        )
         cached_questions = []
 
         db_questions = db.query(InterviewQuestion).filter(
@@ -150,11 +154,15 @@ async def start_interview(
                 QuestionResponse(
                     id=str(q.id),
                     type=q.category,
-                    question=q.question_text,
+                    question=normalized_payload["question"],
                     difficulty=q.difficulty,
-                    expected_answer_points=(q.context or {}).get("expected_answer_points", [])
+                    expected_answer_points=(q.context or {}).get("expected_answer_points", []),
+                    question_headline=normalized_payload["question_headline"],
+                    question_details_markdown=normalized_payload["question_details_markdown"],
+                    question_has_details=normalized_payload["question_has_details"]
                 )
                 for q in selected_questions
+                for normalized_payload in [normalize_question_payload(q.question_text)]
             ]
             print(f"[INTERVIEW_START] DB에서 질문 로딩 완료: {len(cached_questions)}개")
         else:
@@ -171,7 +179,7 @@ async def start_interview(
                 )
 
             cache_data = question_cache[normalized_analysis_id]
-            cached_questions = cache_data.parsed_questions
+            cached_questions = [normalize_question_response(q) for q in cache_data.parsed_questions]
             available_question_ids = {q.id for q in cached_questions}
             missing_question_ids = set(request.question_ids) - available_question_ids
             if missing_question_ids:
@@ -262,7 +270,8 @@ async def start_interview(
         
         print(f"[DEBUG] 면접 시작 완료 - session_id: {session.id}")
         return response_data
-        
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[ERROR] 면접 시작 API 예외 발생: {type(e).__name__}: {str(e)}")
         import traceback
@@ -344,24 +353,37 @@ async def get_interview_questions(interview_id: str, db: Session = Depends(get_d
         InterviewAnswer.session_id == session_uuid
     ).count()
     
+    from app.api.questions import normalize_question_payload
+
     # 질문 데이터 변환 및 추가 중복 제거
     questions_data = []
     seen_questions = set()  # 중복 질문 텍스트 추적
     
     for question in questions:
+        normalized_payload = normalize_question_payload(question.question_text)
+        normalized_question_text = normalized_payload["question"] or question.question_text
+
         # 질문 텍스트 기반 중복 체크
-        question_hash = hash(question.question_text.strip())
+        question_hash = hash(normalized_question_text.strip())
         if question_hash in seen_questions:
             print(f"[DEBUG] 중복 질문 제거: {question.id}")
             continue
         
         seen_questions.add(question_hash)
+        original_context = (
+            question.context.get("original_data")
+            if isinstance(question.context, dict)
+            else question.context
+        )
         questions_data.append({
             "id": str(question.id),
-            "question": question.question_text,
+            "question": normalized_question_text,
+            "question_headline": normalized_payload["question_headline"],
+            "question_details_markdown": normalized_payload["question_details_markdown"],
+            "question_has_details": normalized_payload["question_has_details"],
             "category": question.category,
             "difficulty": question.difficulty,
-            "context": question.context.get("original_data") if question.context else None
+            "context": original_context
         })
     
     print(f"[DEBUG] 중복 제거 후 질문 수: {len(questions_data)}")
@@ -460,10 +482,6 @@ async def submit_answer(
     print(f"[SUBMIT_ANSWER] 받은 헤더:")
     print(f"[SUBMIT_ANSWER]   - GitHub Token: {'있음' if github_token else '없음'}")
     print(f"[SUBMIT_ANSWER]   - Google API Key: {'있음' if google_api_key else '없음'}")
-    if github_token:
-        print(f"[SUBMIT_ANSWER]   - GitHub Token 값: {github_token[:20]}...")
-    if google_api_key:
-        print(f"[SUBMIT_ANSWER]   - Google API Key 값: {google_api_key[:20]}...")
     
     try:
         normalized_interview_id = normalize_uuid_string(request.interview_id)
@@ -503,6 +521,10 @@ async def submit_answer(
         
         if not question:
             raise HTTPException(status_code=404, detail="데이터베이스에서 질문을 찾을 수 없습니다.")
+
+        from app.api.questions import normalize_question_payload
+        normalized_question_payload = normalize_question_payload(question.question_text)
+        normalized_question_text = normalized_question_payload["question"] or question.question_text
         
         # Mock Interview Agent를 사용하여 피드백 생성 (통합된 API 키 처리)
         from app.core.api_utils import get_effective_api_keys
@@ -517,7 +539,7 @@ async def submit_answer(
         
         # 피드백 생성 (답변 횟수 정보 포함)
         feedback_result = await interview_agent.evaluate_answer(
-            question=question.question_text,
+            question=normalized_question_text,
             answer=request.answer,
             is_first_answer=is_first_answer,  # 답변 횟수 정보 전달
             context={
@@ -575,7 +597,8 @@ async def submit_answer(
                 "next_question_index": answered_questions if not is_completed else None
             }
         }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"답변 처리에 실패했습니다: {str(e)}")
 
@@ -595,10 +618,6 @@ async def handle_conversation(
     print(f"[CONVERSATION] 받은 헤더:")
     print(f"[CONVERSATION]   - GitHub Token: {'있음' if github_token else '없음'}")
     print(f"[CONVERSATION]   - Google API Key: {'있음' if google_api_key else '없음'}")
-    if github_token:
-        print(f"[CONVERSATION]   - GitHub Token 값: {github_token[:20]}...")
-    if google_api_key:
-        print(f"[CONVERSATION]   - Google API Key 값: {google_api_key[:20]}...")
     
     try:
         normalized_interview_id = normalize_uuid_string(request.interview_id)
@@ -663,7 +682,8 @@ async def handle_conversation(
                 "conversation_id": str(ai_conversation.id)
             }
         }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"대화 처리에 실패했습니다: {str(e)}")
 

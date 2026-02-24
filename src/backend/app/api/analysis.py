@@ -88,6 +88,27 @@ async def analyze_repository(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/analysis/cache/status")
+async def get_cache_status():
+    """분석 캐시 상태 조회"""
+
+    cache_info = {}
+    for analysis_id, cache_data in analysis_cache.items():
+        cache_info[analysis_id] = {
+            "status": cache_data["status"],
+            "progress": cache_data["progress"],
+            "repository_url": cache_data.get("repository_url"),
+            "start_time": cache_data["start_time"].isoformat(),
+            "use_advanced": cache_data.get("use_advanced", False)
+        }
+
+    return {
+        "success": True,
+        "total_analyses": len(analysis_cache),
+        "cache_details": cache_info
+    }
+
+
 @router.get("/analysis/{analysis_id}/status", response_model=AnalysisStatusResponse)
 async def get_analysis_status(analysis_id: str):
     """분석 진행 상황 조회"""
@@ -252,7 +273,8 @@ async def analyze_repository_advanced(request: AdvancedAnalysisRequest):
             response_data["dashboard_data"] = result.get("dashboard_data")
         
         return response_data
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -277,7 +299,8 @@ async def get_repository_stats(owner: str, repo: str):
             "repository_url": repo_url,
             "stats": stats
         }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -340,27 +363,6 @@ async def delete_analysis(analysis_id: str):
     return {
         "success": True,
         "message": "분석 결과가 삭제되었습니다"
-    }
-
-
-@router.get("/analysis/cache/status")
-async def get_cache_status():
-    """분석 캐시 상태 조회"""
-    
-    cache_info = {}
-    for analysis_id, cache_data in analysis_cache.items():
-        cache_info[analysis_id] = {
-            "status": cache_data["status"],
-            "progress": cache_data["progress"],
-            "repository_url": cache_data.get("repository_url"),
-            "start_time": cache_data["start_time"].isoformat(),
-            "use_advanced": cache_data.get("use_advanced", False)
-        }
-    
-    return {
-        "success": True,
-        "total_analyses": len(analysis_cache),
-        "cache_details": cache_info
     }
 
 

@@ -8,6 +8,7 @@ from typing import Dict, List, Any, Optional
 import re
 import uuid
 import json
+from html import unescape
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -55,6 +56,10 @@ class QuestionResponse(BaseModel):
     sub_question_index: Optional[int] = None
     total_sub_questions: Optional[int] = None
     is_compound_question: bool = False
+    # 정규화된 렌더링 필드 (호환성을 위해 optional)
+    question_headline: Optional[str] = None
+    question_details_markdown: Optional[str] = None
+    question_has_details: Optional[bool] = None
 
 
 class QuestionCacheData(BaseModel):
@@ -77,6 +82,316 @@ def create_question_groups(questions: List[QuestionResponse]) -> Dict[str, List[
             groups[parent_id].append(question.id)
     
     return groups
+
+
+QUESTION_SECTION_LABELS = [
+    "질문",
+    "상황",
+    "요구사항",
+    "평가 포인트",
+    "추가 질문 포인트"
+]
+
+
+def _normalize_inline_spaces(value: str) -> str:
+    return re.sub(r'\s+', ' ', value).strip()
+
+
+def _strip_outer_question_wrapper_html(text: str) -> str:
+    """`<div class=\"question-text\">...</div>` 같은 외곽 래퍼 제거"""
+    if not text:
+        return ""
+
+    current = text.strip()
+    wrapper_pattern = re.compile(
+        r'^\s*<div[^>]*class=["\'][^"\']*\bquestion-text\b[^"\']*["\'][^>]*>([\s\S]*)</div>\s*$',
+        re.IGNORECASE
+    )
+
+    while True:
+        match = wrapper_pattern.match(current)
+        if not match:
+            break
+        current = match.group(1).strip()
+
+    return current
+
+
+def _convert_question_html_to_markdown(text: str) -> str:
+    """질문 렌더링에 자주 등장하는 HTML을 markdown/text로 정리"""
+    if not text:
+        return ""
+
+    converted = text
+
+    # 섹션 strong/b 태그를 markdown 섹션 헤더로 정규화
+    for label in QUESTION_SECTION_LABELS:
+        converted = re.sub(
+            rf'(?is)<(?:strong|b)>\s*{re.escape(label)}\s*[:：]\s*</(?:strong|b)>',
+            f'**{label}:** ',
+            converted
+        )
+
+    # 줄바꿈/리스트 관련 태그 정리
+    converted = re.sub(r'(?i)<br\s*/?>', '\n', converted)
+    converted = re.sub(r'(?i)</p\s*>', '\n', converted)
+    converted = re.sub(r'(?i)<p[^>]*>', '', converted)
+    converted = re.sub(r'(?i)</li\s*>', '\n', converted)
+    converted = re.sub(r'(?i)<li[^>]*>', '- ', converted)
+    converted = re.sub(r'(?i)</div\s*>', '\n', converted)
+    converted = re.sub(r'(?i)<div[^>]*>', '', converted)
+
+    # 나머지 HTML 태그 제거
+    converted = re.sub(r'<[^>]+>', '', converted)
+
+    converted = unescape(converted)
+    converted = converted.replace('\r\n', '\n').replace('\r', '\n')
+    converted = re.sub(r'\n{3,}', '\n\n', converted)
+
+    return converted.strip()
+
+
+def _dedupe_mirrored_text(text: str) -> str:
+    """문자열이 통째로 두 번 반복된 케이스 제거"""
+    if not text:
+        return ""
+
+    stripped = text.strip()
+    if len(stripped) < 20:
+        return stripped
+
+    # 정확히 같은 블록이 연속 반복된 경우(중간 공백 허용)
+    repeated_block_match = re.match(r'(?s)^\s*(.{200,}?)\s*\1\s*$', stripped)
+    if repeated_block_match:
+        return repeated_block_match.group(1).strip()
+
+    # 정확히 반반 반복된 경우
+    if len(stripped) % 2 == 0:
+        half = len(stripped) // 2
+        first = stripped[:half].strip()
+        second = stripped[half:].strip()
+        if first and _normalize_inline_spaces(first) == _normalize_inline_spaces(second):
+            return first
+
+    return stripped
+
+
+def _canonicalize_section_content(text: str) -> str:
+    normalized = re.sub(r'[*_`>#-]', ' ', text or '')
+    return _normalize_inline_spaces(normalized).lower()
+
+
+def _clean_section_line(value: str) -> str:
+    line = (value or "").strip()
+    if not line:
+        return ""
+
+    # 리스트/강조 마크다운 잔재 제거
+    line = re.sub(r'^\s*[-*+]\s*', '', line)
+    line = re.sub(r'^\*\*+\s*', '', line)
+    line = re.sub(r'\s*\*\*+$', '', line)
+    line = re.sub(r'^\s*[:：]\s*', '', line)
+    line = _normalize_inline_spaces(line)
+    return line
+
+
+def _merge_section_contents(contents: List[str]) -> str:
+    lines: List[str] = []
+    seen = set()
+    for content in contents:
+        for raw_line in re.split(r'\n+', content or ''):
+            cleaned = _clean_section_line(raw_line)
+            if not cleaned:
+                continue
+            key = _canonicalize_section_content(cleaned)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            lines.append(cleaned)
+
+    if not lines:
+        return ""
+    if len(lines) == 1:
+        return lines[0]
+    return "\n".join(f"- {line}" for line in lines)
+
+
+def _extract_headline(text: str) -> str:
+    if not text:
+        return ""
+
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    if not lines:
+        return ""
+
+    line = re.sub(r'^[>\-\*\d\.\)\s]+', '', lines[0]).strip()
+    if not line:
+        return ""
+
+    question_mark_idx = line.find('?')
+    if question_mark_idx != -1 and question_mark_idx < 180:
+        return line[:question_mark_idx + 1].strip()
+
+    return line
+
+
+def _remove_headline_prefix(full_text: str, headline: str) -> str:
+    if not full_text or not headline:
+        return full_text.strip() if full_text else ""
+
+    stripped = full_text.strip()
+    if stripped.startswith(headline):
+        remainder = stripped[len(headline):].lstrip(" \n\t:-")
+        return remainder.strip()
+
+    return stripped
+
+
+def normalize_question_payload(raw_question: Optional[str]) -> Dict[str, Any]:
+    """
+    질문 문자열을 정규화하여 headline/details를 추출.
+    - DB 데이터는 유지하고 read/response 시점에서만 정규화한다.
+    """
+    raw = (raw_question or "").strip()
+    if not raw:
+        return {
+            "question": "",
+            "question_headline": None,
+            "question_details_markdown": None,
+            "question_has_details": False
+        }
+
+    text = _strip_outer_question_wrapper_html(raw)
+    text = _convert_question_html_to_markdown(text)
+    text = _dedupe_mirrored_text(text)
+
+    # markdown 강조 형태의 섹션 헤더 정규화
+    text = re.sub(
+        r'\*\*\s*(질문|상황|요구사항|평가 포인트|추가 질문 포인트)\s*[:：]\s*\*\*',
+        r'\1:',
+        text,
+        flags=re.IGNORECASE
+    )
+    text = re.sub(
+        r'\*\*\s*(질문|상황|요구사항|평가 포인트|추가 질문 포인트)\s*\*\*\s*[:：]',
+        r'\1:',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # 섹션 헤더가 한 줄로 붙어오는 경우를 위해 줄바꿈 삽입
+    text = re.sub(
+        r'\s*((?:\*\*)?\s*(질문|상황|요구사항|평가 포인트|추가 질문 포인트)\s*(?:\*\*)?\s*[:：])',
+        r'\n\1',
+        text,
+        flags=re.IGNORECASE
+    )
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+
+    section_pattern = re.compile(
+        r'(?im)^\s*(?:[-*]\s*)?(?:\*\*)?\s*(질문|상황|요구사항|평가 포인트|추가 질문 포인트)\s*(?:\*\*)?\s*[:：]\s*'
+    )
+    matches = list(section_pattern.finditer(text))
+
+    ordered_sections: List[tuple[str, str]] = []
+    seen_section_content = set()
+    for idx, match in enumerate(matches):
+        start = match.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(text)
+        label = match.group(1).strip()
+        content = text[start:end].strip()
+        if not content:
+            continue
+
+        canonical = (label, _canonicalize_section_content(content))
+        if canonical in seen_section_content:
+            continue
+        seen_section_content.add(canonical)
+        ordered_sections.append((label, content))
+
+    headline = ""
+    details_markdown = ""
+
+    if ordered_sections:
+        # 동일 섹션은 하나로 병합해 중복 헤더/깨진 목록 제거
+        grouped_sections: Dict[str, List[str]] = {}
+        ordered_labels: List[str] = []
+        for label, content in ordered_sections:
+            if label not in grouped_sections:
+                grouped_sections[label] = []
+                ordered_labels.append(label)
+            grouped_sections[label].append(content)
+
+        merged_sections: List[tuple[str, str]] = []
+        for label in ordered_labels:
+            merged = _merge_section_contents(grouped_sections[label])
+            if merged:
+                merged_sections.append((label, merged))
+
+        question_section = next((content for label, content in merged_sections if label == "질문"), "")
+        fallback_source = question_section or ordered_sections[0][1]
+        headline = _extract_headline(fallback_source)
+
+        detail_parts: List[str] = []
+
+        # 질문 섹션 본문에서 headline 이후의 추가 설명 보존
+        question_remainder = _remove_headline_prefix(question_section, headline) if question_section else ""
+        if question_remainder:
+            detail_parts.append(f"**질문 상세:**\n{question_remainder}")
+
+        for label, content in merged_sections:
+            if label == "질문":
+                continue
+            detail_parts.append(f"**{label}:**\n{content}")
+
+        details_markdown = "\n\n".join(part for part in detail_parts if part.strip()).strip()
+    else:
+        # 섹션이 없으면 문단 중복 제거 후 headline 추출
+        paragraphs = [p.strip() for p in re.split(r'\n{2,}', text) if p.strip()]
+        deduped_paragraphs: List[str] = []
+        seen_paragraphs = set()
+        for paragraph in paragraphs:
+            key = _canonicalize_section_content(paragraph)
+            if not key or key in seen_paragraphs:
+                continue
+            seen_paragraphs.add(key)
+            deduped_paragraphs.append(paragraph)
+
+        plain = "\n\n".join(deduped_paragraphs).strip() or text
+        headline = _extract_headline(plain)
+        remainder = _remove_headline_prefix(plain, headline)
+        details_markdown = remainder if _canonicalize_section_content(remainder) != _canonicalize_section_content(headline) else ""
+
+    headline = headline.strip()
+    details_markdown = details_markdown.strip()
+    has_details = bool(details_markdown)
+
+    normalized_question = headline or text
+    if has_details:
+        normalized_question = f"{headline}\n\n{details_markdown}" if headline else details_markdown
+
+    return {
+        "question": normalized_question.strip(),
+        "question_headline": headline or None,
+        "question_details_markdown": details_markdown or None,
+        "question_has_details": has_details
+    }
+
+
+def normalize_question_response(question: Any) -> QuestionResponse:
+    if isinstance(question, QuestionResponse):
+        normalized_question = question
+    elif isinstance(question, dict):
+        normalized_question = QuestionResponse(**question)
+    else:
+        raise ValueError(f"지원되지 않는 질문 데이터 타입: {type(question)}")
+
+    normalized = normalize_question_payload(normalized_question.question)
+    normalized_question.question = normalized["question"]
+    normalized_question.question_headline = normalized["question_headline"]
+    normalized_question.question_details_markdown = normalized["question_details_markdown"]
+    normalized_question.question_has_details = normalized["question_has_details"]
+    return normalized_question
 
 
 def is_header_or_title(text: str) -> bool:
@@ -226,7 +541,8 @@ def parse_questions_list(questions: List[QuestionResponse]) -> List[QuestionResp
     for question in questions:
         # 각 질문을 파싱하여 결과 추가
         parsed_list = parse_compound_question(question)
-        parsed_questions.extend(parsed_list)
+        for parsed_question in parsed_list:
+            parsed_questions.append(normalize_question_response(parsed_question))
     
     return parsed_questions
 
@@ -310,6 +626,8 @@ async def generate_questions(
                 # 락 획득 성공 - 질문 생성 진행
                 print(f"[LOCK_ACQUIRED] 질문 생성 락 획득 성공: analysis_id={analysis_id}")
                 
+            except HTTPException:
+                raise
             except Exception as e:
                 print(f"[LOCK_ERROR] Redis 락 처리 중 오류: {str(e)}")
                 # Redis 연결 실패 시에도 질문 생성은 계속 진행
@@ -416,6 +734,8 @@ async def generate_questions(
             analysis_id=analysis_id
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         # 🔧 예외 발생 시에도 Redis 락 해제
         if analysis_id:
@@ -435,6 +755,22 @@ async def generate_questions(
         )
 
 
+@router.get("/types")
+async def get_question_types():
+    """사용 가능한 질문 타입 목록 조회"""
+    return {
+        "question_types": [
+            "code_analysis",
+            "tech_stack",
+            "architecture",
+            "design_patterns",
+            "problem_solving",
+            "best_practices"
+        ],
+        "difficulties": ["easy", "medium", "hard"]
+    }
+
+
 @router.get("/{analysis_id}")
 async def get_questions(analysis_id: str):
     """분석 ID로 질문 조회"""
@@ -446,12 +782,18 @@ async def get_questions(analysis_id: str):
             raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다")
         
         cache_data = question_cache[normalized_analysis_id]
+        normalized_questions = [
+            normalize_question_response(q)
+            for q in cache_data.parsed_questions
+        ]
         return {
             "success": True,
-            "questions": cache_data.parsed_questions,
+            "questions": normalized_questions,
             "question_groups": cache_data.question_groups,
             "created_at": cache_data.created_at
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -473,6 +815,8 @@ async def get_question_groups(analysis_id: str):
             "total_questions": len(cache_data.parsed_questions),
             "total_groups": len(cache_data.question_groups)
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -535,9 +879,14 @@ async def get_questions_by_analysis(analysis_id: str):
             elif isinstance(cache_data, list):
                 questions = cache_data
             
+            normalized_questions = [
+                normalize_question_response(q)
+                for q in questions
+            ]
+
             return QuestionGenerationResult(
                 success=True,
-                questions=questions,
+                questions=normalized_questions,
                 analysis_id=analysis_id
             )
         
@@ -574,22 +923,6 @@ async def get_questions_by_analysis(analysis_id: str):
             analysis_id=analysis_id,
             error=f"질문 조회 중 오류가 발생했습니다: {str(e)}"
         )
-
-
-@router.get("/types")
-async def get_question_types():
-    """사용 가능한 질문 타입 목록 조회"""
-    return {
-        "question_types": [
-            "code_analysis",
-            "tech_stack", 
-            "architecture",
-            "design_patterns",
-            "problem_solving",
-            "best_practices"
-        ],
-        "difficulties": ["easy", "medium", "hard"]
-    }
 
 
 @router.get("/debug/cache")
@@ -640,6 +973,8 @@ async def debug_original_questions(analysis_id: str):
             "parsed_questions_count": len(cache_data.parsed_questions),
             "groups_count": len(cache_data.question_groups)
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -707,7 +1042,8 @@ async def add_test_questions(analysis_id: str):
             "analysis_id": analysis_id,
             "questions": parsed_questions
         }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -750,7 +1086,7 @@ async def _load_questions_from_db(analysis_id: str) -> List[QuestionResponse]:
                     technology=None,
                     pattern=None
                 )
-                questions.append(question)
+                questions.append(normalize_question_response(question))
             
             print(f"[DB] Loaded {len(questions)} questions from database for analysis {analysis_id}")
             return questions
@@ -765,13 +1101,15 @@ async def _restore_questions_to_cache(analysis_id: str, questions: List[Question
     try:
         from datetime import datetime
         
+        normalized_questions = [normalize_question_response(q) for q in questions]
+
         # 질문 그룹 관계 생성
-        question_groups = create_question_groups(questions)
+        question_groups = create_question_groups(normalized_questions)
         
         # 캐시에 저장할 데이터 구조 생성
         cache_data = QuestionCacheData(
-            original_questions=questions,  # DB에서 가져온 질문들을 원본으로 처리
-            parsed_questions=questions,    # 이미 파싱된 상태로 간주
+            original_questions=normalized_questions,  # DB에서 가져온 질문들을 원본으로 처리
+            parsed_questions=normalized_questions,    # 이미 파싱된 상태로 간주
             question_groups=question_groups,
             created_at=datetime.now().isoformat()
         )
@@ -782,7 +1120,7 @@ async def _restore_questions_to_cache(analysis_id: str, questions: List[Question
         # 호환성을 위해 원본 키로도 저장
         question_cache[analysis_id] = cache_data
         
-        print(f"[CACHE] Restored {len(questions)} questions to memory cache for analysis {analysis_id} (normalized: {normalized_cache_key})")
+        print(f"[CACHE] Restored {len(normalized_questions)} questions to memory cache for analysis {analysis_id} (normalized: {normalized_cache_key})")
         
     except Exception as e:
         print(f"[CACHE] Error restoring questions to cache: {e}")
