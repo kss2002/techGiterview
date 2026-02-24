@@ -1,0 +1,103 @@
+/* AppShellV2 Layout */
+.v2-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--v2-bg-base);
+  color: var(--v2-text-body);
+  font-family: var(--v2-font-sans);
+  overflow: hidden;
+}
+.v2-shell--resizing { user-select: none; cursor: col-resize; }
+
+/* Header */
+.v2-header {
+  height: var(--v2-header-h);
+  min-height: var(--v2-header-h);
+  background: var(--v2-bg-surface);
+  border-bottom: 1px solid var(--v2-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.v2-header-left  { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.v2-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.v2-header-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--v2-text-hi);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.v2-header-title svg { width: 16px; height: 16px; color: var(--v2-text-muted); flex-shrink: 0; }
+
+/* Body */
+.v2-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Sidebar */
+.v2-sidebar {
+  width: var(--v2-sidebar-current, var(--v2-sidebar-w));
+  min-width: var(--v2-sidebar-min);
+  max-width: var(--v2-sidebar-max);
+  background: var(--v2-bg-base);
+  border-right: 1px solid var(--v2-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+}
+.v2-sidebar:hover { overflow-y: auto; }
+
+/* Resize Handle */
+.v2-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background var(--v2-trans-fast);
+}
+.v2-resize-handle:hover,
+.v2-resize-handle--active { background: var(--v2-accent); opacity: 0.5; }
+
+/* Main */
+.v2-main {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .v2-body { flex-direction: column; }
+  .v2-sidebar {
+    width: 100% !important;
+    max-width: none;
+    min-width: 0;
+    height: auto;
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--v2-border);
+    overflow-y: auto;
+  }
+  .v2-resize-handle { display: none; }
+}

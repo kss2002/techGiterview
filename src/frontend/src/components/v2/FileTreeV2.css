@@ -1,0 +1,36 @@
+.v2-file-tree { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.v2-file-tree-search { padding: 8px 10px; border-bottom: 1px solid var(--v2-border); }
+.v2-file-tree-input { height: 28px; font-size: var(--v2-text-sm); }
+.v2-file-tree-content { flex: 1; overflow-y: auto; padding: 4px 0; }
+.v2-file-tree-loading { display: flex; align-items: center; gap: 8px; padding: 12px; font-size: var(--v2-text-sm); color: var(--v2-text-muted); }
+.v2-file-tree-empty { padding: 12px; font-size: var(--v2-text-sm); color: var(--v2-text-muted); }
+
+.v2-tree-node { display: flex; align-items: center; }
+.v2-tree-folder,
+.v2-tree-file {
+  display: flex; align-items: center; gap: 5px;
+  width: 100%; padding: 3px 8px 3px 0;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--v2-text-body); font-size: var(--v2-text-sm);
+  text-align: left; border-radius: var(--v2-radius-sm);
+  transition: background var(--v2-trans-fast), color var(--v2-trans-fast);
+}
+.v2-tree-folder:hover,
+.v2-tree-file:hover { background: rgba(255,255,255,0.04); color: var(--v2-text-hi); }
+.v2-tree-file--match { background: var(--v2-accent-dim); }
+.v2-tree-file:focus-visible, .v2-tree-folder:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: -2px; }
+
+.v2-tree-chevron { color: var(--v2-text-faint); transition: transform var(--v2-trans-fast); flex-shrink: 0; }
+.v2-tree-chevron--open { transform: rotate(90deg); }
+.v2-tree-folder-icon { color: #93C5FD; flex-shrink: 0; }
+.v2-tree-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v2-tree-label--match { color: var(--v2-accent); }
+.v2-tree-size { font-size: var(--v2-text-xs); color: var(--v2-text-faint); margin-left: auto; flex-shrink: 0; }
+
+.v2-file-icon { flex-shrink: 0; }
+.v2-file-icon--ts   { color: #3178C6; }
+.v2-file-icon--js   { color: #F7DF1E; }
+.v2-file-icon--py   { color: #3572A5; }
+.v2-file-icon--html { color: #E34C26; }
+.v2-file-icon--css  { color: #563D7C; }
+.v2-file-icon--config { color: var(--v2-text-muted); }
