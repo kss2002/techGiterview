@@ -276,6 +276,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+*.backup
 *.swp
 *.swo
 *~
