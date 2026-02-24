@@ -15,7 +15,6 @@ import {
   TreePine
 } from 'lucide-react'
 import './AnalysisDashboard.css'
-import { SmartFileImportanceSection } from './SmartFileImportanceSection'
 import { useChartStyles, useDynamicStyles } from '../hooks/useStyles'
 
 // 인터페이스 정의
@@ -620,33 +619,54 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
         )}
 
         {activeTab === 'files' && smartFileAnalysis && (
-          <SmartFileImportanceSection
-            criticalFiles={smartFileAnalysis.files}
-            distribution={smartFileAnalysis.distribution}
-            suggestions={smartFileAnalysis.suggestions.map((suggestion) => suggestion.message)}
-            onFileSelect={(file) => {
-              // SmartFileAnalysis를 CriticalFile 형태로 변환
-              const criticalFile: CriticalFile = {
-                path: file.file_path,
-                importance_score: file.importance_score,
-                quality_risk_score: file.metrics.churn_risk * 10, // 0-1을 0-10으로 변환
-                complexity: file.metrics.complexity_score * 10,
-                hotspot_score: file.metrics.churn_risk * 20,
-                file_type: file.file_path.split('.').pop() || 'unknown',
-                language: file.file_path.split('.').pop() || 'unknown',
-                metrics_summary: {
-                  lines_of_code: 0, // 실제 데이터 연동 시 제공
-                  fan_in: Math.round(file.metrics.dependency_centrality * 10),
-                  fan_out: Math.round(file.metrics.dependency_centrality * 5),
-                  commit_frequency: Math.round(file.metrics.churn_risk * 50),
-                  recent_commits: Math.round(file.metrics.churn_risk * 10),
-                  authors_count: Math.round(file.metrics.churn_risk * 5),
-                  centrality_score: file.metrics.dependency_centrality
-                }
-              }
-              handleFileSelect(criticalFile)
-            }}
-          />
+          <div className="files-tab">
+            <div className="critical-files-section">
+              <h3>스마트 파일 중요도 분석</h3>
+              <div className="critical-files-list">
+                {smartFileAnalysis.files.map((file, index) => {
+                  const criticalFile: CriticalFile = {
+                    path: file.file_path,
+                    importance_score: file.importance_score,
+                    quality_risk_score: file.metrics.churn_risk * 10,
+                    complexity: file.metrics.complexity_score * 10,
+                    hotspot_score: file.metrics.churn_risk * 20,
+                    file_type: file.file_path.split('.').pop() || 'unknown',
+                    language: file.file_path.split('.').pop() || 'unknown',
+                    metrics_summary: {
+                      lines_of_code: 0,
+                      fan_in: Math.round(file.metrics.dependency_centrality * 10),
+                      fan_out: Math.round(file.metrics.dependency_centrality * 5),
+                      commit_frequency: Math.round(file.metrics.churn_risk * 50),
+                      recent_commits: Math.round(file.metrics.churn_risk * 10),
+                      authors_count: Math.round(file.metrics.churn_risk * 5),
+                      centrality_score: file.metrics.dependency_centrality
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={file.file_path}
+                      type="button"
+                      className="critical-file-item"
+                      onClick={() => handleFileSelect(criticalFile)}
+                    >
+                      <span className="file-rank">#{index + 1}</span>
+                      <span className="file-name">{file.file_path}</span>
+                      <span className="file-score">{file.importance_score.toFixed(2)}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="smart-file-suggestions">
+                <h4>개선 제안</h4>
+                <ul>
+                  {smartFileAnalysis.suggestions.map((suggestion, index) => (
+                    <li key={`${suggestion.type}-${index}`}>{suggestion.message}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === 'files' && !smartFileAnalysis && (

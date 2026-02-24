@@ -114,13 +114,13 @@ export const QuickAccessSection: React.FC = () => {
           <p>GitHub 저장소를 새로 분석하거나 실제 면접을 진행해보세요!</p>
           <div className="empty-actions">
             <button 
-              onClick={() => navigate('/analyze')} 
+              onClick={() => navigate('/')} 
               className="primary-action-btn"
             >
               저장소 분석하기
             </button>
             <button 
-              onClick={() => navigate('/interview')} 
+              onClick={() => navigate('/dashboard')} 
               className="secondary-action-btn"
             >
               면접 시작하기

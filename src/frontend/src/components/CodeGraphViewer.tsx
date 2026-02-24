@@ -247,10 +247,10 @@ const CodeGraphViewer: React.FC<CodeGraphViewerProps> = ({ graphData, width: pro
     };
 
     return (
-        <div ref={containerRef} className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50 shadow-sm w-full h-full" style={{ minHeight: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div ref={containerRef} className="code-graph-container" style={{ minHeight: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
             {isLoading ? (
-                <div className="flex items-center justify-center p-8 bg-gray-50 w-full h-full" style={{ flex: 1 }}>
-                    <span className="text-gray-500">Loading Graph...</span>
+                <div className="code-graph-loading" style={{ flex: 1 }}>
+                    <span>Loading Graph...</span>
                 </div>
             ) : (
                 <ForceGraph2D

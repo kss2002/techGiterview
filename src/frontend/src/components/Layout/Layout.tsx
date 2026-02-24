@@ -11,9 +11,6 @@ import {
   MessageCircle,
   Book
 } from 'lucide-react'
-import { AppShellSidebar } from './AppShellSidebar'
-import { AppShellHeader } from './AppShellHeader'
-import './Layout.css'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -36,23 +33,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const isHome = location.pathname === '/'
   const isDashboardPage = location.pathname.startsWith('/dashboard')
-  const isAppShellPage =
-    location.pathname.startsWith('/reports') ||
-    location.pathname.startsWith('/interview')
-  const showNavigation = !isHome && !isAppShellPage && !isDashboardPage
+  const showNavigation = !isHome && !isDashboardPage
 
   return (
     <div className="layout">
       {isDashboardPage ? (
         <main className="main-content full-width">{children}</main>
-      ) : isAppShellPage ? (
-        <div className="app-shell">
-          <AppShellSidebar isActive={isActive} />
-          <div className="app-shell-main">
-            <AppShellHeader />
-            <main className="app-shell-content">{children}</main>
-          </div>
-        </div>
       ) : (
         <>
       {showNavigation && (

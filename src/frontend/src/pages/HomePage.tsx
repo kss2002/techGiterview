@@ -53,6 +53,7 @@ export const HomePage: React.FC = () => {
       const result = await handleRepositoryAnalysis(
         state.repoUrl,
         createApiHeaders,
+        selectedAI,
         navigate
       );
 

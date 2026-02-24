@@ -16,24 +16,22 @@ import {
   X,
 } from 'lucide-react';
 import { apiFetch } from '../utils/apiUtils';
+import {
+  API_STORAGE_KEYS,
+  createApiHeaders,
+  getApiKeysFromStorage,
+  hasRequiredApiKeys,
+} from '../utils/apiHeaders';
 import './ApiKeySetup.css';
-
-// 로컬스토리지 키 상수
-const STORAGE_KEYS = {
-  GITHUB_TOKEN: 'techgiterview_github_token',
-  GOOGLE_API_KEY: 'techgiterview_google_api_key',
-  UPSTAGE_API_KEY: 'techgiterview_upstage_api_key',
-  SELECTED_AI_PROVIDER: 'techgiterview_selected_ai_provider',
-} as const;
 
 // 로컬스토리지 유틸리티 함수들
 const storageUtils = {
   saveApiKeys: (githubToken: string, googleApiKey: string, upstageApiKey: string, selectedProvider: string) => {
     try {
-      localStorage.setItem(STORAGE_KEYS.GITHUB_TOKEN, githubToken);
-      localStorage.setItem(STORAGE_KEYS.GOOGLE_API_KEY, googleApiKey);
-      localStorage.setItem(STORAGE_KEYS.UPSTAGE_API_KEY, upstageApiKey);
-      localStorage.setItem(STORAGE_KEYS.SELECTED_AI_PROVIDER, selectedProvider);
+      localStorage.setItem(API_STORAGE_KEYS.GITHUB_TOKEN, githubToken);
+      localStorage.setItem(API_STORAGE_KEYS.GOOGLE_API_KEY, googleApiKey);
+      localStorage.setItem(API_STORAGE_KEYS.UPSTAGE_API_KEY, upstageApiKey);
+      localStorage.setItem(API_STORAGE_KEYS.SELECTED_AI_PROVIDER, selectedProvider);
       console.log('API 키가 로컬스토리지에 저장되었습니다.');
     } catch (error) {
       console.warn('로컬스토리지 저장 실패:', error);
@@ -42,12 +40,7 @@ const storageUtils = {
 
   loadApiKeys: () => {
     try {
-      return {
-        githubToken: localStorage.getItem(STORAGE_KEYS.GITHUB_TOKEN) || '',
-        googleApiKey: localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY) || '',
-        upstageApiKey: localStorage.getItem(STORAGE_KEYS.UPSTAGE_API_KEY) || '',
-        selectedProvider: localStorage.getItem(STORAGE_KEYS.SELECTED_AI_PROVIDER) || 'upstage',
-      };
+      return getApiKeysFromStorage();
     } catch (error) {
       console.warn('로컬스토리지 로드 실패:', error);
       return { githubToken: '', googleApiKey: '', upstageApiKey: '', selectedProvider: 'upstage' };
@@ -56,10 +49,10 @@ const storageUtils = {
 
   clearApiKeys: () => {
     try {
-      localStorage.removeItem(STORAGE_KEYS.GITHUB_TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.GOOGLE_API_KEY);
-      localStorage.removeItem(STORAGE_KEYS.UPSTAGE_API_KEY);
-      localStorage.removeItem(STORAGE_KEYS.SELECTED_AI_PROVIDER);
+      localStorage.removeItem(API_STORAGE_KEYS.GITHUB_TOKEN);
+      localStorage.removeItem(API_STORAGE_KEYS.GOOGLE_API_KEY);
+      localStorage.removeItem(API_STORAGE_KEYS.UPSTAGE_API_KEY);
+      localStorage.removeItem(API_STORAGE_KEYS.SELECTED_AI_PROVIDER);
       console.log('저장된 API 키가 삭제되었습니다.');
     } catch (error) {
       console.warn('로컬스토리지 삭제 실패:', error);
@@ -68,16 +61,7 @@ const storageUtils = {
 
   hasStoredKeys: () => {
     try {
-      const githubToken = localStorage.getItem(STORAGE_KEYS.GITHUB_TOKEN);
-      const selectedProvider = localStorage.getItem(STORAGE_KEYS.SELECTED_AI_PROVIDER) || 'upstage';
-      // 선택된 AI에 따라 필요한 키 확인
-      if (selectedProvider === 'upstage') {
-        const upstageApiKey = localStorage.getItem(STORAGE_KEYS.UPSTAGE_API_KEY);
-        return !!(githubToken && upstageApiKey);
-      } else {
-        const googleApiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY);
-        return !!(githubToken && googleApiKey);
-      }
+      return hasRequiredApiKeys();
     } catch (error) {
       return false;
     }
@@ -198,16 +182,15 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet, onClose 
         }
 
         // API 키 유효성을 테스트하기 위해 AI providers 호출
-        const testHeaders: Record<string, string> = {
-          Accept: 'application/json',
-          'X-GitHub-Token': githubToken,
-        };
-        // 선택된 AI에 따라 해당 키 전송
-        if (selectedProvider === 'upstage') {
-          testHeaders['X-Upstage-API-Key'] = upstageApiKey;
-        } else {
-          testHeaders['X-Google-API-Key'] = googleApiKey;
-        }
+        const testHeaders = createApiHeaders({
+          includeApiKeys: true,
+          provider: selectedProvider,
+          apiKeys: {
+            githubToken,
+            googleApiKey,
+            upstageApiKey,
+          },
+        });
         const testResponse = await apiFetch('/api/v1/ai/providers', {
           method: 'GET',
           headers: testHeaders,
@@ -339,7 +322,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet, onClose 
                 onChange={() => setSelectedProvider('upstage')}
               />
               <div>
-                <strong>Upstage Solar Pro 2</strong>
+                <strong>Upstage Solar Pro 3</strong>
                 <div style={{ fontSize: '12px', color: '#6b7280' }}>추천 - 빠르고 정확한 한국어 지원</div>
               </div>
             </label>
@@ -507,7 +490,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet, onClose 
                   Upstage 콘솔에서 키 생성하기 ↗
                 </a>
                 <br />
-                <small>Solar Pro 2 API 사용을 위한 키가 필요합니다</small>
+                <small>Solar Pro 3 API 사용을 위한 키가 필요합니다</small>
               </div>
             </div>
           ) : (
@@ -610,7 +593,11 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet, onClose 
               type="submit"
               className="submit-button"
               disabled={
-                isLoading || !githubToken.trim() || !googleApiKey.trim()
+                isLoading ||
+                !githubToken.trim() ||
+                (selectedProvider === 'upstage'
+                  ? !upstageApiKey.trim()
+                  : !googleApiKey.trim())
               }
             >
               {isLoading ? (

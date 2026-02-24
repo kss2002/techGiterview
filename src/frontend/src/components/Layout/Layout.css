@@ -4,9 +4,136 @@
   flex-direction: column;
 }
 
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--app-main-bg, #f6f8fa);
+}
+
+.app-shell-sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  background: #1a1d23;
+  border-right: 1px solid var(--app-sidebar-border, #30363d);
+  color: var(--app-sidebar-text, #c9d1d9);
+  padding: 16px;
+}
+
+.app-shell-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.app-shell-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-shell-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--app-sidebar-text, #c9d1d9);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.app-shell-nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-shell-nav-item.active {
+  background: rgba(111, 66, 193, 0.22);
+  color: #fff;
+}
+
+.app-shell-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell-header {
+  height: 64px;
+  border-bottom: 1px solid var(--app-card-border, #e1e4e8);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
+.app-shell-header-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-shell-header-main {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.app-shell-breadcrumb {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.app-shell-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-shell-primary-action {
+  border: 0;
+  background: linear-gradient(to right, #6366f1, #8b5cf6);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.app-shell-primary-action:hover {
+  filter: brightness(1.04);
+}
+
+.app-shell-icon-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--app-card-border, #e1e4e8);
+  background: #fff;
+  color: var(--app-text-secondary, #57606a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.app-shell-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
 /* 네비게이션 */
 .navigation {
-  background: var(--white);
+  background: var(--color-background);
   border-bottom: 1px solid var(--gray-200);
   box-shadow: var(--shadow-sm);
   position: sticky;
@@ -42,14 +169,14 @@
 }
 
 .brand-icon {
-  color: var(--brand-navy-600);
+  color: var(--primary-600);
   flex-shrink: 0;
 }
 
 .brand-text {
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
-  background: var(--brand-navy-600);
+  background: var(--primary-600);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -84,8 +211,8 @@
 }
 
 .nav-link.active {
-  background: var(--brand-navy-50);
-  color: var(--brand-navy-600);
+  background: var(--primary-50);
+  color: var(--primary-600);
   font-weight: var(--font-semibold);
 }
 
@@ -96,7 +223,7 @@
   left: var(--spacing-5);
   right: var(--spacing-5);
   height: 2px;
-  background: var(--brand-navy-600);
+  background: var(--primary-600);
   border-radius: var(--radius-sm);
 }
 
@@ -120,8 +247,8 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
-  background: var(--brand-navy-600);
-  color: var(--white);
+  background: var(--primary-600);
+  color: var(--color-background);
   padding: var(--spacing-3) var(--spacing-5);
   border: none;
   border-radius: var(--radius-lg);
@@ -132,7 +259,7 @@
 }
 
 .new-analysis-btn:hover {
-  background: var(--brand-navy-700);
+  background: var(--primary-700);
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
@@ -473,11 +600,11 @@
   
   .nav-link:hover {
     background: var(--gray-700);
-    color: var(--white);
+    color: var(--color-background);
   }
   
   .nav-link.active {
     background: var(--gray-800);
-    color: var(--brand-navy-400);
+    color: var(--primary-400);
   }
 }

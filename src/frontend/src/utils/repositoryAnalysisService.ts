@@ -4,13 +4,15 @@ import {
   processError,
 } from './homePageUtils';
 import { apiFetch } from './apiUtils';
+import { getApiKeysFromStorage } from './apiHeaders';
 
 /**
  * 저장소 분석 요청 처리 로직
  */
 export const handleRepositoryAnalysis = async (
   repoUrl: string,
-  createApiHeaders: (useLocalStorage: boolean) => Record<string, string>,
+  createApiHeaders: (includeApiKeys: boolean, selectedAI?: string) => Record<string, string>,
+  selectedAI: string,
   onNavigate: (path: string) => void
 ): Promise<{
   success: boolean;
@@ -27,18 +29,19 @@ export const handleRepositoryAnalysis = async (
 
   try {
     // 저장소 분석 요청 (임시로 간단한 분석 사용)
-    const apiHeaders = createApiHeaders(true);
+    const apiHeaders = createApiHeaders(true, selectedAI);
+    const { githubToken, googleApiKey, upstageApiKey, selectedProvider } =
+      getApiKeysFromStorage();
     console.log(
       '[HOMEPAGE] 분석 요청 헤더:',
       JSON.stringify(apiHeaders, null, 2)
     );
     console.log('[HOMEPAGE] localStorage 키 확인:', {
-      githubToken: localStorage.getItem('techgiterview_github_token')
-        ? '설정됨'
-        : '없음',
-      googleApiKey: localStorage.getItem('techgiterview_google_api_key')
-        ? '설정됨'
-        : '없음',
+      githubToken: githubToken ? '설정됨' : '없음',
+      googleApiKey: googleApiKey ? '설정됨' : '없음',
+      upstageApiKey: upstageApiKey ? '설정됨' : '없음',
+      selectedProvider,
+      selectedAI,
     });
 
     const response = await apiFetch('/api/v1/repository/analyze-simple', {
@@ -46,6 +49,7 @@ export const handleRepositoryAnalysis = async (
       headers: apiHeaders,
       body: JSON.stringify({
         repo_url: repoUrl,
+        selected_ai: selectedAI,
       }),
     });
 

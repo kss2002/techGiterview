@@ -1,36 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../utils/apiUtils'
-
-// 로컬스토리지 유틸리티
-const getApiKeysFromStorage = () => {
-  try {
-    return {
-      githubToken: localStorage.getItem('techgiterview_github_token') || '',
-      googleApiKey: localStorage.getItem('techgiterview_google_api_key') || '',
-      upstageApiKey: localStorage.getItem('techgiterview_upstage_api_key') || ''
-    }
-  } catch (error) {
-    return { githubToken: '', googleApiKey: '', upstageApiKey: '' }
-  }
-}
-
-// API 요청 헤더 생성
-const createApiHeaders = (includeApiKeys: boolean = false) => {
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  }
-
-  if (includeApiKeys) {
-    const { githubToken, googleApiKey, upstageApiKey } = getApiKeysFromStorage()
-    if (githubToken) headers['X-GitHub-Token'] = githubToken
-    if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
-    if (upstageApiKey) headers['X-Upstage-API-Key'] = upstageApiKey
-  }
-
-  return headers
-}
+import {
+  createApiHeaders as createSharedApiHeaders,
+  getApiKeysFromStorage,
+  hasRequiredApiKeys,
+} from '../utils/apiHeaders'
 
 // API 인터페이스
 interface AIProvider {
@@ -54,7 +29,7 @@ interface PageInitData {
 // 통합 API 호출 함수 (새로운 단일 엔드포인트 사용)
 const fetchPageInitData = async (): Promise<PageInitData> => {
   try {
-    const headers = createApiHeaders(true)
+    const headers = createSharedApiHeaders(true)
 
     // 새로운 통합 API 호출
     const response = await apiFetch('/api/v1/homepage/init', {
@@ -82,9 +57,11 @@ const fetchPageInitData = async (): Promise<PageInitData> => {
 
 // 로컬스토리지에서 즉시 사용 가능한 데이터 생성
 const getLocalData = (): PageInitData => {
-  const { githubToken, upstageApiKey } = getApiKeysFromStorage()
-  // Upstage를 기본 AI로 사용하므로 GitHub + Upstage 키 체크
-  const hasKeys = !!(githubToken && upstageApiKey)
+  const { githubToken, googleApiKey, upstageApiKey, selectedProvider } =
+    getApiKeysFromStorage()
+  const hasProviderKey =
+    selectedProvider === 'gemini' ? !!googleApiKey : !!upstageApiKey
+  const hasKeys = !!githubToken && hasProviderKey
 
   return {
     config: {
@@ -92,17 +69,27 @@ const getLocalData = (): PageInitData => {
       use_local_storage: true,
       missing_keys: {
         github_token: !githubToken,
-        upstage_api_key: !upstageApiKey
+        google_api_key: selectedProvider === 'gemini' ? !googleApiKey : false,
+        upstage_api_key: selectedProvider === 'upstage' ? !upstageApiKey : false,
       },
       development_mode_active: true // 로컬 데이터에서는 기본적으로 활성화
     },
-    providers: [{
-      id: 'upstage_solar',
-      name: 'Upstage Solar Pro 2 (기본)',
-      model: 'solar-pro2-preview',
-      status: 'available',
-      recommended: true
-    }]
+    providers: [
+      {
+        id: 'upstage_solar',
+        name: 'Upstage Solar Pro 3',
+        model: 'solar-pro3',
+        status: 'available',
+        recommended: selectedProvider === 'upstage',
+      },
+      {
+        id: 'google_gemini_flash',
+        name: 'Google Gemini 2.0 Flash',
+        model: 'gemini-2.0-flash',
+        status: 'available',
+        recommended: selectedProvider === 'gemini',
+      },
+    ]
   }
 }
 
@@ -111,10 +98,9 @@ export const usePageInitialization = () => {
   const [localData] = useState(() => getLocalData())
 
   // API 키 저장 상태를 추적하는 상태 추가
-  const [hasStoredKeysState, setHasStoredKeysState] = useState(() => {
-    const { githubToken, upstageApiKey } = getApiKeysFromStorage()
-    return !!(githubToken && upstageApiKey)
-  })
+  const [hasStoredKeysState, setHasStoredKeysState] = useState(() =>
+    hasRequiredApiKeys()
+  )
 
   // React Query로 서버 데이터 가져오기 (백그라운드)
   const {
@@ -153,6 +139,19 @@ export const usePageInitialization = () => {
     }
   }, [effectiveData.providers, selectedAI])
 
+  useEffect(() => {
+    setHasStoredKeysState(hasRequiredApiKeys(selectedAI))
+  }, [selectedAI])
+
+  const createApiHeaders = (
+    includeApiKeys: boolean = false,
+    aiProvider?: string
+  ) =>
+    createSharedApiHeaders({
+      includeApiKeys,
+      selectedAI: aiProvider ?? selectedAI,
+    })
+
   return {
     // 데이터
     config: effectiveData.config,
@@ -172,8 +171,7 @@ export const usePageInitialization = () => {
 
     // API 키 상태를 수동으로 업데이트하는 함수 추가
     refreshStoredKeysState: () => {
-      const { githubToken, upstageApiKey } = getApiKeysFromStorage()
-      const newState = !!(githubToken && upstageApiKey)
+      const newState = hasRequiredApiKeys(selectedAI)
       setHasStoredKeysState(newState)
       return newState
     },

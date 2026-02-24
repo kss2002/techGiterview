@@ -56,11 +56,16 @@ import {
 import { AnswerFeedback } from '../components/AnswerFeedback'
 import { debugLog } from '../utils/debugUtils'
 import { apiFetch } from '../utils/apiUtils'
+import { createApiHeaders } from '../utils/apiHeaders'
+import { formatQuestionForDisplay } from '../utils/questionFormatter'
 import './InterviewPage.css'
 
 interface Question {
   id: string
   question: string
+  question_headline?: string
+  question_details_markdown?: string
+  question_has_details?: boolean
   category: string
   difficulty: string
   context?: string
@@ -128,61 +133,6 @@ interface AnswerFeedbackData {
   technical_accuracy?: string
 }
 
-// 로컬스토리지에서 API 키를 가져오는 헬퍼 함수
-const getApiKeysFromStorage = () => {
-  try {
-    return {
-      githubToken: localStorage.getItem('techgiterview_github_token') || '',
-      googleApiKey: localStorage.getItem('techgiterview_google_api_key') || ''
-    }
-  } catch (error) {
-    return { githubToken: '', googleApiKey: '' }
-  }
-}
-
-// API 헤더 생성 함수
-const createApiHeaders = (includeApiKeys: boolean = false) => {
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  }
-
-  if (includeApiKeys) {
-    const { githubToken, googleApiKey } = getApiKeysFromStorage()
-    if (githubToken) headers['X-GitHub-Token'] = githubToken
-    if (googleApiKey) headers['X-Google-API-Key'] = googleApiKey
-  }
-
-  return headers
-}
-
-// 질문 텍스트에서 JSON 형식 또는 불필요한 메타데이터를 제거하는 헬퍼 함수
-const sanitizeQuestionText = (text: string | undefined): string => {
-  if (!text) return ''
-
-  // JSON 형식인지 확인하고 파싱 시도
-  if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
-    try {
-      const parsed = JSON.parse(text)
-      if (typeof parsed === 'object' && parsed !== null) {
-        return parsed.question || parsed.text || parsed.content || text
-      }
-      return text
-    } catch {
-      return text
-    }
-  }
-
-  // JSON 객체 패턴 제거 (문자열 내에 포함된 JSON 패턴)
-  const jsonPattern = /\{"id":\s*"[^"]*",\s*"question":\s*"[^"]*"[^}]*\}/g
-  let cleanedText = text.replace(jsonPattern, '')
-
-  // 중복된 공백 및 줄바꿈 정리
-  cleanedText = cleanedText.replace(/\n{3,}/g, '\n\n').trim()
-
-  return cleanedText || text
-}
-
 // context 필드 정제 함수
 const sanitizeContext = (context: string | undefined): string => {
   if (!context) return ''
@@ -221,6 +171,7 @@ export const InterviewPage: React.FC = () => {
   const [wsConnected, setWsConnected] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(60) // 1분 (빠른 테스트용)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [isQuestionDetailsExpanded, setIsQuestionDetailsExpanded] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [fontSize, setFontSize] = useState('medium')
   const [currentFeedback, setCurrentFeedback] = useState<AnswerFeedbackData | null>(null)
@@ -285,6 +236,10 @@ export const InterviewPage: React.FC = () => {
       }
     }
   }, [interviewId])
+
+  useEffect(() => {
+    setIsQuestionDetailsExpanded(false)
+  }, [currentQuestionIndex])
 
   // 면접 데이터 로드
   useEffect(() => {
@@ -848,6 +803,8 @@ export const InterviewPage: React.FC = () => {
 
       // 중복 제거를 위한 고유 질문 필터링 (ID + 질문 내용 기반)
       const uniqueQuestionsData = questionsData.filter((question: any, index: number, array: any[]) => {
+        const currentFormatted = formatQuestionForDisplay(question)
+
         // ID 기반 중복 제거
         const idIndex = array.findIndex(q => q.id === question.id);
         if (idIndex !== index) {
@@ -857,7 +814,7 @@ export const InterviewPage: React.FC = () => {
 
         // 질문 내용 기반 중복 제거 (추가 안전장치)
         const contentIndex = array.findIndex(q =>
-          q.question?.trim() === question.question?.trim()
+          formatQuestionForDisplay(q).normalizedQuestion?.trim() === currentFormatted.normalizedQuestion?.trim()
         );
         if (contentIndex !== index) {
           console.log('[DEDUP] 내용 중복 제거:', question.question?.substring(0, 50) + '...');
@@ -871,19 +828,30 @@ export const InterviewPage: React.FC = () => {
       console.log('[DEDUP] 제거된 질문 수:', questionsData.length - uniqueQuestionsData.length);
 
       // 질문 데이터 형식 변환 (context 객체를 문자열로 변환)
-      const transformedQuestions: Question[] = uniqueQuestionsData.map((q: any): Question => ({
-        id: q.id,
-        question: q.question,
-        category: q.category,
-        difficulty: q.difficulty,
-        context: typeof q.context === 'object' ?
-          (q.context?.original_data?.context || q.context?.context || JSON.stringify(q.context)) :
-          q.context,
-        parent_question_id: q.context?.original_data?.parent_question_id,
-        sub_question_index: q.context?.original_data?.sub_question_index,
-        total_sub_questions: q.context?.original_data?.total_sub_questions,
-        is_compound_question: q.context?.original_data?.is_compound_question
-      }))
+      const transformedQuestions: Question[] = uniqueQuestionsData.map((q: any): Question => {
+        const formatted = formatQuestionForDisplay(q)
+        const contextSource =
+          typeof q.context === 'object' && q.context !== null
+            ? (q.context.original_data || q.context)
+            : null
+
+        return {
+          id: q.id,
+          question: formatted.normalizedQuestion,
+          question_headline: formatted.headline || undefined,
+          question_details_markdown: formatted.detailsMarkdown || undefined,
+          question_has_details: formatted.hasDetails,
+          category: q.category || q.type || 'technical',
+          difficulty: q.difficulty,
+          context: typeof q.context === 'object'
+            ? (contextSource?.context || JSON.stringify(q.context))
+            : q.context,
+          parent_question_id: contextSource?.parent_question_id,
+          sub_question_index: contextSource?.sub_question_index,
+          total_sub_questions: contextSource?.total_sub_questions,
+          is_compound_question: contextSource?.is_compound_question
+        }
+      })
 
       setInterview(sessionData)
       setQuestions(transformedQuestions)
@@ -1363,9 +1331,7 @@ export const InterviewPage: React.FC = () => {
       // 백엔드 대화 API 호출
       const response = await apiFetch('/api/v1/interview/conversation', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createApiHeaders(true),
         body: JSON.stringify({
           interview_id: interviewId,
           question_id: conversationMode.questionId,
@@ -1545,6 +1511,9 @@ export const InterviewPage: React.FC = () => {
   }
 
   const currentQuestion = questions[currentQuestionIndex]
+  const currentQuestionFormatted = currentQuestion
+    ? formatQuestionForDisplay(currentQuestion)
+    : null
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0
 
   return (
@@ -1558,16 +1527,20 @@ export const InterviewPage: React.FC = () => {
               {getProgressText()}
             </span>
             <div className="progress-stepper">
-              {questions.map((question, index) => (
+              {questions.map((question, index) => {
+                const formattedQuestion = formatQuestionForDisplay(question)
+                const titleText = formattedQuestion.headline || question.question
+                return (
                 <div
                   key={index}
                   className={`step ${index <= currentQuestionIndex ? 'completed' : ''} ${index === currentQuestionIndex ? 'current' : ''}`}
                   onClick={() => goToQuestion(index)}
-                  title={`${getQuestionDisplayText(question)}: ${question.question.substring(0, 50)}...`}
+                  title={`${getQuestionDisplayText(question)}: ${titleText.substring(0, 50)}...`}
                 >
                   {question.sub_question_index || index + 1}
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
@@ -1656,9 +1629,35 @@ export const InterviewPage: React.FC = () => {
                       pre: ({ children }) => <pre className="markdown-pre">{children}</pre>
                     }}
                   >
-                    {sanitizeQuestionText(currentQuestion.question)}
+                    {currentQuestionFormatted?.headline || currentQuestion.question}
                   </ReactMarkdown>
                 </div>
+
+                {currentQuestionFormatted?.hasDetails && (
+                  <button
+                    type="button"
+                    className="question-details-toggle"
+                    onClick={() => setIsQuestionDetailsExpanded((prev) => !prev)}
+                  >
+                    {isQuestionDetailsExpanded ? '질문 상세 접기 ▲' : '질문 상세 보기 ▼'}
+                  </button>
+                )}
+
+                {currentQuestionFormatted?.hasDetails && isQuestionDetailsExpanded && (
+                  <div className="question-details-markdown">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className="markdown-paragraph">{children}</p>,
+                        code: ({ children }) => <code className="markdown-code">{children}</code>,
+                        pre: ({ children }) => <pre className="markdown-pre">{children}</pre>
+                      }}
+                    >
+                      {currentQuestionFormatted.detailsMarkdown}
+                    </ReactMarkdown>
+                  </div>
+                )}
+
                 {sanitizeContext(currentQuestion.context) && (
                   <div className="question-context">
                     <Lightbulb className="icon inline mr-2" style={{ color: 'var(--brand-lime-600)' }} />
@@ -1942,7 +1941,10 @@ export const InterviewPage: React.FC = () => {
           <div className="sidebar-section">
             <h3><FileText className="w-5 h-5 mr-2 inline" /> 질문 목록</h3>
             <div className="questions-list">
-              {questions.map((question, index) => (
+              {questions.map((question, index) => {
+                const formattedQuestion = formatQuestionForDisplay(question)
+                const previewText = formattedQuestion.headline || question.question
+                return (
                 <div
                   key={question.id}
                   className={`question-item ${index === currentQuestionIndex ? 'current' :
@@ -1953,9 +1955,9 @@ export const InterviewPage: React.FC = () => {
                   <div className="question-number">Q{index + 1}</div>
                   <div className="question-preview">
                     <span className="question-text">
-                      {question.question.length > 50
-                        ? question.question.substring(0, 50) + '...'
-                        : question.question
+                      {previewText.length > 50
+                        ? previewText.substring(0, 50) + '...'
+                        : previewText
                       }
                     </span>
                     <div className="question-badges">
@@ -1966,7 +1968,8 @@ export const InterviewPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
