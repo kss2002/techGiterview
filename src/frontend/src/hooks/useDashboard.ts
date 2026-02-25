@@ -26,10 +26,33 @@ import {
   TrendingUp,
   Zap
 } from 'lucide-react'
-import type { AnalysisResult, Question, FileTreeNode, RecentAnalysis, SmartFileAnalysis, FileInfo } from '../types/dashboard'
+import type {
+  AnalysisResult,
+  Question,
+  FileTreeNode,
+  RecentAnalysis,
+  SmartFileAnalysis,
+  FileInfo,
+  DashboardLoadingProgress,
+} from '../types/dashboard'
 import { apiFetch } from '../utils/apiUtils'
-import { createApiHeaders, getApiKeysFromStorage } from '../utils/apiHeaders'
+import {
+  createApiHeaders,
+  getAnalysisToken,
+  getApiKeysFromStorage,
+  setInterviewToken,
+  setWsJoinToken
+} from '../utils/apiHeaders'
 import { formatQuestionForDisplay } from '../utils/questionFormatter'
+import {
+  activateLoadingStep,
+  completeLoadingStep,
+  createAnalysisListLoadingProgress,
+  createAnalysisLoadingProgress,
+  failLoadingStep,
+  setLoadingAttempt,
+  setLoadingStepDetail,
+} from '../utils/dashboardLoadingProgress'
 
 const sanitizeQuestions = (items: Question[]): Question[] => {
   const sanitized = items.map((question) => {
@@ -156,6 +179,9 @@ export function useDashboard(analysisId: string | undefined) {
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false)
   const [questionsGenerated, setQuestionsGenerated] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState<DashboardLoadingProgress>(
+    () => createAnalysisLoadingProgress()
+  )
 
   // Graph State
   const [graphData, setGraphData] = useState<any>(null)
@@ -209,11 +235,13 @@ export function useDashboard(analysisId: string | undefined) {
   useEffect(() => {
     console.log('DashboardPage analysisId:', analysisId) // 디버깅용
     if (analysisId) {
+      setLoadingProgress(createAnalysisLoadingProgress())
       // URL 파라미터에서 분석 ID를 가져와서 API에서 데이터 로드
       loadAnalysisResult(analysisId)
     } else {
       // 분석 ID가 없으면 전체 분석 목록 표시
       console.log('No analysisId, showing all analyses')
+      setLoadingProgress(createAnalysisListLoadingProgress())
       loadAllAnalyses()
     }
   }, [analysisId, navigate])
@@ -278,6 +306,10 @@ export function useDashboard(analysisId: string | undefined) {
     console.log('[Dashboard] Loading all analyses...')
     setIsLoadingAllAnalyses(true)
     setError(null)
+    setLoadingProgress(createAnalysisListLoadingProgress())
+    setLoadingProgress((prev) =>
+      activateLoadingStep(prev, 'analysis_list_fetch', '최근 분석 목록을 조회하는 중입니다')
+    )
 
     try {
       const response = await apiFetch('/api/v1/repository/analysis/recent?limit=50') // 더 많은 결과 가져오기
@@ -292,12 +324,22 @@ export function useDashboard(analysisId: string | undefined) {
 
       if (data.success) {
         setAllAnalyses(data.data || [])
+        setLoadingProgress((prev) =>
+          completeLoadingStep(
+            prev,
+            'analysis_list_fetch',
+            `분석 목록 ${data.data?.length || 0}건을 불러왔습니다`
+          )
+        )
         console.log(`[Dashboard] Loaded ${data.data?.length || 0} analyses`)
       } else {
         throw new Error('Failed to load analyses')
       }
     } catch (error) {
       console.error('[Dashboard] Error loading all analyses:', error)
+      setLoadingProgress((prev) =>
+        failLoadingStep(prev, 'analysis_list_fetch', '분석 목록 조회에 실패했습니다')
+      )
       setError('분석 목록을 불러오는데 실패했습니다.')
       setAllAnalyses([])
     } finally {
@@ -311,10 +353,29 @@ export function useDashboard(analysisId: string | undefined) {
 
     setIsLoadingAnalysis(true)
     setError(null)
+    setLoadingProgress(createAnalysisLoadingProgress())
+    setLoadingProgress((prev) =>
+      activateLoadingStep(prev, 'analysis_fetch', '저장소 기본 정보와 기술 스택을 조회하는 중입니다')
+    )
+
+    let hasFailure = false
 
     try {
+      const analysisToken = getAnalysisToken(analysisIdToLoad)
+      if (!analysisToken) {
+        hasFailure = true
+        setLoadingProgress((prev) =>
+          failLoadingStep(prev, 'analysis_fetch', '분석 접근 토큰이 없습니다')
+        )
+        throw new Error('분석 접근 토큰이 없습니다. 저장소를 다시 분석해주세요.')
+      }
       console.log('[Dashboard] Making fetch request...')
-      const response = await apiFetch(`/api/v1/repository/analysis/${analysisIdToLoad}`)
+      const response = await apiFetch(`/api/v1/repository/analysis/${analysisIdToLoad}`, {
+        headers: createApiHeaders({
+          includeApiKeys: false,
+          analysisToken
+        })
+      })
       console.log('[Dashboard] Response received:', {
         status: response.status,
         statusText: response.statusText,
@@ -326,6 +387,14 @@ export function useDashboard(analysisId: string | undefined) {
         // 분석이 아직 진행 중
         const result = await response.json()
         console.log('[Dashboard] ⏳ Analysis still in progress:', result)
+        hasFailure = true
+        setLoadingProgress((prev) =>
+          failLoadingStep(
+            prev,
+            'analysis_fetch',
+            `분석이 아직 완료되지 않았습니다: ${result.detail || '진행 중'}`
+          )
+        )
         setError(`분석이 진행 중입니다. 상태: ${result.detail}`)
         return
       }
@@ -337,6 +406,10 @@ export function useDashboard(analysisId: string | undefined) {
           statusText: response.statusText,
           errorText
         })
+        hasFailure = true
+        setLoadingProgress((prev) =>
+          failLoadingStep(prev, 'analysis_fetch', `분석 결과 조회 실패 (HTTP ${response.status})`)
+        )
         throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
 
@@ -350,13 +423,32 @@ export function useDashboard(analysisId: string | undefined) {
         has_smart_analysis: !!result.smart_file_analysis
       })
       setAnalysisResult(result)
+      setLoadingProgress((prev) =>
+        completeLoadingStep(prev, 'analysis_fetch', `${result.repo_info?.owner || ''}/${result.repo_info?.name || ''} 분석 결과를 확인했습니다`)
+      )
 
       // Load Graph Data
-      fetchGraphData(result.analysis_id)
+      setLoadingProgress((prev) =>
+        activateLoadingStep(prev, 'graph_fetch', '코드 의존성 그래프를 생성하는 중입니다')
+      )
+      const graphLoaded = await fetchGraphData(result.analysis_id)
+      setLoadingProgress((prev) =>
+        graphLoaded
+          ? completeLoadingStep(prev, 'graph_fetch', '코드 그래프 로딩이 완료되었습니다')
+          : failLoadingStep(prev, 'graph_fetch', '코드 그래프 로딩에 실패했습니다')
+      )
 
       // 자동으로 전체 파일 목록 로드
+      setLoadingProgress((prev) =>
+        activateLoadingStep(prev, 'files_fetch', '핵심 파일 목록을 불러오는 중입니다')
+      )
       try {
-        const filesResponse = await apiFetch(`/api/v1/repository/analysis/${result.analysis_id}/all-files?max_depth=3&max_files=500`)
+        const filesResponse = await apiFetch(`/api/v1/repository/analysis/${result.analysis_id}/all-files?max_depth=3&max_files=500`, {
+          headers: createApiHeaders({
+            includeApiKeys: false,
+            analysisToken
+          })
+        })
         if (filesResponse.ok) {
           const files = await filesResponse.json()
           setAllFiles(files)
@@ -370,15 +462,32 @@ export function useDashboard(analysisId: string | undefined) {
             }
           })
           setExpandedFolders(topLevelFolders)
+          setLoadingProgress((prev) =>
+            completeLoadingStep(prev, 'files_fetch', `핵심 파일 ${files.length}개를 로딩했습니다`)
+          )
+        } else {
+          setLoadingProgress((prev) =>
+            failLoadingStep(prev, 'files_fetch', `핵심 파일 로딩 실패 (HTTP ${filesResponse.status})`)
+          )
         }
       } catch (error) {
         console.error('Error loading all files:', error)
+        setLoadingProgress((prev) =>
+          failLoadingStep(prev, 'files_fetch', '핵심 파일 로딩 중 오류가 발생했습니다')
+        )
       }
 
       // 질문이 아직 생성되지 않았다면 자동 로드/생성
       if (!questionsGenerated) {
         console.log('[Dashboard] Auto-loading questions...')
-        await loadOrGenerateQuestions(result)
+        await loadOrGenerateQuestions(result, true)
+      } else {
+        setLoadingProgress((prev) =>
+          completeLoadingStep(prev, 'questions_check', '이미 생성된 질문을 사용합니다')
+        )
+        setLoadingProgress((prev) =>
+          completeLoadingStep(prev, 'questions_generate', '질문 준비가 이미 완료되어 있습니다')
+        )
       }
     } catch (error) {
       console.error('[Dashboard] Critical error loading analysis:', {
@@ -387,29 +496,59 @@ export function useDashboard(analysisId: string | undefined) {
         errorStack: error instanceof Error ? error.stack : undefined,
         analysisId: analysisIdToLoad
       })
+      hasFailure = true
+      setLoadingProgress((prev) =>
+        failLoadingStep(
+          prev,
+          'finalize',
+          error instanceof Error ? error.message : '분석 로딩 중 알 수 없는 오류가 발생했습니다'
+        )
+      )
       setError(error instanceof Error ? error.message : 'Unknown error occurred')
     } finally {
+      if (!hasFailure) {
+        setLoadingProgress((prev) =>
+          completeLoadingStep(
+            activateLoadingStep(prev, 'finalize', '분석 결과 화면을 준비하는 중입니다'),
+            'finalize',
+            '분석 결과 화면 준비가 완료되었습니다'
+          )
+        )
+      }
       console.log('[Dashboard] Analysis loading finished, setting isLoadingAnalysis to false')
       setIsLoadingAnalysis(false)
     }
   }
 
-  const fetchGraphData = async (id: string) => {
+  const fetchGraphData = async (id: string): Promise<boolean> => {
     setIsLoadingGraph(true)
     try {
-      const res = await apiFetch(`/api/v1/repository/analysis/${id}/graph`)
+      const analysisToken = getAnalysisToken(id)
+      if (!analysisToken) {
+        setGraphData(null)
+        return false
+      }
+      const res = await apiFetch(`/api/v1/repository/analysis/${id}/graph`, {
+        headers: createApiHeaders({
+          includeApiKeys: false,
+          analysisToken
+        })
+      })
       if (res.ok) {
         const data = await res.json()
         setGraphData(data)
+        return true
       }
+      return false
     } catch (e) {
       console.error("Failed to fetch graph data", e)
+      return false
     } finally {
       setIsLoadingGraph(false)
     }
   }
 
-  const loadOrGenerateQuestions = async (analysisToUse: AnalysisResult) => {
+  const loadOrGenerateQuestions = async (analysisToUse: AnalysisResult, trackLoadingProgress: boolean = false) => {
     console.log('[Questions] Starting loadOrGenerateQuestions for analysis:', analysisToUse.analysis_id)
     console.log('[Questions] Current questions state:', {
       questionsCount: questions.length,
@@ -419,9 +558,31 @@ export function useDashboard(analysisId: string | undefined) {
 
     setIsLoadingQuestions(true)
 
+    const updateLoadingIfEnabled = (
+      updater: (current: DashboardLoadingProgress) => DashboardLoadingProgress
+    ) => {
+      if (!trackLoadingProgress) return
+      setLoadingProgress((prev) => updater(prev))
+    }
+
+    updateLoadingIfEnabled((prev) =>
+      activateLoadingStep(prev, 'questions_check', '기존 질문 캐시를 확인하는 중입니다')
+    )
+
     const waitForGeneratedQuestions = async (analysisIdToPoll: string, maxAttempts: number = 12, delayMs: number = 5000) => {
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         console.log(`[Questions] ⏳ Waiting for in-progress generation... (${attempt}/${maxAttempts})`)
+        updateLoadingIfEnabled((prev) =>
+          setLoadingAttempt(
+            setLoadingStepDetail(
+              activateLoadingStep(prev, 'questions_generate', '다른 요청에서 질문을 생성 중입니다'),
+              'questions_generate',
+              `질문 생성 완료 대기 중 (${attempt}/${maxAttempts})`
+            ),
+            attempt,
+            maxAttempts
+          )
+        )
         await new Promise((resolve) => setTimeout(resolve, delayMs))
 
         const pollResponse = await apiFetch(`/api/v1/questions/analysis/${analysisIdToPoll}`, {
@@ -438,10 +599,20 @@ export function useDashboard(analysisId: string | undefined) {
           console.log('[Questions] ✅ In-progress generation completed during polling:', pollResult.questions.length)
           setQuestions(pollResult.questions)
           setQuestionsGenerated(true)
+          updateLoadingIfEnabled((prev) =>
+            completeLoadingStep(
+              setLoadingAttempt(prev, attempt, maxAttempts),
+              'questions_generate',
+              `질문 생성이 완료되어 ${pollResult.questions.length}개 질문을 불러왔습니다`
+            )
+          )
           return true
         }
       }
 
+      updateLoadingIfEnabled((prev) =>
+        failLoadingStep(prev, 'questions_generate', '질문 생성 대기 시간이 초과되었습니다')
+      )
       return false
     }
 
@@ -476,9 +647,23 @@ export function useDashboard(analysisId: string | undefined) {
           console.log('[Questions] Found existing questions, setting state:', checkResult.questions.length)
           setQuestions(checkResult.questions)
           setQuestionsGenerated(true)
+          updateLoadingIfEnabled((prev) =>
+            completeLoadingStep(
+              completeLoadingStep(
+                prev,
+                'questions_check',
+                `기존 질문 ${checkResult.questions.length}개를 캐시에서 확인했습니다`
+              ),
+              'questions_generate',
+              '추가 생성 없이 기존 질문을 사용합니다'
+            )
+          )
           console.log('[Questions] Questions state updated successfully')
           return
         } else {
+          updateLoadingIfEnabled((prev) =>
+            completeLoadingStep(prev, 'questions_check', '기존 질문이 없어 새로 생성합니다')
+          )
           console.log('[Questions] No existing questions found, will generate new ones')
         }
       } else {
@@ -486,9 +671,15 @@ export function useDashboard(analysisId: string | undefined) {
           status: checkResponse.status,
           statusText: checkResponse.statusText
         })
+        updateLoadingIfEnabled((prev) =>
+          failLoadingStep(prev, 'questions_check', `질문 조회 실패 (HTTP ${checkResponse.status})`)
+        )
       }
 
       // 질문이 없으면 새로 생성
+      updateLoadingIfEnabled((prev) =>
+        activateLoadingStep(prev, 'questions_generate', 'AI 질문을 생성하는 중입니다')
+      )
       console.log('[Questions] Generating new questions...')
       const generatePayload = {
         repo_url: `https://github.com/${analysisToUse.repo_info.owner}/${analysisToUse.repo_info.name}`,
@@ -516,10 +707,20 @@ export function useDashboard(analysisId: string | undefined) {
 
         // 백엔드에서 이미 생성 중인 경우(409)에는 폴링으로 완료 대기
         if (generateResponse.status === 409) {
+          updateLoadingIfEnabled((prev) =>
+            setLoadingStepDetail(
+              activateLoadingStep(prev, 'questions_generate', '질문 생성이 이미 진행 중입니다'),
+              'questions_generate',
+              '다른 요청의 질문 생성 완료를 기다리는 중입니다'
+            )
+          )
           const recovered = await waitForGeneratedQuestions(analysisToUse.analysis_id)
           if (recovered) return
         }
 
+        updateLoadingIfEnabled((prev) =>
+          failLoadingStep(prev, 'questions_generate', `질문 생성 실패 (HTTP ${generateResponse.status})`)
+        )
         throw new Error(`질문 생성에 실패했습니다. (${generateResponse.status}: ${errorText})`)
       }
 
@@ -536,9 +737,19 @@ export function useDashboard(analysisId: string | undefined) {
         console.log('[Questions] Generated questions successfully, setting state:', generateResult.questions?.length || 0)
         setQuestions(generateResult.questions || [])
         setQuestionsGenerated(true)
+        updateLoadingIfEnabled((prev) =>
+          completeLoadingStep(
+            prev,
+            'questions_generate',
+            `질문 생성이 완료되었습니다 (${generateResult.questions?.length || 0}개)`
+          )
+        )
         console.log('[Questions] Generated questions state updated successfully')
       } else {
         console.error('[Questions] Generate result not successful:', generateResult.error)
+        updateLoadingIfEnabled((prev) =>
+          failLoadingStep(prev, 'questions_generate', '질문 생성 결과가 유효하지 않습니다')
+        )
         throw new Error(`질문 생성 실패: ${generateResult.error}`)
       }
     } catch (error) {
@@ -548,6 +759,13 @@ export function useDashboard(analysisId: string | undefined) {
         errorStack: error instanceof Error ? error.stack : undefined,
         analysisId: analysisToUse.analysis_id
       })
+      updateLoadingIfEnabled((prev) =>
+        failLoadingStep(
+          prev,
+          'questions_generate',
+          error instanceof Error ? error.message : '질문 생성 중 오류가 발생했습니다'
+        )
+      )
       // 질문 생성에 실패해도 대시보드는 표시
     } finally {
       console.log('[Questions] 🏁 loadOrGenerateQuestions finished, setting isLoadingQuestions to false')
@@ -613,7 +831,16 @@ export function useDashboard(analysisId: string | undefined) {
 
     setIsLoadingAllFiles(true)
     try {
-      const response = await apiFetch(`/api/v1/repository/analysis/${analysisId}/all-files?max_depth=3&max_files=500`)
+      const analysisToken = getAnalysisToken(analysisId)
+      if (!analysisToken) {
+        throw new Error('분석 접근 토큰이 없습니다.')
+      }
+      const response = await apiFetch(`/api/v1/repository/analysis/${analysisId}/all-files?max_depth=3&max_files=500`, {
+        headers: createApiHeaders({
+          includeApiKeys: false,
+          analysisToken
+        })
+      })
 
       if (!response.ok) {
         throw new Error('전체 파일 목록을 불러올 수 없습니다.')
@@ -759,7 +986,14 @@ export function useDashboard(analysisId: string | undefined) {
 
     try {
       // API 키 헤더 포함하여 면접 시작 요청
-      const apiHeaders = createApiHeaders(true)
+      const analysisToken = getAnalysisToken(analysisResult.analysis_id)
+      if (!analysisToken) {
+        throw new Error('면접 시작 토큰이 없습니다. 저장소를 다시 분석해주세요.')
+      }
+      const apiHeaders = createApiHeaders({
+        includeApiKeys: true,
+        analysisToken
+      })
       const { githubToken, googleApiKey, upstageApiKey, selectedProvider } = getApiKeysFromStorage()
       console.log('[DASHBOARD] 면접 시작 요청 헤더:', JSON.stringify(apiHeaders, null, 2))
       console.log('[DASHBOARD] localStorage 키 확인:', {
@@ -787,6 +1021,17 @@ export function useDashboard(analysisId: string | undefined) {
 
       const result = await response.json()
       if (result.success) {
+        const interviewId = result.data?.interview_id
+        const interviewToken =
+          response.headers.get('X-Interview-Token') || result?.security?.interview_token
+        const wsJoinToken =
+          response.headers.get('X-WS-Join-Token') || result?.security?.ws_join_token
+        if (interviewId && interviewToken) {
+          setInterviewToken(interviewId, interviewToken)
+        }
+        if (interviewId && wsJoinToken) {
+          setWsJoinToken(interviewId, wsJoinToken)
+        }
         navigate(`/dashboard/${analysisResult.analysis_id}/interview/${result.data.interview_id}`)
       }
     } catch (error) {
@@ -916,6 +1161,7 @@ export function useDashboard(analysisId: string | undefined) {
     analysisResult, questions, isLoadingQuestions, isLoadingAnalysis,
     questionsGenerated, graphData, isLoadingGraph,
     allAnalyses, isLoadingAllAnalyses,
+    loadingProgress,
     allFiles, isLoadingAllFiles, showAllFiles,
     expandedFolders, searchTerm, filteredFiles,
     isFileModalOpen, selectedFilePath, error,

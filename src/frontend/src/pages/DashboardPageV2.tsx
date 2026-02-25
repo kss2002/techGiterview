@@ -23,6 +23,7 @@ export function DashboardPageV2() {
     analysisResult,
     isLoadingAnalysis,
     isLoadingAllAnalyses,
+    loadingProgress,
     error,
     allAnalyses,
     // 질문
@@ -74,6 +75,7 @@ export function DashboardPageV2() {
     return (
       <LoadingState
         title={analysisId ? '분석 결과 로딩 중' : '분석 목록 로딩 중'}
+        progressModel={loadingProgress}
         onCancel={() => navigate('/')}
       />
     )

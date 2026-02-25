@@ -9,8 +9,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 40px;
+  gap: 14px;
+  padding: 40px 32px;
+  width: min(640px, 92vw);
   text-align: center;
 }
 .v2-loading-title {
@@ -19,12 +20,88 @@
   color: var(--v2-text-hi);
   margin: 0;
 }
-.v2-loading-steps { display: flex; flex-direction: column; gap: 8px; }
-.v2-loading-step {
-  display: flex; align-items: center; gap: 8px;
-  font-size: var(--v2-text-md); color: var(--v2-text-muted);
+
+.v2-loading-progress-summary {
+  width: 100%;
 }
-.v2-loading-step--active { color: var(--v2-accent); }
-.v2-loading-step--done { color: var(--v2-success); }
-.v2-loading-step-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-.v2-loading-hint { font-size: var(--v2-text-sm); color: var(--v2-text-muted); margin: 0; }
+
+.v2-loading-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.v2-loading-progress-label {
+  font-size: var(--v2-text-sm);
+  color: var(--v2-text-muted);
+}
+
+.v2-loading-progress-value {
+  font-size: var(--v2-text-md);
+  color: var(--v2-text-hi);
+  font-weight: 600;
+}
+
+.v2-loading-progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.v2-loading-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--v2-accent), #42d392);
+  transition: width 300ms ease;
+}
+
+.v2-loading-steps {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.v2-loading-step {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--v2-text-md);
+  color: var(--v2-text-muted);
+  text-align: left;
+}
+.v2-loading-step--active {
+  color: var(--v2-accent);
+}
+.v2-loading-step--done {
+  color: var(--v2-success);
+}
+.v2-loading-step--failed {
+  color: #ff6b6b;
+}
+.v2-loading-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.v2-loading-step-detail {
+  grid-column: 2 / 3;
+  font-size: var(--v2-text-xs);
+  color: var(--v2-text-muted);
+}
+.v2-loading-hint {
+  font-size: var(--v2-text-sm);
+  color: var(--v2-text-hi);
+  margin: 2px 0 0;
+}
+.v2-loading-time {
+  font-size: var(--v2-text-xs);
+  color: var(--v2-text-muted);
+  margin: 0;
+}

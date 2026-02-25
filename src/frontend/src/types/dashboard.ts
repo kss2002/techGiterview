@@ -123,3 +123,37 @@ export type DifficultyLevel = 'easy' | 'medium' | 'hard' | 'beginner' | 'interme
 export type TabType = 'questions' | 'graph'
 export type CategoryFilter = 'all' | 'technical' | 'architectural' | 'scenario' | 'algorithm' | 'system-design' | 'code-review' | 'best-practices' | 'debugging'
 export type DifficultyFilter = 'all' | 'easy' | 'medium' | 'hard'
+
+export type LoadingStepStatus = 'pending' | 'active' | 'done' | 'failed'
+
+export type LoadingStageKey =
+  | 'analysis_fetch'
+  | 'graph_fetch'
+  | 'files_fetch'
+  | 'questions_check'
+  | 'questions_generate'
+  | 'finalize'
+  | 'analysis_list_fetch'
+
+export interface DashboardLoadingStep {
+  key: LoadingStageKey
+  label: string
+  status: LoadingStepStatus
+  detail?: string
+}
+
+export interface DashboardLoadingProgress {
+  mode: 'analysis' | 'analysis_list'
+  title: string
+  percent: number
+  steps: DashboardLoadingStep[]
+  currentStepKey: LoadingStageKey
+  currentStepLabel: string
+  currentDetail?: string
+  startedAt: string
+  attempt?: {
+    current: number
+    total: number
+  }
+  error?: string
+}
