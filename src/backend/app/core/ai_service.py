@@ -1,5 +1,5 @@
 """
-AI 서비스 모듈 - Google Gemini Flash를 우선순위로 하는 AI 클라이언트 관리
+AI 서비스 모듈 - Upstage Solar Pro3 우선순위 기반 AI 클라이언트 관리
 """
 import os
 import logging
@@ -7,6 +7,7 @@ import asyncio
 import time
 from typing import Dict, Any, Optional, List
 from enum import Enum
+import aiohttp
 
 try:
     import google.generativeai as genai
@@ -15,19 +16,12 @@ except ImportError:
     GOOGLE_AI_AVAILABLE = False
 
 from app.core.config import settings
-
-# Langfuse 추적 import
-try:
-    from app.core.langfuse_client import get_langfuse_client, traced
-    LANGFUSE_AVAILABLE = True
-except ImportError:
-    LANGFUSE_AVAILABLE = False
     
 logger = logging.getLogger(__name__)
 
 
 class AIProvider(str, Enum):
-    UPSTAGE_SOLAR = "upstage-solar"
+    UPSTAGE_SOLAR = "upstage-solar-pro3"
     GEMINI_FLASH = "gemini-flash"
     OPENAI_GPT = "openai-gpt"
     ANTHROPIC_CLAUDE = "anthropic-claude"
@@ -50,7 +44,7 @@ class AIService:
         self.last_request_time = {}  # 각 provider별 마지막 요청 시간
         self.request_count = {}      # 각 provider별 요청 횟수 (분당)
         self.rate_limits = {
-            AIProvider.UPSTAGE_SOLAR: {"requests_per_minute": 60, "min_interval": 1.0},
+            AIProvider.UPSTAGE_SOLAR: {"requests_per_minute": 20, "min_interval": 3.0},
             AIProvider.GEMINI_FLASH: {"requests_per_minute": 15, "min_interval": 4.0}  # 4초 간격
         }
         
@@ -60,33 +54,28 @@ class AIService:
         """사용 가능한 AI 제공업체 초기화"""
         
         try:
-            self.provider_priority = [
-                provider for provider in self.provider_priority
-                if provider not in (AIProvider.OPENAI_GPT, AIProvider.ANTHROPIC_CLAUDE)
-            ]
-
             # 기존 providers 초기화 (재초기화 시 중요)
             self.available_providers.clear()
             
             logger.info("Initializing AI providers...")
             
-            # Upstage Solar Pro 3 초기화 (최우선)
+            # Upstage Solar Pro3 초기화 (최우선)
             try:
                 upstage_api_key = getattr(settings, 'upstage_api_key', None)
                 logger.info(f"Upstage API Key found: {upstage_api_key is not None}")
-                
+
                 if upstage_api_key:
                     self.available_providers[AIProvider.UPSTAGE_SOLAR] = {
-                        "client": None,  # OpenAI 호환 클라이언트 사용
+                        "client": None,
                         "model": "solar-pro3",
                         "status": "ready"
                     }
-                    logger.info("Upstage Solar Pro 3 initialized successfully")
+                    logger.info("Upstage Solar Pro3 initialized successfully")
                 else:
                     logger.warning("Upstage API key not found")
             except Exception as e:
                 logger.error(f"Error accessing Upstage API settings: {e}")
-            
+
             # Google Gemini Flash 초기화
             try:
                 google_api_key = getattr(settings, 'google_api_key', None)
@@ -148,9 +137,9 @@ class AIService:
             # 프로바이더가 하나도 없는 경우 기본 프로바이더 추가
             if not self.available_providers:
                 logger.warning("No AI providers available, adding fallback provider")
-                self.available_providers[AIProvider.GEMINI_FLASH] = {
+                self.available_providers[AIProvider.UPSTAGE_SOLAR] = {
                     "client": None,
-                    "model": "gemini-2.0-flash",
+                    "model": "solar-pro3",
                     "status": "fallback"
                 }
                 
@@ -158,9 +147,9 @@ class AIService:
             logger.error(f"Critical error during AI providers initialization: {e}")
             # 최소한의 fallback 프로바이더라도 제공
             self.available_providers = {
-                AIProvider.GEMINI_FLASH: {
+                AIProvider.UPSTAGE_SOLAR: {
                     "client": None,
-                    "model": "gemini-2.0-flash",
+                    "model": "solar-pro3",
                     "status": "error_fallback"
                 }
             }
@@ -184,6 +173,9 @@ class AIService:
         if not env_exists and api_keys:
             # 배포 환경에서는 제공된 API 키 기반으로 우선순위 결정
             for provider in self.provider_priority:
+                if provider == AIProvider.UPSTAGE_SOLAR and "upstage_api_key" in api_keys:
+                    logger.info(f"배포 환경: API 키 기반으로 {provider} 선택")
+                    return provider
                 if provider == AIProvider.GEMINI_FLASH and "google_api_key" in api_keys:
                     logger.info(f"배포 환경: API 키 기반으로 {provider} 선택")
                     return provider
@@ -213,9 +205,6 @@ class AIService:
         """사용 가능한 모든 AI 제공업체 목록 반환"""
         providers = []
         for provider_enum in self.provider_priority:
-            # OPENAI/ANTHROPIC: not yet implemented
-            if provider_enum in (AIProvider.OPENAI_GPT, AIProvider.ANTHROPIC_CLAUDE):
-                continue
             if provider_enum in self.available_providers:
                 provider_info = self.available_providers[provider_enum]
                 providers.append({
@@ -223,14 +212,14 @@ class AIService:
                     "name": self._get_provider_display_name(provider_enum),
                     "model": provider_info["model"],
                     "status": provider_info["status"],
-                    "recommended": provider_enum == AIProvider.UPSTAGE_SOLAR
+                    "recommended": provider_enum == self.provider_priority[0]
                 })
         return providers
     
     def _get_provider_display_name(self, provider: AIProvider) -> str:
         """AI 제공업체의 사용자 친화적 이름 반환"""
         names = {
-            AIProvider.UPSTAGE_SOLAR: "Upstage Solar Pro 3 (추천)",
+            AIProvider.UPSTAGE_SOLAR: "Upstage Solar Pro3 (추천)",
             AIProvider.GEMINI_FLASH: "Google Gemini 2.0 Flash",
             AIProvider.OPENAI_GPT: "OpenAI GPT",
             AIProvider.ANTHROPIC_CLAUDE: "Anthropic Claude"
@@ -261,7 +250,7 @@ class AIService:
                               provider: Optional[AIProvider] = None,
                               max_retries: int = 3,
                               api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-        """AI를 사용하여 분석 생성 (Rate limiting, 재시도, Langfuse 추적 포함)"""
+        """AI를 사용하여 분석 생성 (Rate limiting 및 재시도 포함)"""
         
         # 제공업체가 지정되지 않은 경우 우선순위에 따라 선택
         if provider is None:
@@ -273,12 +262,17 @@ class AIService:
         
         # 배포 환경에서 API 키가 있으면 해당 프로바이더를 임시로 사용 가능하게 처리
         if not env_exists and api_keys and provider:
-            if provider == AIProvider.GEMINI_FLASH and "google_api_key" in api_keys:
+            has_provider_key = (
+                (provider == AIProvider.UPSTAGE_SOLAR and "upstage_api_key" in api_keys)
+                or (provider == AIProvider.GEMINI_FLASH and "google_api_key" in api_keys)
+            )
+
+            if has_provider_key:
                 logger.info(f"배포 환경: {provider} 프로바이더를 헤더 API 키로 임시 활성화")
-                # 임시로 이 요청에서만 사용 가능하다고 처리
-                pass  # 아래의 가용성 체크를 우회
-            else:
+            elif provider in (AIProvider.UPSTAGE_SOLAR, AIProvider.GEMINI_FLASH):
                 raise ValueError(f"배포 환경에서 {provider} 프로바이더에 필요한 API 키가 없습니다")
+            else:
+                raise ValueError(f"배포 환경에서 지원되지 않는 프로바이더입니다: {provider}")
         elif provider is None:
             raise ValueError("사용 가능한 AI 제공업체가 없습니다")
         elif env_exists and provider not in self.available_providers:
@@ -288,81 +282,20 @@ class AIService:
         # Rate limiting 적용
         await self._wait_for_rate_limit(provider)
         
-        # Langfuse 추적 시작
-        trace = None
-        generation = None
-        start_time = time.time()
-        
-        if LANGFUSE_AVAILABLE:
-            try:
-                langfuse_client = get_langfuse_client()
-                if langfuse_client.is_enabled():
-                    trace = langfuse_client.create_trace(
-                        name="ai_analysis",
-                        metadata={
-                            "provider": provider.value if provider else "unknown",
-                            "max_retries": max_retries
-                        }
-                    )
-                    if trace:
-                        # Langfuse v3: use start_generation instead of generation
-                        generation = trace.start_generation(
-                            name=f"{provider.value if provider else 'unknown'}_generation",
-                            model=self.available_providers.get(provider, {}).get("model", "unknown"),
-                            input=prompt[:1000] + "..." if len(prompt) > 1000 else prompt,
-                            metadata={"provider": provider.value if provider else "unknown"}
-                        )
-                        logger.info(f"[LANGFUSE] Trace started for {provider}")
-            except Exception as e:
-                logger.debug(f"[LANGFUSE] Failed to start trace: {e}")
-        
         # 재시도 로직
         last_exception = None
-        result = None
         for attempt in range(max_retries):
             try:
                 if provider == AIProvider.UPSTAGE_SOLAR:
-                    result = await self._generate_with_upstage(prompt, api_keys)
+                    return await self._generate_with_upstage(prompt, api_keys)
                 elif provider == AIProvider.GEMINI_FLASH:
-                    result = await self._generate_with_gemini(prompt, api_keys)
+                    return await self._generate_with_gemini(prompt, api_keys)
                 elif provider == AIProvider.OPENAI_GPT:
-                    result = await self._generate_with_openai(prompt, api_keys)
+                    return await self._generate_with_openai(prompt, api_keys)
                 elif provider == AIProvider.ANTHROPIC_CLAUDE:
-                    result = await self._generate_with_anthropic(prompt, api_keys)
+                    return await self._generate_with_anthropic(prompt, api_keys)
                 else:
                     raise ValueError(f"지원되지 않는 AI 제공업체: {provider}")
-                
-                # Langfuse 추적 완료 (성공)
-                if generation:
-                    try:
-                        generation.end(
-                            output=result.get("content", "")[:1000] + "..." if len(result.get("content", "")) > 1000 else result.get("content", ""),
-                            usage={
-                                "input": result.get("usage", {}).get("prompt_tokens", 0),
-                                "output": result.get("usage", {}).get("completion_tokens", 0)
-                            },
-                            level="DEFAULT"
-                        )
-                        logger.info(f"[LANGFUSE] Generation completed for {provider}")
-                    except Exception as e:
-                        logger.debug(f"[LANGFUSE] Failed to end generation: {e}")
-                
-                # End the trace (root span)
-                if trace:
-                    try:
-                        trace.end()
-                    except Exception as e:
-                        logger.debug(f"[LANGFUSE] Failed to end trace: {e}")
-
-                # Langfuse flush
-                if LANGFUSE_AVAILABLE:
-                    try:
-                        langfuse_client = get_langfuse_client()
-                        langfuse_client.flush()
-                    except Exception as e:
-                        logger.debug(f"[LANGFUSE] Failed to flush: {e}")
-                
-                return result
                     
             except Exception as e:
                 last_exception = e
@@ -384,37 +317,61 @@ class AIService:
                 # 일반적인 재시도 대기
                 await asyncio.sleep(2 ** attempt)  # 지수 백오프: 1초, 2초, 4초
         
-        # Langfuse 추적 완료 (실패)
-        if generation:
-            try:
-                generation.end(
-                    output=str(last_exception),
-                    level="ERROR",
-                    status_message=str(last_exception)
-                )
-            except Exception as e:
-                logger.debug(f"[LANGFUSE] Failed to end generation with error: {e}")
-        
-        # End the trace (root span) on failure
-        if trace:
-            try:
-                trace.end(
-                    status_message=str(last_exception),
-                    level="ERROR"
-                )
-            except Exception as e:
-                logger.debug(f"[LANGFUSE] Failed to end trace on error: {e}")
-
-        if LANGFUSE_AVAILABLE:
-            try:
-                langfuse_client = get_langfuse_client()
-                langfuse_client.flush()
-            except Exception:
-                pass
-        
         # 모든 재시도 실패
         logger.error(f"AI 분석 생성 최종 실패 ({provider}): {last_exception}")
         raise last_exception
+
+    async def _generate_with_upstage(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        """Upstage Solar Pro3로 분석 생성"""
+        upstage_api_key = None
+        if api_keys and api_keys.get("upstage_api_key"):
+            upstage_api_key = api_keys["upstage_api_key"]
+            logger.info("Using API key from request headers for Upstage")
+        elif getattr(settings, "upstage_api_key", None):
+            upstage_api_key = settings.upstage_api_key
+
+        if not upstage_api_key:
+            raise ValueError("Upstage API key not available")
+
+        endpoint = os.getenv("UPSTAGE_API_URL", "https://api.upstage.ai/v1/chat/completions")
+        payload = {
+            "model": "solar-pro3",
+            "messages": [
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.2,
+        }
+        headers = {
+            "Authorization": f"Bearer {upstage_api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(endpoint, json=payload, headers=headers, timeout=60) as response:
+                if response.status >= 400:
+                    body = await response.text()
+                    raise ValueError(f"Upstage request failed: {response.status} {body}")
+
+                data = await response.json()
+                choices = data.get("choices") or []
+                if not choices:
+                    raise ValueError("Upstage response does not include choices")
+
+                content = choices[0].get("message", {}).get("content", "")
+                if not content:
+                    raise ValueError("Upstage response content is empty")
+
+                usage = data.get("usage", {})
+                return {
+                    "provider": AIProvider.UPSTAGE_SOLAR.value,
+                    "model": payload["model"],
+                    "content": content,
+                    "usage": {
+                        "prompt_tokens": usage.get("prompt_tokens", len(prompt.split())),
+                        "completion_tokens": usage.get("completion_tokens", len(content.split())),
+                    },
+                }
     
     async def _generate_with_gemini(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Google Gemini 2.0 Flash로 분석 생성"""
@@ -449,67 +406,13 @@ class AIService:
     
     async def _generate_with_openai(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """OpenAI GPT로 분석 생성 (향후 구현)"""
-        logger.warning("[AIService] OpenAI provider is not yet implemented")
-        raise NotImplementedError("OpenAI provider is not yet implemented. Use GEMINI or UPSTAGE.")
+        # TODO: OpenAI 클라이언트 구현
+        raise NotImplementedError("OpenAI 통합은 향후 구현 예정입니다")
     
     async def _generate_with_anthropic(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Anthropic Claude로 분석 생성 (향후 구현)"""
-        logger.warning("[AIService] Anthropic provider is not yet implemented")
-        raise NotImplementedError("Anthropic provider is not yet implemented. Use GEMINI or UPSTAGE.")
-    
-    async def _generate_with_upstage(self, prompt: str, api_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-        """Upstage Solar Pro 3로 분석 생성 (OpenAI 호환 API 사용)"""
-        import httpx
-        
-        try:
-            # API 키 확인
-            if api_keys and "upstage_api_key" in api_keys:
-                upstage_api_key = api_keys["upstage_api_key"]
-                logger.info("Using API key from request headers for Upstage")
-            elif hasattr(settings, 'upstage_api_key') and settings.upstage_api_key:
-                upstage_api_key = settings.upstage_api_key
-            else:
-                raise ValueError("Upstage API key not available")
-            
-            # OpenAI 호환 API 호출
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://api.upstage.ai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {upstage_api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": "solar-pro3",
-                        "messages": [
-                            {"role": "user", "content": prompt}
-                        ],
-                        "reasoning_effort": "medium",
-                        "temperature": 0.7,
-                        "max_tokens": 4096
-                    },
-                    timeout=60.0
-                )
-                
-                if response.status_code != 200:
-                    raise ValueError(f"Upstage API error: {response.status_code} - {response.text}")
-                
-                result = response.json()
-                content = result["choices"][0]["message"]["content"]
-                usage = result.get("usage", {})
-                
-                return {
-                    "provider": AIProvider.UPSTAGE_SOLAR.value,
-                    "model": "solar-pro3",
-                    "content": content,
-                    "usage": {
-                        "prompt_tokens": usage.get("prompt_tokens", len(prompt.split())),
-                        "completion_tokens": usage.get("completion_tokens", len(content.split()))
-                    }
-                }
-        except Exception as e:
-            logger.error(f"Upstage 분석 생성 실패: {e}")
-            raise
+        # TODO: Anthropic 클라이언트 구현
+        raise NotImplementedError("Anthropic 통합은 향후 구현 예정입니다")
 
 
 # 전역 AI 서비스 인스턴스

@@ -6,9 +6,32 @@ Configuration Settings
 
 import os
 from typing import List, Optional
+from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _resolve_env_file_name(env_value: Optional[str] = None) -> str:
+    env = (env_value or os.getenv("ENV", "development")).strip()
+    return f".env.{env}" if env != "development" else ".env.dev"
+
+
+def resolve_env_file_path(env_value: Optional[str] = None) -> Path:
+    """실행 위치와 무관하게 환경 파일 경로를 결정한다."""
+    env_file_name = _resolve_env_file_name(env_value)
+    candidates = [
+        Path.cwd() / env_file_name,
+        BACKEND_ROOT / env_file_name,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    # 파일이 아직 없을 때도 backend 루트 기준 경로를 기본값으로 반환
+    return BACKEND_ROOT / env_file_name
 
 
 class Settings(BaseSettings):
@@ -27,16 +50,11 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = None  # Deprecated - Use Gemini instead
     anthropic_api_key: Optional[str] = None
     google_api_key: Optional[str] = None  # Required for Gemini
-    upstage_api_key: Optional[str] = None  # Required for Upstage Solar Pro 3
+    upstage_api_key: Optional[str] = None  # Preferred for Solar Pro3
     
     # LangSmith
     langsmith_api_key: Optional[str] = None
     langsmith_project: str = "techgiterview"
-    
-    # Langfuse (LLM Observability)
-    langfuse_public_key: Optional[str] = None
-    langfuse_secret_key: Optional[str] = None
-    langfuse_host: str = "http://localhost:3000"
     
     # Vector Database
     chroma_host: str = "localhost"
@@ -66,46 +84,31 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = 3600
     
     class Config:
-        env_file = ".env.dev"
+        env_file = str(resolve_env_file_path())
         case_sensitive = False
-        env_file_encoding = 'utf-8'
+        extra = "ignore"
 
 
 def check_env_file_exists() -> bool:
     """환경 파일이 존재하는지 확인"""
-    env = os.getenv("ENV", "development")
-    env_file_name = f".env.{env}" if env != "development" else ".env.dev"
-    return os.path.exists(env_file_name)
+    return resolve_env_file_path().exists()
 
 
-def is_development_mode_active() -> bool:
-    """
-    개발 모드 활성화 여부 확인
-    
-    .env.dev 파일이 존재하는 경우에만 개발 모드로 간주
-    이를 통해 최근 활동 섹션의 표시 여부를 제어
-    """
-    try:
-        # .env.dev 파일의 절대 경로 확인
-        current_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # src/backend 디렉토리
-        env_dev_path = os.path.join(current_dir, ".env.dev")
-        
-        exists = os.path.exists(env_dev_path)
-        print(f"[CONFIG] 개발 모드 체크 - .env.dev 파일: {env_dev_path} (존재: {exists})")
-        return exists
-    except Exception as e:
-        print(f"[CONFIG] 개발 모드 체크 오류: {e}")
-        return False
-
-
-def update_api_keys(github_token: str, google_api_key: str) -> None:
+def update_api_keys(
+    github_token: str,
+    google_api_key: Optional[str] = None,
+    upstage_api_key: Optional[str] = None,
+) -> None:
     """런타임에 API 키 업데이트 및 AI 서비스 재초기화"""
     import logging
     
     logger = logging.getLogger(__name__)
     global settings
     settings.github_token = github_token
-    settings.google_api_key = google_api_key
+    if google_api_key is not None:
+        settings.google_api_key = google_api_key
+    if upstage_api_key is not None:
+        settings.upstage_api_key = upstage_api_key
     
     # AI 서비스 재초기화
     try:
@@ -126,19 +129,16 @@ def update_api_keys(github_token: str, google_api_key: str) -> None:
 def get_settings() -> Settings:
     """설정 싱글톤 인스턴스 반환"""
     env = os.getenv("ENV", "development")
-    env_file_name = f".env.{env}" if env != "development" else ".env.dev"
+    env_file_path = resolve_env_file_path(env)
     
     class _Settings(Settings):
         class Config:
-            env_file = env_file_name if os.path.exists(env_file_name) else None
+            env_file = str(env_file_path) if env_file_path.exists() else None
             case_sensitive = False
+            extra = "ignore"
     
     return _Settings()
 
 
 # 전역 설정 인스턴스
 settings = get_settings()
-
-# Debug: Print Langfuse settings
-print(f"[CONFIG] Loaded settings: env={settings.env}")
-print(f"[CONFIG] Langfuse: public_key={'Set' if settings.langfuse_public_key else 'None'}, secret_key={'Set' if settings.langfuse_secret_key else 'None'}, host={settings.langfuse_host}")

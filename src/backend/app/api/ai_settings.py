@@ -12,9 +12,9 @@ router = APIRouter(prefix="/api/v1/ai", tags=["ai-settings"])
 
 
 def extract_api_keys_from_headers(
-    github_token: Optional[str] = None,
-    google_api_key: Optional[str] = None,
-    upstage_api_key: Optional[str] = None
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key"),
+    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key"),
 ) -> Dict[str, str]:
     """요청 헤더에서 API 키 추출"""
     api_keys = {}
@@ -38,24 +38,27 @@ def get_effective_providers(api_keys: Dict[str, str]) -> List[Dict[str, Any]]:
         # 배포 환경(.env.dev 없음): 헤더의 키를 기반으로 동적 생성
         providers = []
         
-        # Upstage API 키가 있으면 Upstage Solar Pro 3 추가 (우선 추천)
-        if "upstage_api_key" in api_keys and api_keys["upstage_api_key"]:
+        has_upstage_key = bool(api_keys.get("upstage_api_key"))
+        has_google_key = bool(api_keys.get("google_api_key"))
+
+        # Upstage 키가 있으면 Solar Pro3 우선 추가
+        if has_upstage_key:
             providers.append({
                 "id": AIProvider.UPSTAGE_SOLAR.value,
-                "name": "Upstage Solar Pro 3 (추천)",
+                "name": "Upstage Solar Pro3 (추천)",
                 "model": "solar-pro3",
                 "status": "ready",
                 "recommended": True
             })
-        
+
         # Google API 키가 있으면 Gemini 추가
-        if "google_api_key" in api_keys and api_keys["google_api_key"]:
+        if has_google_key:
             providers.append({
                 "id": AIProvider.GEMINI_FLASH.value,
                 "name": "Google Gemini 2.0 Flash",
                 "model": "gemini-2.0-flash",
                 "status": "ready",
-                "recommended": len(providers) == 0  # Upstage 없으면 Gemini 추천
+                "recommended": not has_upstage_key
             })
         
         # 배포 환경에서 API 키가 없으면 빈 목록 반환
@@ -78,7 +81,7 @@ class AIProviderSelectionRequest(BaseModel):
 async def get_available_providers(
     github_token: Optional[str] = Header(None, alias="x-github-token"),
     google_api_key: Optional[str] = Header(None, alias="x-google-api-key"),
-    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key")
+    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key"),
 ):
     """사용 가능한 AI 제공업체 목록 조회"""
     try:
@@ -113,7 +116,7 @@ async def test_ai_provider(
     request: AIProviderSelectionRequest,
     github_token: Optional[str] = Header(None, alias="x-github-token"),
     google_api_key: Optional[str] = Header(None, alias="x-google-api-key"),
-    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key")
+    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key"),
 ):
     """선택된 AI 제공업체 테스트"""
     try:
@@ -134,10 +137,10 @@ async def test_ai_provider(
         env_exists = check_env_file_exists()
         if not env_exists:
             # 배포 환경(.env.dev 없음): 헤더의 키를 사용
-            if provider == AIProvider.UPSTAGE_SOLAR and not api_keys.get("upstage_api_key"):
-                raise HTTPException(status_code=400, detail="Upstage API 키가 필요합니다")
             if provider == AIProvider.GEMINI_FLASH and not api_keys.get("google_api_key"):
                 raise HTTPException(status_code=400, detail="Google API 키가 필요합니다")
+            if provider == AIProvider.UPSTAGE_SOLAR and not api_keys.get("upstage_api_key"):
+                raise HTTPException(status_code=400, detail="Upstage API 키가 필요합니다")
         elif env_exists and provider not in ai_service.available_providers:
             # 로컬 환경(.env.dev 있음): 기존 방식 유지
             raise HTTPException(status_code=400, detail="요청된 AI 제공업체를 사용할 수 없습니다")

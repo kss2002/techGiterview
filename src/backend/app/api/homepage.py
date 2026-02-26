@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from app.core.config import settings, check_env_file_exists
 from app.api.config import check_keys_required
-from app.api.ai_settings import get_available_providers, extract_api_keys_from_headers
+from app.api.ai_settings import get_available_providers
 
 router = APIRouter(prefix="/api/v1/homepage", tags=["homepage"])
 
@@ -27,7 +27,7 @@ class HomePageInitResponse(BaseModel):
 async def get_homepage_init_data(
     github_token: Optional[str] = Header(None, alias="x-github-token"),
     google_api_key: Optional[str] = Header(None, alias="x-google-api-key"),
-    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key")
+    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key"),
 ):
     """
     홈페이지 초기화에 필요한 모든 데이터를 단일 요청으로 제공
@@ -39,20 +39,18 @@ async def get_homepage_init_data(
     try:
         # 1. 설정 상태 확인 (기존 로직 재사용)
         config_response = await check_keys_required()
-        
-        # 개발 모드 활성화 여부 확인
-        from app.core.config import is_development_mode_active
-        development_active = is_development_mode_active()
-        
         config_data = {
             "keys_required": config_response.keys_required,
             "use_local_storage": config_response.use_local_storage,
-            "missing_keys": config_response.missing_keys,
-            "development_mode_active": development_active
+            "missing_keys": config_response.missing_keys
         }
         
         # 2. AI 제공업체 목록 (기존 로직 재사용)
-        providers_data = await get_available_providers(github_token, google_api_key, upstage_api_key)
+        providers_data = await get_available_providers(
+            github_token=github_token,
+            google_api_key=google_api_key,
+            upstage_api_key=upstage_api_key,
+        )
         providers_list = [provider.dict() for provider in providers_data]
         
         # 3. 캐싱 정보
@@ -73,7 +71,7 @@ async def get_homepage_init_data(
         headers = {
             "Cache-Control": "public, max-age=300",  # 5분 캐시
             "ETag": f'"homepage-{hash(str(response_data.dict()))}"',
-            "Vary": "X-GitHub-Token, X-Google-API-Key, X-Upstage-API-Key"
+            "Vary": "X-GitHub-Token, X-Upstage-API-Key, X-Google-API-Key"
         }
         
         return JSONResponse(
@@ -93,12 +91,13 @@ async def get_homepage_init_data(
                 "use_local_storage": True,
                 "missing_keys": {
                     "github_token": True,
-                    "google_api_key": True
+                    "upstage_api_key": True,
+                    "google_api_key": False,
                 }
             },
             "providers": [{
-                "id": "upstage_solar",
-                "name": "Upstage Solar Pro 3 (기본)",
+                "id": "upstage-solar-pro3",
+                "name": "Upstage Solar Pro3 (기본)",
                 "model": "solar-pro3",
                 "status": "available",
                 "recommended": True

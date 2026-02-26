@@ -17,6 +17,7 @@ class ConfigStatusResponse(BaseModel):
     """설정 상태 응답 모델"""
     env_file_exists: bool
     has_github_token: bool
+    has_upstage_api_key: bool
     has_google_api_key: bool
 
 
@@ -30,7 +31,8 @@ class KeysRequiredResponse(BaseModel):
 class ApiKeysRequest(BaseModel):
     """API 키 설정 요청 모델"""
     github_token: str
-    google_api_key: str
+    upstage_api_key: str
+    google_api_key: Optional[str] = None
 
 
 @router.get("/status", response_model=ConfigStatusResponse)
@@ -39,6 +41,7 @@ async def get_config_status():
     return ConfigStatusResponse(
         env_file_exists=check_env_file_exists(),
         has_github_token=bool(settings.github_token),
+        has_upstage_api_key=bool(getattr(settings, "upstage_api_key", None)),
         has_google_api_key=bool(settings.google_api_key)
     )
 
@@ -52,7 +55,11 @@ async def set_api_keys(request: ApiKeysRequest):
         
         if env_exists:
             # 서버 모드: 기존 방식대로 전역 설정에 저장
-            update_api_keys(request.github_token, request.google_api_key)
+            update_api_keys(
+                request.github_token,
+                google_api_key=request.google_api_key,
+                upstage_api_key=request.upstage_api_key,
+            )
             return {
                 "message": "API 키가 성공적으로 설정되었습니다.",
                 "ai_service_reinitialized": True,
@@ -78,12 +85,14 @@ async def check_keys_required():
         # settings 접근을 안전하게 처리
         try:
             github_token = getattr(settings, 'github_token', None)
+            upstage_api_key = getattr(settings, 'upstage_api_key', None)
             google_api_key = getattr(settings, 'google_api_key', None)
-            has_keys = bool(github_token and google_api_key)
+            has_keys = bool(github_token and upstage_api_key)
         except Exception as e:
             # settings 접근 실패 시 기본값 사용
             print(f"Warning: Failed to access settings: {e}")
             github_token = None
+            upstage_api_key = None
             google_api_key = None
             has_keys = False
         
@@ -98,7 +107,8 @@ async def check_keys_required():
             use_local_storage=use_local_storage,
             missing_keys={
                 "github_token": not bool(github_token),
-                "google_api_key": not bool(google_api_key)
+                "upstage_api_key": not bool(upstage_api_key),
+                "google_api_key": not bool(google_api_key),
             }
         )
     except Exception as e:
@@ -109,6 +119,7 @@ async def check_keys_required():
             use_local_storage=True,
             missing_keys={
                 "github_token": True,
-                "google_api_key": True
+                "upstage_api_key": True,
+                "google_api_key": False,
             }
         )
