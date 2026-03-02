@@ -12,6 +12,7 @@ import { QuestionsMasterDetail } from '../components/v2/QuestionsMasterDetail'
 import { LoadingState } from '../components/v2/LoadingState'
 import CodeGraphViewer from '../components/CodeGraphViewer'
 import { FileContentModal } from '../components/FileContentModal'
+import { setAnalysisToken } from '../utils/apiHeaders'
 import './DashboardPageV2.css'
 
 export function DashboardPageV2() {
@@ -70,6 +71,13 @@ export function DashboardPageV2() {
   void questionsGenerated
   void loadOrGenerateQuestions
 
+  const goToDashboard = (targetAnalysisId: string, analysisToken?: string) => {
+    if (analysisToken) {
+      setAnalysisToken(targetAnalysisId, analysisToken)
+    }
+    navigate(`/dashboard/${targetAnalysisId}`)
+  }
+
   // ── 로딩 상태 ────────────────────────────────────────────────────────────
   if (isLoadingAnalysis || isLoadingAllAnalyses) {
     return (
@@ -98,10 +106,10 @@ export function DashboardPageV2() {
             <div
               key={analysis.analysis_id}
               className="v2-analysis-card"
-              onClick={() => navigate(`/dashboard/${analysis.analysis_id}`)}
+              onClick={() => goToDashboard(analysis.analysis_id, analysis.analysis_token)}
               role="button"
               tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && navigate(`/dashboard/${analysis.analysis_id}`)}
+              onKeyDown={e => e.key === 'Enter' && goToDashboard(analysis.analysis_id, analysis.analysis_token)}
             >
               <div className="v2-analysis-card-header">
                 <Github className="v2-icon-sm" />

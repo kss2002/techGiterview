@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { apiFetch } from '../utils/apiUtils'
 
 interface RecentAnalysis {
   analysis_id: string
+  analysis_token?: string
   repository_name: string
   repository_owner: string
   created_at: string
@@ -44,6 +44,19 @@ export const useQuickAccessData = (limit: number = 3): UseQuickAccessDataResult 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const parseSafeJson = async (response: Response) => {
+    const text = await response.text()
+    if (!text) {
+      return null
+    }
+    try {
+      return JSON.parse(text)
+    } catch (parseError) {
+      console.warn('[QUICK_ACCESS_HOOK] JSON 파싱 실패:', parseError)
+      return null
+    }
+  }
+
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -51,46 +64,31 @@ export const useQuickAccessData = (limit: number = 3): UseQuickAccessDataResult 
 
       // 병렬로 두 API 호출 (Vite 프록시 사용)
       const [analysesResponse, reportsResponse] = await Promise.all([
-        apiFetch(`/api/v1/repository/analysis/recent?limit=${limit}`),
-        apiFetch(`/api/v1/reports/recent?limit=${limit}`)
+        fetch(`/api/v1/repository/analysis/recent?limit=${limit}`),
+        fetch(`/api/v1/reports/recent?limit=${limit}`)
       ])
 
       // 응답 처리
-      const analysesResult = await analysesResponse.json()
-      const reportsResult = await reportsResponse.json()
+      const analysesResult = await parseSafeJson(analysesResponse)
+      const reportsResult = await parseSafeJson(reportsResponse)
 
-      // 중복 제거 로직 추가
-      const analyses: RecentAnalysis[] = analysesResult.success ? (analysesResult.data as RecentAnalysis[]) : []
-      const reports: RecentReport[] = reportsResult.success ? (reportsResult.data.reports as RecentReport[]) : []
-      
-      const uniqueAnalyses = analyses.filter((analysis: RecentAnalysis, index: number, arr: RecentAnalysis[]) => 
-        arr.findIndex(a => a.analysis_id === analysis.analysis_id) === index
-      )
-      
-      const uniqueReports = reports.filter((report: RecentReport, index: number, arr: RecentReport[]) => 
-        arr.findIndex(r => r.interview_id === report.interview_id) === index
-      )
+      if (!analysesResponse.ok || !reportsResponse.ok) {
+        console.warn('[QUICK_ACCESS_HOOK] API 응답 오류:', {
+          analysesStatus: analysesResponse.status,
+          reportsStatus: reportsResponse.status
+        })
+      }
 
       // 데이터 설정
       setData({
-        recent_analyses: uniqueAnalyses,
-        recent_reports: uniqueReports
+        recent_analyses: analysesResult?.success ? analysesResult.data : [],
+        recent_reports: reportsResult?.success ? reportsResult.data?.reports || [] : []
       })
 
       console.log('[QUICK_ACCESS_HOOK] 데이터 로드 완료:', {
-        원본_analyses: analyses.length,
-        중복제거_후_analyses: uniqueAnalyses.length,
-        원본_reports: reports.length,
-        중복제거_후_reports: uniqueReports.length
+        analyses: analysesResult?.success ? analysesResult.data.length : 0,
+        reports: reportsResult?.success ? reportsResult.data?.reports?.length || 0 : 0
       })
-      
-      // 중복이 발견된 경우 경고 로그
-      if (analyses.length !== uniqueAnalyses.length) {
-        console.warn('[QUICK_ACCESS_HOOK] 중복 분석 데이터 발견!', {
-          원본: analyses.map(a => a.analysis_id),
-          중복제거후: uniqueAnalyses.map(a => a.analysis_id)
-        })
-      }
 
     } catch (error) {
       console.error('[QUICK_ACCESS_HOOK] 데이터 로딩 오류:', error)
@@ -114,7 +112,7 @@ export const useQuickAccessData = (limit: number = 3): UseQuickAccessDataResult 
 }
 
 // Local Storage를 활용한 캐싱 버전
-export const useQuickAccessDataWithCache = (limit: number = 3, enabled: boolean = true): UseQuickAccessDataResult => {
+export const useQuickAccessDataWithCache = (limit: number = 3): UseQuickAccessDataResult => {
   const [data, setData] = useState<QuickAccessData>(() => {
     // 초기 데이터를 localStorage에서 로드
     try {
@@ -139,42 +137,42 @@ export const useQuickAccessDataWithCache = (limit: number = 3, enabled: boolean 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchData = useCallback(async () => {
-    // enabled가 false인 경우 API 호출 안함
-    if (!enabled) {
-      setData({ recent_analyses: [], recent_reports: [] })
-      setIsLoading(false)
-      setError(null)
-      return
+  const parseSafeJson = async (response: Response) => {
+    const text = await response.text()
+    if (!text) {
+      return null
     }
+    try {
+      return JSON.parse(text)
+    } catch (parseError) {
+      console.warn('[QUICK_ACCESS_HOOK] JSON 파싱 실패:', parseError)
+      return null
+    }
+  }
 
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
 
       const [analysesResponse, reportsResponse] = await Promise.all([
-        apiFetch(`/api/v1/repository/analysis/recent?limit=${limit}`),
-        apiFetch(`/api/v1/reports/recent?limit=${limit}`)
+        fetch(`/api/v1/repository/analysis/recent?limit=${limit}`),
+        fetch(`/api/v1/reports/recent?limit=${limit}`)
       ])
 
-      const analysesResult = await analysesResponse.json()
-      const reportsResult = await reportsResponse.json()
+      const analysesResult = await parseSafeJson(analysesResponse)
+      const reportsResult = await parseSafeJson(reportsResponse)
 
-      // 중복 제거 로직 추가
-      const analyses: RecentAnalysis[] = analysesResult.success ? (analysesResult.data as RecentAnalysis[]) : []
-      const reports: RecentReport[] = reportsResult.success ? (reportsResult.data.reports as RecentReport[]) : []
-      
-      const uniqueAnalyses = analyses.filter((analysis: RecentAnalysis, index: number, arr: RecentAnalysis[]) => 
-        arr.findIndex(a => a.analysis_id === analysis.analysis_id) === index
-      )
-      
-      const uniqueReports = reports.filter((report: RecentReport, index: number, arr: RecentReport[]) => 
-        arr.findIndex(r => r.interview_id === report.interview_id) === index
-      )
+      if (!analysesResponse.ok || !reportsResponse.ok) {
+        console.warn('[QUICK_ACCESS_HOOK] API 응답 오류:', {
+          analysesStatus: analysesResponse.status,
+          reportsStatus: reportsResponse.status
+        })
+      }
 
       const newData = {
-        recent_analyses: uniqueAnalyses,
-        recent_reports: uniqueReports
+        recent_analyses: analysesResult?.success ? analysesResult.data : [],
+        recent_reports: reportsResult?.success ? reportsResult.data?.reports || [] : []
       }
 
       setData(newData)
@@ -193,7 +191,7 @@ export const useQuickAccessDataWithCache = (limit: number = 3, enabled: boolean 
     } finally {
       setIsLoading(false)
     }
-  }, [limit, enabled])
+  }, [limit])
 
   useEffect(() => {
     fetchData()

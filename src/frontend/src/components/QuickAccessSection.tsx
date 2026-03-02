@@ -12,29 +12,12 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { useQuickAccessDataWithCache } from '../hooks/useQuickAccessData'
-import { usePageInitialization } from '../hooks/usePageInitialization'
+import { setAnalysisToken } from '../utils/apiHeaders'
 import './QuickAccessSection.css'
 
 export const QuickAccessSection: React.FC = () => {
-  // 🔧 React Hooks Rules 준수 - 모든 hooks를 항상 같은 순서로 호출
-  const { isDevelopmentActive } = usePageInitialization()
-  const { data, isLoading, error, refetch } = useQuickAccessDataWithCache(3, isDevelopmentActive)
+  const { data, isLoading, error, refetch } = useQuickAccessDataWithCache(3)
   const navigate = useNavigate()
-
-  // 개발 모드에서 중복 키 디버깅을 위한 캐시 클리어 (항상 호출)
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      // 페이지 로드 시 캐시 클리어로 중복 데이터 방지
-      localStorage.removeItem('quick-access-data')
-      localStorage.removeItem('quick-access-data-time')
-    }
-  }, [])
-
-  // ✅ 모든 hooks 호출 후에 조건부 렌더링 수행
-  if (!isDevelopmentActive) {
-    console.log('[QUICK_ACCESS] 개발 모드 비활성화 - 최근 활동 섹션 숨김')
-    return null
-  }
 
 
   const formatDate = (dateString: string) => {
@@ -57,8 +40,11 @@ export const QuickAccessSection: React.FC = () => {
     return mins > 0 ? `${hours}시간 ${mins}분` : `${hours}시간`
   }
 
-  const handleAnalysisClick = (analysisId: string) => {
+  const handleAnalysisClick = (analysisId: string, analysisToken?: string) => {
     console.log('[QUICK_ACCESS] 분석 결과 클릭:', analysisId)
+    if (analysisToken) {
+      setAnalysisToken(analysisId, analysisToken)
+    }
     navigate(`/dashboard/${analysisId}`)
   }
 
@@ -114,13 +100,13 @@ export const QuickAccessSection: React.FC = () => {
           <p>GitHub 저장소를 새로 분석하거나 실제 면접을 진행해보세요!</p>
           <div className="empty-actions">
             <button 
-              onClick={() => navigate('/')} 
+              onClick={() => navigate('/analyze')} 
               className="primary-action-btn"
             >
               저장소 분석하기
             </button>
             <button 
-              onClick={() => navigate('/dashboard')} 
+              onClick={() => navigate('/interview')} 
               className="secondary-action-btn"
             >
               면접 시작하기
@@ -161,10 +147,10 @@ export const QuickAccessSection: React.FC = () => {
                 <div 
                   key={analysis.analysis_id} 
                   className="quick-item analysis-item"
-                  onClick={() => handleAnalysisClick(analysis.analysis_id)}
+                  onClick={() => handleAnalysisClick(analysis.analysis_id, analysis.analysis_token)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAnalysisClick(analysis.analysis_id)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAnalysisClick(analysis.analysis_id, analysis.analysis_token)}
                   aria-label={`${analysis.repository_owner}/${analysis.repository_name} 분석 결과 보기`}
                 >
                   <div className="item-header">
@@ -184,7 +170,7 @@ export const QuickAccessSection: React.FC = () => {
                       <span className="language-tag">{analysis.primary_language}</span>
                       <span className="files-tag">{analysis.file_count}개 파일</span>
                       {analysis.tech_stack.slice(0, 2).map((tech, idx) => (
-                        <span key={`${analysis.analysis_id}-tech-${idx}-${tech}`} className="tech-tag">{tech}</span>
+                        <span key={idx} className="tech-tag">{tech}</span>
                       ))}
                     </div>
                     <ArrowRight className="arrow-icon" />

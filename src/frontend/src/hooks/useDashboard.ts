@@ -40,6 +40,7 @@ import {
   createApiHeaders,
   getAnalysisToken,
   getApiKeysFromStorage,
+  setAnalysisToken,
   setInterviewToken,
   setWsJoinToken
 } from '../utils/apiHeaders'
@@ -222,6 +223,27 @@ export function useDashboard(analysisId: string | undefined) {
     }
   })
   const [isResizingSidebar, setIsResizingSidebar] = useState(false)
+
+  const getAnalysisAwareHeaders = (
+    targetAnalysisId?: string,
+    includeApiKeys: boolean = false
+  ): Record<string, string> => {
+    const token = targetAnalysisId ? getAnalysisToken(targetAnalysisId) : ''
+    if (token) {
+      return createApiHeaders({
+        includeApiKeys,
+        analysisToken: token
+      })
+    }
+    return createApiHeaders({ includeApiKeys })
+  }
+
+  const storeIssuedAnalysisToken = (targetAnalysisId: string, response: Response, body?: any): void => {
+    const issuedToken = response.headers.get('X-Analysis-Token') || body?.security?.analysis_token
+    if (issuedToken) {
+      setAnalysisToken(targetAnalysisId, issuedToken)
+    }
+  }
   const sidebarWidthRef = useRef(sidebarWidth)
   // 질문 카드 펼침/접기 상태 (Accordion)
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
@@ -363,18 +385,14 @@ export function useDashboard(analysisId: string | undefined) {
     try {
       const analysisToken = getAnalysisToken(analysisIdToLoad)
       if (!analysisToken) {
-        hasFailure = true
+        console.warn('[Dashboard] 분석 토큰 없음 - 호환 모드로 조회 시도')
         setLoadingProgress((prev) =>
-          failLoadingStep(prev, 'analysis_fetch', '분석 접근 토큰이 없습니다')
+          setLoadingStepDetail(prev, 'analysis_fetch', '분석 토큰 없이 호환 모드로 조회합니다')
         )
-        throw new Error('분석 접근 토큰이 없습니다. 저장소를 다시 분석해주세요.')
       }
       console.log('[Dashboard] Making fetch request...')
       const response = await apiFetch(`/api/v1/repository/analysis/${analysisIdToLoad}`, {
-        headers: createApiHeaders({
-          includeApiKeys: false,
-          analysisToken
-        })
+        headers: getAnalysisAwareHeaders(analysisIdToLoad, false)
       })
       console.log('[Dashboard] Response received:', {
         status: response.status,
@@ -414,6 +432,7 @@ export function useDashboard(analysisId: string | undefined) {
       }
 
       const result = await response.json()
+      storeIssuedAnalysisToken(analysisIdToLoad, response, result)
       console.log('[Dashboard] Analysis result loaded successfully:', {
         analysis_id: result.analysis_id,
         repo_name: result.repo_info?.name,
@@ -444,11 +463,9 @@ export function useDashboard(analysisId: string | undefined) {
       )
       try {
         const filesResponse = await apiFetch(`/api/v1/repository/analysis/${result.analysis_id}/all-files?max_depth=3&max_files=500`, {
-          headers: createApiHeaders({
-            includeApiKeys: false,
-            analysisToken
-          })
+          headers: getAnalysisAwareHeaders(result.analysis_id, false)
         })
+        storeIssuedAnalysisToken(result.analysis_id, filesResponse)
         if (filesResponse.ok) {
           const files = await filesResponse.json()
           setAllFiles(files)
@@ -523,17 +540,10 @@ export function useDashboard(analysisId: string | undefined) {
   const fetchGraphData = async (id: string): Promise<boolean> => {
     setIsLoadingGraph(true)
     try {
-      const analysisToken = getAnalysisToken(id)
-      if (!analysisToken) {
-        setGraphData(null)
-        return false
-      }
       const res = await apiFetch(`/api/v1/repository/analysis/${id}/graph`, {
-        headers: createApiHeaders({
-          includeApiKeys: false,
-          analysisToken
-        })
+        headers: getAnalysisAwareHeaders(id, false)
       })
+      storeIssuedAnalysisToken(id, res)
       if (res.ok) {
         const data = await res.json()
         setGraphData(data)
@@ -831,16 +841,10 @@ export function useDashboard(analysisId: string | undefined) {
 
     setIsLoadingAllFiles(true)
     try {
-      const analysisToken = getAnalysisToken(analysisId)
-      if (!analysisToken) {
-        throw new Error('분석 접근 토큰이 없습니다.')
-      }
       const response = await apiFetch(`/api/v1/repository/analysis/${analysisId}/all-files?max_depth=3&max_files=500`, {
-        headers: createApiHeaders({
-          includeApiKeys: false,
-          analysisToken
-        })
+        headers: getAnalysisAwareHeaders(analysisId, false)
       })
+      storeIssuedAnalysisToken(analysisId, response)
 
       if (!response.ok) {
         throw new Error('전체 파일 목록을 불러올 수 없습니다.')
@@ -987,13 +991,14 @@ export function useDashboard(analysisId: string | undefined) {
     try {
       // API 키 헤더 포함하여 면접 시작 요청
       const analysisToken = getAnalysisToken(analysisResult.analysis_id)
-      if (!analysisToken) {
-        throw new Error('면접 시작 토큰이 없습니다. 저장소를 다시 분석해주세요.')
-      }
-      const apiHeaders = createApiHeaders({
-        includeApiKeys: true,
-        analysisToken
-      })
+      const apiHeaders = analysisToken
+        ? createApiHeaders({
+            includeApiKeys: true,
+            analysisToken
+          })
+        : createApiHeaders({
+            includeApiKeys: true
+          })
       const { githubToken, googleApiKey, upstageApiKey, selectedProvider } = getApiKeysFromStorage()
       console.log('[DASHBOARD] 면접 시작 요청 헤더:', JSON.stringify(apiHeaders, null, 2))
       console.log('[DASHBOARD] localStorage 키 확인:', {

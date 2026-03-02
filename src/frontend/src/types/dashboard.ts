@@ -111,6 +111,7 @@ export interface FileTreeNode {
 // 분석 목록을 위한 인터페이스 (QuickAccessSection과 동일)
 export interface RecentAnalysis {
   analysis_id: string
+  analysis_token?: string
   repository_name: string
   repository_owner: string
   created_at: string
