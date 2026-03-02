@@ -58,9 +58,9 @@ const storageUtils = {
   
   hasStoredKeys: () => {
     try {
-      const githubToken = localStorage.getItem(STORAGE_KEYS.GITHUB_TOKEN)
       const upstageApiKey = localStorage.getItem(STORAGE_KEYS.UPSTAGE_API_KEY)
-      return !!(githubToken && upstageApiKey)
+      const googleApiKey = localStorage.getItem(STORAGE_KEYS.GOOGLE_API_KEY)
+      return !!(upstageApiKey || googleApiKey)
     } catch (error) {
       return false
     }
@@ -92,17 +92,16 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
 
   // 컴포넌트 마운트 시 모드 확인 및 저장된 키 로드
   useEffect(() => {
+    const controller = new AbortController()
+    let isCleanupAbort = false
+    const timeoutId = window.setTimeout(() => controller.abort(), 10000) // 10초 타임아웃
+
     const checkMode = async () => {
       try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 3000) // 3초 타임아웃
-        
         const response = await fetch('/api/v1/config/keys-required', {
           signal: controller.signal
         })
-        
-        clearTimeout(timeoutId)
-        
+
         if (response.ok) {
           const data: KeysRequiredResponse = await response.json()
           setUseLocalStorageMode(data.use_local_storage)
@@ -110,7 +109,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
           // 로컬스토리지 모드인 경우에만 저장된 키 로드
           if (data.use_local_storage) {
             const storedKeys = storageUtils.loadApiKeys()
-            if (storedKeys.githubToken && storedKeys.upstageApiKey) {
+            if (storedKeys.upstageApiKey || storedKeys.googleApiKey) {
               setGithubToken(storedKeys.githubToken)
               setUpstageApiKey(storedKeys.upstageApiKey)
               setGoogleApiKey(storedKeys.googleApiKey)
@@ -123,26 +122,46 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
           setUseLocalStorageMode(true)
         }
       } catch (error) {
-        console.warn('백엔드 서버 연결 실패, 로컬 모드로 전환:', error)
+        if (error instanceof Error && error.name === 'AbortError') {
+          if (isCleanupAbort) {
+            return
+          }
+          console.warn('백엔드 응답 시간 초과, 로컬 모드로 전환')
+        } else {
+          console.warn('백엔드 서버 연결 실패, 로컬 모드로 전환:', error)
+        }
         // 연결 실패 시 로컬스토리지 모드로 강제 설정
         setUseLocalStorageMode(true)
         
         // 저장된 키가 있으면 자동 로드
         const storedKeys = storageUtils.loadApiKeys()
-        if (storedKeys.githubToken && storedKeys.upstageApiKey) {
+        if (storedKeys.upstageApiKey || storedKeys.googleApiKey) {
           setGithubToken(storedKeys.githubToken)
           setUpstageApiKey(storedKeys.upstageApiKey)
           setGoogleApiKey(storedKeys.googleApiKey)
           console.log('오프라인 모드: 저장된 API 키를 로드했습니다.')
         }
+      } finally {
+        window.clearTimeout(timeoutId)
       }
     }
     
     checkMode()
+
+    return () => {
+      isCleanupAbort = true
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!upstageApiKey.trim() && !googleApiKey.trim()) {
+      setError('Upstage 또는 Google API 키 중 하나를 입력해주세요.')
+      return
+    }
+
     setIsLoading(true)
     setError('')
 
@@ -158,14 +177,16 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
         }
         
         // API 키 유효성을 테스트하기 위해 AI providers 호출
+        const providerHeaders: Record<string, string> = {
+          'Accept': 'application/json'
+        }
+        if (githubToken.trim()) providerHeaders['X-GitHub-Token'] = githubToken.trim()
+        if (upstageApiKey.trim()) providerHeaders['X-Upstage-API-Key'] = upstageApiKey.trim()
+        if (googleApiKey.trim()) providerHeaders['X-Google-API-Key'] = googleApiKey.trim()
+
         const testResponse = await fetch('/api/v1/ai/providers', {
           method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'X-GitHub-Token': githubToken,
-            'X-Upstage-API-Key': upstageApiKey,
-            'X-Google-API-Key': googleApiKey
-          }
+          headers: providerHeaders
         })
         
         if (!testResponse.ok) {
@@ -180,16 +201,17 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
         console.log('API 키 검증 완료. 사용 가능한 제공업체:', providers.length)
       } else {
         // 서버 모드: 기존 방식 유지
+        const payload: Record<string, string> = {}
+        if (githubToken.trim()) payload.github_token = githubToken.trim()
+        if (upstageApiKey.trim()) payload.upstage_api_key = upstageApiKey.trim()
+        if (googleApiKey.trim()) payload.google_api_key = googleApiKey.trim()
+
         const response = await fetch('/api/v1/config/api-keys', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            github_token: githubToken,
-            upstage_api_key: upstageApiKey,
-            google_api_key: googleApiKey
-          })
+          body: JSON.stringify(payload)
         })
 
         if (!response.ok) {
@@ -222,7 +244,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
             <Key className="icon" /> API 키 설정 필요
           </h2>
           <p className="setup-description">
-            TechGiterview를 사용하려면 GitHub 토큰과 Upstage API 키가 필요합니다.
+            TechGiterview를 사용하려면 Upstage 또는 Google API 키가 필요합니다.
             <br />
             {useLocalStorageMode ? (
               '개인 API 키 모드: 키는 브라우저에서만 사용되며 서버에 저장되지 않습니다.'
@@ -256,7 +278,6 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
               placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
               className="form-input"
               autoComplete="username"
-              required
               disabled={isLoading}
             />
             <div className="form-help">
@@ -285,7 +306,6 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
               placeholder="up_xxxxxxxxxxxxxxxxxxxxxxxx"
               className="form-input"
               autoComplete="new-password"
-              required
               disabled={isLoading}
             />
             <div className="form-help">
@@ -365,7 +385,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeysSet }) => {
             <button
               type="submit"
               className="submit-button"
-              disabled={isLoading || !githubToken.trim() || !upstageApiKey.trim()}
+              disabled={isLoading || (!upstageApiKey.trim() && !googleApiKey.trim())}
             >
               {isLoading ? (
                 <>
