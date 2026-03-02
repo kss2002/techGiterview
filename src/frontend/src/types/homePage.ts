@@ -22,17 +22,3 @@ export interface AnalysisResponse {
   analysis_id?: string;
   error?: string;
 }
-
-export interface FeatureItem {
-  id: string;
-  icon: string;
-  title: string;
-  description: string;
-}
-
-export interface WorkflowStep {
-  id: string;
-  step: number;
-  title: string;
-  description: string;
-}
