@@ -24,9 +24,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }
 
   const navigation = [
-    { name: '홈', path: '/', icon: () => <Home className="w-5 h-5" /> },
-    { name: '대시보드', path: '/dashboard', icon: () => <BarChart3 className="w-5 h-5" /> },
-    { name: '리포트', path: '/reports', icon: () => <FileText className="w-5 h-5" /> }
+    { name: '홈', path: '/', icon: () => <Home className="layout-icon layout-icon--nav" /> },
+    { name: '대시보드', path: '/dashboard', icon: () => <BarChart3 className="layout-icon layout-icon--nav" /> },
+    { name: '리포트', path: '/reports', icon: () => <FileText className="layout-icon layout-icon--nav" /> }
   ]
 
   const isHome = location.pathname === '/'
@@ -44,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="nav-container">
                 <div className="nav-brand">
                   <Link to="/" className="brand-link">
-                    <Zap className="brand-icon w-8 h-8" />
+                    <Zap className="brand-icon layout-icon layout-icon--brand" />
                     <span className="brand-text">TechGiterview</span>
                   </Link>
                 </div>
@@ -67,7 +67,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     className="new-analysis-btn"
                     onClick={() => window.location.href = '/'}
                   >
-                    <Plus className="btn-icon w-4 h-4" />
+                    <Plus className="btn-icon layout-icon layout-icon--button" />
                     <span className="btn-text">새 분석</span>
                   </button>
                 </div>

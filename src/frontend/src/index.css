@@ -1,30 +1,17 @@
-/* Base styles for index.css - minimal setup for Vite entry point */
-
-/* Import Design System first - 디자인 토큰을 가장 먼저 로드 */
 @import './styles/design-tokens.css';
+@import './styles/v2.css';
 
-/* Import Inter font from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-/* Reset and normalize */
-* {
-  box-sizing: border-box;
-}
-
-html {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
+html,
 body {
   margin: 0;
   padding: 0;
-  min-height: 100vh;
-  background-color: var(--gray-50);
-  color: var(--gray-700);
-  line-height: var(--leading-normal);
+  min-height: 100%;
+  font-family: var(--v2-font-sans, var(--font-sans, 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif));
+  background-color: var(--v2-bg-base, #0f172a);
+  color: var(--v2-text-body, #cbd5e1);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -32,122 +19,23 @@ body {
   width: 100%;
 }
 
-code {
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
-/* Basic form element styles */
-button, input, select, textarea {
-  font-family: inherit;
-  font-size: inherit;
-}
-
-/* Focus styles for accessibility */
 *:focus-visible {
-  outline: 2px solid var(--primary-600);
+  outline: 2px solid var(--v2-accent, var(--primary-600));
   outline-offset: 2px;
 }
 
-/* Remove default button styles */
-button {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-/* Ensure images are responsive */
 img {
   max-width: 100%;
   height: auto;
 }
 
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Hide scrollbar for webkit browsers while keeping functionality */
-::-webkit-scrollbar {
-  width: var(--spacing-2);
-  height: var(--spacing-2);
-}
-
-::-webkit-scrollbar-track {
-  background: var(--gray-100);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--gray-300);
-  border-radius: var(--radius-sm);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-400);
-}
-
-/* Selection color */
-::selection {
-  background-color: var(--primary-100);
-  color: var(--primary-800);
-}
-
-/* Print styles */
-@media print {
-  * {
-    background: transparent !important;
-    color: black !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-  }
-  
-  a, a:visited {
-    text-decoration: underline;
-  }
-  
-  .no-print {
-    display: none !important;
-  }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  * {
-    border-color: currentColor;
-  }
-}
-
-/* Animations */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(calc(-1 * var(--spacing-2-5)));
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

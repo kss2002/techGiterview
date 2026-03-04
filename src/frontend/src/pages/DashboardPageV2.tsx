@@ -93,39 +93,41 @@ export function DashboardPageV2() {
   if (!analysisId && !error) {
     // 분석 목록 표시
     return (
-      <div className="v2-root v2-analyses-list-page">
-        <div className="v2-analyses-header">
-          <h1 className="v2-analyses-title">
-            <LayoutDashboard className="v2-icon-md" />
-            전체 분석 결과
-          </h1>
-          <p className="v2-analyses-sub">총 {allAnalyses.length}개의 분석 결과</p>
-        </div>
-        <div className="v2-analyses-grid">
-          {allAnalyses.map(analysis => (
-            <div
-              key={analysis.analysis_id}
-              className="v2-analysis-card"
-              onClick={() => goToDashboard(analysis.analysis_id, analysis.analysis_token)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && goToDashboard(analysis.analysis_id, analysis.analysis_token)}
-            >
-              <div className="v2-analysis-card-header">
-                <Github className="v2-icon-sm" />
-                <h3>{analysis.repository_owner}/{analysis.repository_name}</h3>
+      <div className="v2-root v2-tone-709 v2-analyses-list-page">
+        <div className="v2-analyses-shell">
+          <div className="v2-analyses-header">
+            <h1 className="v2-analyses-title">
+              <LayoutDashboard className="v2-icon-md" />
+              전체 분석 결과
+            </h1>
+            <p className="v2-analyses-sub">총 {allAnalyses.length}개의 분석 결과</p>
+          </div>
+          <div className="v2-analyses-grid">
+            {allAnalyses.map(analysis => (
+              <div
+                key={analysis.analysis_id}
+                className="v2-analysis-card"
+                onClick={() => goToDashboard(analysis.analysis_id, analysis.analysis_token)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => e.key === 'Enter' && goToDashboard(analysis.analysis_id, analysis.analysis_token)}
+              >
+                <div className="v2-analysis-card-header">
+                  <Github className="v2-icon-sm" />
+                  <h3>{analysis.repository_owner}/{analysis.repository_name}</h3>
+                </div>
+                <div className="v2-analysis-card-meta">
+                  <span>{analysis.primary_language}</span>
+                  <span>{analysis.file_count}개 파일</span>
+                </div>
+                <div className="v2-analysis-card-stack">
+                  {analysis.tech_stack.slice(0, 4).map((tech, i) => (
+                    <span key={i} className="v2-badge v2-badge-arch">{tech}</span>
+                  ))}
+                </div>
               </div>
-              <div className="v2-analysis-card-meta">
-                <span>{analysis.primary_language}</span>
-                <span>{analysis.file_count}개 파일</span>
-              </div>
-              <div className="v2-analysis-card-stack">
-                {analysis.tech_stack.slice(0, 4).map((tech, i) => (
-                  <span key={i} className="v2-badge v2-badge-arch">{tech}</span>
-                ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -133,12 +135,14 @@ export function DashboardPageV2() {
 
   if (error || !analysisResult) {
     return (
-      <div className="v2-root v2-error-page">
-        <h2>분석 결과를 찾을 수 없습니다</h2>
-        <p>{error || '분석이 완료되지 않았거나 잘못된 ID입니다.'}</p>
-        <button className="v2-btn v2-btn-outline" onClick={() => navigate('/')}>
-          홈으로
-        </button>
+      <div className="v2-root v2-tone-709 v2-error-page">
+        <div className="v2-error-shell">
+          <h2>분석 결과를 찾을 수 없습니다</h2>
+          <p>{error || '분석이 완료되지 않았거나 잘못된 ID입니다.'}</p>
+          <button className="v2-btn v2-btn-outline" onClick={() => navigate('/')}>
+            홈으로
+          </button>
+        </div>
       </div>
     )
   }
@@ -152,7 +156,7 @@ export function DashboardPageV2() {
         <button className="v2-btn v2-btn-ghost v2-btn-sm" onClick={() => navigate('/dashboard')} aria-label="목록으로">
           <ArrowLeft className="v2-btn-icon" />
         </button>
-        <Github className="v2-icon-sm" style={{ color: 'var(--v2-text-muted)' }} />
+        <Github className="v2-icon-sm v2-header-repo-icon" />
         <span className="v2-header-title">
           {repo_info.owner} / {repo_info.name}
         </span>
@@ -216,7 +220,7 @@ export function DashboardPageV2() {
         <div className="v2-sidebar-section-header">
           <span className="v2-label">주요 파일</span>
           {allFiles.length > 0 && (
-            <span className="v2-badge v2-badge-arch" style={{ marginLeft: 'auto', borderRadius: 'var(--v2-radius-full)' }}>
+            <span className="v2-badge v2-badge-arch v2-sidebar-files-count">
               {allFiles.length}
             </span>
           )}
@@ -256,7 +260,7 @@ export function DashboardPageV2() {
           <MessageSquare className="v2-icon-sm" />
           면접 질문
           {questions.length > 0 && (
-            <span className="v2-badge v2-badge-arch" style={{ borderRadius: 'var(--v2-radius-full)', marginLeft: 4 }}>
+            <span className="v2-badge v2-badge-arch v2-main-tab-count">
               {questions.length}
             </span>
           )}
@@ -311,6 +315,7 @@ export function DashboardPageV2() {
         isResizing={isResizingSidebar}
         onResizeStart={(e) => startSidebarResize(e as React.MouseEvent<HTMLDivElement>)}
         onResizeReset={resetSidebarWidth}
+        className="v2-tone-709 dashboard-v2-shell"
       >
         {main}
       </AppShellV2>

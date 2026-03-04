@@ -1,35 +1,17 @@
-/* Import Design System - 디자인 토큰을 가장 먼저 로드 */
-@import './styles/design-tokens.css';
-@import './styles/components.css';
-@import './styles/utilities.css';
-
-/* CSS Custom Properties Support Check - 최소한의 fallback만 유지 */
-@supports not (color: var(--test)) {
-  /* 오래된 브라우저를 위한 필수 fallback styles만 유지 */
-  :root {
-    /* 브라우저 호환성을 위한 최소한의 색상 fallback */
-    --fallback-primary: #181677;
-    --fallback-bg: #f9fafb;
-    --fallback-text: #1f2937;
-  }
-}
-
-/* Global Reset - 기본 브라우저 스타일 초기화 */
+/* App-level global safety only.
+   Page-specific design systems are loaded by each page stylesheet. */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
-/* App 전용 글로벌 스타일 - design-tokens.css와 중복되지 않는 최소한의 설정만 */
-html {
-  font-feature-settings: normal;
-  font-variation-settings: normal;
+html,
+body,
+#root {
+  min-height: 100%;
 }
 
-/* 접근성 개선 */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
