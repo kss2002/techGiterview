@@ -3,24 +3,25 @@ import './AnswerFeedback.css'
 
 interface AnswerFeedbackProps {
   feedback: {
-    overall_score?: number
     score?: number
-    feedback?: string
+    overall_score?: number
     message?: string
+    feedback?: string
     feedback_type?: 'strength' | 'improvement' | 'suggestion' | 'keyword_missing'
     details?: string
     suggestions?: string[]
-  }
+  } | null
   isVisible: boolean
 }
 
 export const AnswerFeedback: React.FC<AnswerFeedbackProps> = ({ feedback, isVisible }) => {
   if (!isVisible || !feedback) return null
-  const effectiveScore = feedback.overall_score ?? feedback.score ?? 0
-  const effectiveMessage = feedback.feedback || feedback.message || ''
-  const effectiveType = feedback.feedback_type || 'suggestion'
-  const effectiveDetails = feedback.details || ''
-  const effectiveSuggestions = feedback.suggestions || []
+
+  const normalizedScore = feedback.score ?? feedback.overall_score ?? 0
+  const normalizedMessage = feedback.message ?? feedback.feedback ?? ''
+  const normalizedType = feedback.feedback_type ?? 'suggestion'
+  const normalizedDetails = feedback.details ?? ''
+  const normalizedSuggestions = feedback.suggestions ?? []
 
   const getScoreClass = (score: number) => {
     if (score >= 8) return 'score-excellent' // 우수
@@ -51,43 +52,43 @@ export const AnswerFeedback: React.FC<AnswerFeedbackProps> = ({ feedback, isVisi
       <div className="feedback-header">
         <div className="score-container">
           <div 
-            className={`score-circle ${getScoreClass(effectiveScore)}`}
+            className={`score-circle ${getScoreClass(normalizedScore)}`}
           >
-            <span className={`score-value ${getScoreClass(effectiveScore)}`}>
-              {effectiveScore}
+            <span className={`score-value ${getScoreClass(normalizedScore)}`}>
+              {normalizedScore}
             </span>
             <span className="score-max">/10</span>
           </div>
-          <div className={`score-label ${getScoreClass(effectiveScore)}`}>
-            {getScoreLabel(effectiveScore)}
+          <div className={`score-label ${getScoreClass(normalizedScore)}`}>
+            {getScoreLabel(normalizedScore)}
           </div>
         </div>
         
         <div className="feedback-type">
-          <span className="feedback-icon">{getFeedbackIcon(effectiveType)}</span>
+          <span className="feedback-icon">{getFeedbackIcon(normalizedType)}</span>
         </div>
       </div>
 
       {/* 메인 피드백 메시지 */}
       <div className="feedback-message">
-        <p>{effectiveMessage}</p>
+        <p>{normalizedMessage}</p>
       </div>
 
       {/* 상세 정보 */}
       <div className="feedback-details">
         <div className="detail-row">
           <span className="detail-label">[분석]</span>
-          <span className="detail-value">{effectiveDetails}</span>
+          <span className="detail-value">{normalizedDetails}</span>
         </div>
       </div>
 
 
       {/* 개선 제안 */}
-      {effectiveSuggestions.length > 0 && (
+      {normalizedSuggestions.length > 0 && (
         <div className="suggestions-section">
           <h4 className="suggestions-title">[개선 제안]</h4>
           <ul className="suggestions-list">
-            {effectiveSuggestions.map((suggestion, index) => (
+            {normalizedSuggestions.map((suggestion, index) => (
               <li key={index} className="suggestion-item">
                 {suggestion}
               </li>

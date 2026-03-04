@@ -1,7 +1,6 @@
-type ReportHandler = (metric: unknown) => void
+export type ReportHandler = (metric: unknown) => void
 
-const reportWebVitals = (_onPerfEntry?: ReportHandler) => {
-  // web-vitals 패키지를 사용하지 않는 구성에서는 no-op 처리
-}
+// Optional performance hook. Kept as a no-op until web-vitals is reintroduced.
+const reportWebVitals = (_onPerfEntry?: ReportHandler) => {}
 
 export default reportWebVitals

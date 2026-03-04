@@ -1,4 +1,3 @@
-import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { vi } from 'vitest'
 
@@ -81,4 +80,3 @@ describe('DashboardPageV2 loading view', () => {
     expect(screen.getByTestId('dashboard-loading-proxy')).toHaveTextContent('47%')
   })
 })
-
