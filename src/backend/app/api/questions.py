@@ -8,13 +8,11 @@ from typing import Dict, List, Any, Optional
 import re
 import uuid
 import json
-from html import unescape
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.agents.question_generator import QuestionGenerator
-from app.core.config import settings
 from app.core.database import engine
 
 router = APIRouter()
@@ -23,7 +21,20 @@ router = APIRouter()
 question_cache = {}
 
 
-# API 키 추출 함수는 app.core.api_utils로 이동됨
+def extract_api_keys_from_headers(
+    github_token: Optional[str] = Header(None, alias="x-github-token"),
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key"),
+    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key"),
+) -> Dict[str, str]:
+    """요청 헤더에서 API 키 추출"""
+    api_keys = {}
+    if github_token:
+        api_keys["github_token"] = github_token
+    if google_api_key:
+        api_keys["google_api_key"] = google_api_key
+    if upstage_api_key:
+        api_keys["upstage_api_key"] = upstage_api_key
+    return api_keys
 
 
 
@@ -56,10 +67,6 @@ class QuestionResponse(BaseModel):
     sub_question_index: Optional[int] = None
     total_sub_questions: Optional[int] = None
     is_compound_question: bool = False
-    # 정규화된 렌더링 필드 (호환성을 위해 optional)
-    question_headline: Optional[str] = None
-    question_details_markdown: Optional[str] = None
-    question_has_details: Optional[bool] = None
 
 
 class QuestionCacheData(BaseModel):
@@ -82,316 +89,6 @@ def create_question_groups(questions: List[QuestionResponse]) -> Dict[str, List[
             groups[parent_id].append(question.id)
     
     return groups
-
-
-QUESTION_SECTION_LABELS = [
-    "질문",
-    "상황",
-    "요구사항",
-    "평가 포인트",
-    "추가 질문 포인트"
-]
-
-
-def _normalize_inline_spaces(value: str) -> str:
-    return re.sub(r'\s+', ' ', value).strip()
-
-
-def _strip_outer_question_wrapper_html(text: str) -> str:
-    """`<div class=\"question-text\">...</div>` 같은 외곽 래퍼 제거"""
-    if not text:
-        return ""
-
-    current = text.strip()
-    wrapper_pattern = re.compile(
-        r'^\s*<div[^>]*class=["\'][^"\']*\bquestion-text\b[^"\']*["\'][^>]*>([\s\S]*)</div>\s*$',
-        re.IGNORECASE
-    )
-
-    while True:
-        match = wrapper_pattern.match(current)
-        if not match:
-            break
-        current = match.group(1).strip()
-
-    return current
-
-
-def _convert_question_html_to_markdown(text: str) -> str:
-    """질문 렌더링에 자주 등장하는 HTML을 markdown/text로 정리"""
-    if not text:
-        return ""
-
-    converted = text
-
-    # 섹션 strong/b 태그를 markdown 섹션 헤더로 정규화
-    for label in QUESTION_SECTION_LABELS:
-        converted = re.sub(
-            rf'(?is)<(?:strong|b)>\s*{re.escape(label)}\s*[:：]\s*</(?:strong|b)>',
-            f'**{label}:** ',
-            converted
-        )
-
-    # 줄바꿈/리스트 관련 태그 정리
-    converted = re.sub(r'(?i)<br\s*/?>', '\n', converted)
-    converted = re.sub(r'(?i)</p\s*>', '\n', converted)
-    converted = re.sub(r'(?i)<p[^>]*>', '', converted)
-    converted = re.sub(r'(?i)</li\s*>', '\n', converted)
-    converted = re.sub(r'(?i)<li[^>]*>', '- ', converted)
-    converted = re.sub(r'(?i)</div\s*>', '\n', converted)
-    converted = re.sub(r'(?i)<div[^>]*>', '', converted)
-
-    # 나머지 HTML 태그 제거
-    converted = re.sub(r'<[^>]+>', '', converted)
-
-    converted = unescape(converted)
-    converted = converted.replace('\r\n', '\n').replace('\r', '\n')
-    converted = re.sub(r'\n{3,}', '\n\n', converted)
-
-    return converted.strip()
-
-
-def _dedupe_mirrored_text(text: str) -> str:
-    """문자열이 통째로 두 번 반복된 케이스 제거"""
-    if not text:
-        return ""
-
-    stripped = text.strip()
-    if len(stripped) < 20:
-        return stripped
-
-    # 정확히 같은 블록이 연속 반복된 경우(중간 공백 허용)
-    repeated_block_match = re.match(r'(?s)^\s*(.{200,}?)\s*\1\s*$', stripped)
-    if repeated_block_match:
-        return repeated_block_match.group(1).strip()
-
-    # 정확히 반반 반복된 경우
-    if len(stripped) % 2 == 0:
-        half = len(stripped) // 2
-        first = stripped[:half].strip()
-        second = stripped[half:].strip()
-        if first and _normalize_inline_spaces(first) == _normalize_inline_spaces(second):
-            return first
-
-    return stripped
-
-
-def _canonicalize_section_content(text: str) -> str:
-    normalized = re.sub(r'[*_`>#-]', ' ', text or '')
-    return _normalize_inline_spaces(normalized).lower()
-
-
-def _clean_section_line(value: str) -> str:
-    line = (value or "").strip()
-    if not line:
-        return ""
-
-    # 리스트/강조 마크다운 잔재 제거
-    line = re.sub(r'^\s*[-*+]\s*', '', line)
-    line = re.sub(r'^\*\*+\s*', '', line)
-    line = re.sub(r'\s*\*\*+$', '', line)
-    line = re.sub(r'^\s*[:：]\s*', '', line)
-    line = _normalize_inline_spaces(line)
-    return line
-
-
-def _merge_section_contents(contents: List[str]) -> str:
-    lines: List[str] = []
-    seen = set()
-    for content in contents:
-        for raw_line in re.split(r'\n+', content or ''):
-            cleaned = _clean_section_line(raw_line)
-            if not cleaned:
-                continue
-            key = _canonicalize_section_content(cleaned)
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            lines.append(cleaned)
-
-    if not lines:
-        return ""
-    if len(lines) == 1:
-        return lines[0]
-    return "\n".join(f"- {line}" for line in lines)
-
-
-def _extract_headline(text: str) -> str:
-    if not text:
-        return ""
-
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    if not lines:
-        return ""
-
-    line = re.sub(r'^[>\-\*\d\.\)\s]+', '', lines[0]).strip()
-    if not line:
-        return ""
-
-    question_mark_idx = line.find('?')
-    if question_mark_idx != -1 and question_mark_idx < 180:
-        return line[:question_mark_idx + 1].strip()
-
-    return line
-
-
-def _remove_headline_prefix(full_text: str, headline: str) -> str:
-    if not full_text or not headline:
-        return full_text.strip() if full_text else ""
-
-    stripped = full_text.strip()
-    if stripped.startswith(headline):
-        remainder = stripped[len(headline):].lstrip(" \n\t:-")
-        return remainder.strip()
-
-    return stripped
-
-
-def normalize_question_payload(raw_question: Optional[str]) -> Dict[str, Any]:
-    """
-    질문 문자열을 정규화하여 headline/details를 추출.
-    - DB 데이터는 유지하고 read/response 시점에서만 정규화한다.
-    """
-    raw = (raw_question or "").strip()
-    if not raw:
-        return {
-            "question": "",
-            "question_headline": None,
-            "question_details_markdown": None,
-            "question_has_details": False
-        }
-
-    text = _strip_outer_question_wrapper_html(raw)
-    text = _convert_question_html_to_markdown(text)
-    text = _dedupe_mirrored_text(text)
-
-    # markdown 강조 형태의 섹션 헤더 정규화
-    text = re.sub(
-        r'\*\*\s*(질문|상황|요구사항|평가 포인트|추가 질문 포인트)\s*[:：]\s*\*\*',
-        r'\1:',
-        text,
-        flags=re.IGNORECASE
-    )
-    text = re.sub(
-        r'\*\*\s*(질문|상황|요구사항|평가 포인트|추가 질문 포인트)\s*\*\*\s*[:：]',
-        r'\1:',
-        text,
-        flags=re.IGNORECASE
-    )
-
-    # 섹션 헤더가 한 줄로 붙어오는 경우를 위해 줄바꿈 삽입
-    text = re.sub(
-        r'\s*((?:\*\*)?\s*(질문|상황|요구사항|평가 포인트|추가 질문 포인트)\s*(?:\*\*)?\s*[:：])',
-        r'\n\1',
-        text,
-        flags=re.IGNORECASE
-    )
-    text = re.sub(r'\n{3,}', '\n\n', text).strip()
-
-    section_pattern = re.compile(
-        r'(?im)^\s*(?:[-*]\s*)?(?:\*\*)?\s*(질문|상황|요구사항|평가 포인트|추가 질문 포인트)\s*(?:\*\*)?\s*[:：]\s*'
-    )
-    matches = list(section_pattern.finditer(text))
-
-    ordered_sections: List[tuple[str, str]] = []
-    seen_section_content = set()
-    for idx, match in enumerate(matches):
-        start = match.end()
-        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(text)
-        label = match.group(1).strip()
-        content = text[start:end].strip()
-        if not content:
-            continue
-
-        canonical = (label, _canonicalize_section_content(content))
-        if canonical in seen_section_content:
-            continue
-        seen_section_content.add(canonical)
-        ordered_sections.append((label, content))
-
-    headline = ""
-    details_markdown = ""
-
-    if ordered_sections:
-        # 동일 섹션은 하나로 병합해 중복 헤더/깨진 목록 제거
-        grouped_sections: Dict[str, List[str]] = {}
-        ordered_labels: List[str] = []
-        for label, content in ordered_sections:
-            if label not in grouped_sections:
-                grouped_sections[label] = []
-                ordered_labels.append(label)
-            grouped_sections[label].append(content)
-
-        merged_sections: List[tuple[str, str]] = []
-        for label in ordered_labels:
-            merged = _merge_section_contents(grouped_sections[label])
-            if merged:
-                merged_sections.append((label, merged))
-
-        question_section = next((content for label, content in merged_sections if label == "질문"), "")
-        fallback_source = question_section or ordered_sections[0][1]
-        headline = _extract_headline(fallback_source)
-
-        detail_parts: List[str] = []
-
-        # 질문 섹션 본문에서 headline 이후의 추가 설명 보존
-        question_remainder = _remove_headline_prefix(question_section, headline) if question_section else ""
-        if question_remainder:
-            detail_parts.append(f"**질문 상세:**\n{question_remainder}")
-
-        for label, content in merged_sections:
-            if label == "질문":
-                continue
-            detail_parts.append(f"**{label}:**\n{content}")
-
-        details_markdown = "\n\n".join(part for part in detail_parts if part.strip()).strip()
-    else:
-        # 섹션이 없으면 문단 중복 제거 후 headline 추출
-        paragraphs = [p.strip() for p in re.split(r'\n{2,}', text) if p.strip()]
-        deduped_paragraphs: List[str] = []
-        seen_paragraphs = set()
-        for paragraph in paragraphs:
-            key = _canonicalize_section_content(paragraph)
-            if not key or key in seen_paragraphs:
-                continue
-            seen_paragraphs.add(key)
-            deduped_paragraphs.append(paragraph)
-
-        plain = "\n\n".join(deduped_paragraphs).strip() or text
-        headline = _extract_headline(plain)
-        remainder = _remove_headline_prefix(plain, headline)
-        details_markdown = remainder if _canonicalize_section_content(remainder) != _canonicalize_section_content(headline) else ""
-
-    headline = headline.strip()
-    details_markdown = details_markdown.strip()
-    has_details = bool(details_markdown)
-
-    normalized_question = headline or text
-    if has_details:
-        normalized_question = f"{headline}\n\n{details_markdown}" if headline else details_markdown
-
-    return {
-        "question": normalized_question.strip(),
-        "question_headline": headline or None,
-        "question_details_markdown": details_markdown or None,
-        "question_has_details": has_details
-    }
-
-
-def normalize_question_response(question: Any) -> QuestionResponse:
-    if isinstance(question, QuestionResponse):
-        normalized_question = question
-    elif isinstance(question, dict):
-        normalized_question = QuestionResponse(**question)
-    else:
-        raise ValueError(f"지원되지 않는 질문 데이터 타입: {type(question)}")
-
-    normalized = normalize_question_payload(normalized_question.question)
-    normalized_question.question = normalized["question"]
-    normalized_question.question_headline = normalized["question_headline"]
-    normalized_question.question_details_markdown = normalized["question_details_markdown"]
-    normalized_question.question_has_details = normalized["question_has_details"]
-    return normalized_question
 
 
 def is_header_or_title(text: str) -> bool:
@@ -541,8 +238,7 @@ def parse_questions_list(questions: List[QuestionResponse]) -> List[QuestionResp
     for question in questions:
         # 각 질문을 파싱하여 결과 추가
         parsed_list = parse_compound_question(question)
-        for parsed_question in parsed_list:
-            parsed_questions.append(normalize_question_response(parsed_question))
+        parsed_questions.extend(parsed_list)
     
     return parsed_questions
 
@@ -559,7 +255,8 @@ class QuestionGenerationResult(BaseModel):
 async def generate_questions(
     request: QuestionGenerationRequest,
     github_token: Optional[str] = Header(None, alias="x-github-token"),
-    google_api_key: Optional[str] = Header(None, alias="x-google-api-key")
+    google_api_key: Optional[str] = Header(None, alias="x-google-api-key"),
+    upstage_api_key: Optional[str] = Header(None, alias="x-upstage-api-key"),
 ):
     """GitHub 저장소 분석 결과를 바탕으로 기술면접 질문 생성"""
     
@@ -568,96 +265,18 @@ async def generate_questions(
         analysis_id = None
         if request.analysis_result and "analysis_id" in request.analysis_result:
             analysis_id = request.analysis_result["analysis_id"]
-
-        # 🔧 핵심 수정: 중복 요청 방지를 위한 Redis 락 사용
-        if analysis_id and not request.force_regenerate:
-            from app.core.database import get_redis
-            import asyncio
-            
-            lock_key = f"question_generation_lock:{analysis_id}"
-            lock_timeout = 300  # 5분 (질문 생성이 오래 걸릴 수 있음)
-            
-            try:
-                redis = await get_redis()
-                
-                # 🔥 Redis 락 획득 시도 (이미 생성 중인 요청이 있으면 대기 또는 거부)
-                lock_acquired = await redis.set(lock_key, "generating", ex=lock_timeout, nx=True)
-                
-                if not lock_acquired:
-                    # 락을 획득하지 못한 경우: 다른 요청이 이미 진행 중
-                    print(f"[LOCK_BLOCKED] 질문 생성이 이미 진행 중: analysis_id={analysis_id}")
-                    
-                    # 잠시 대기 후 캐시에서 결과 확인
-                    for attempt in range(10):  # 최대 10회 시도 (약 50초)
-                        await asyncio.sleep(5)
-                        
-                        # 정규화된 캐시 키로 확인
-                        normalized_cache_key = analysis_id.replace('-', '')
-                        if normalized_cache_key in question_cache:
-                            cache_data = question_cache[normalized_cache_key]
-                            print(f"[LOCK_WAIT_SUCCESS] 대기 중 질문 생성 완료됨: {len(cache_data.parsed_questions)}개 질문")
-                            return QuestionGenerationResult(
-                                success=True,
-                                questions=cache_data.parsed_questions,
-                                analysis_id=analysis_id
-                            )
-                        
-                        # 하이픈 포함 키로도 확인
-                        if analysis_id in question_cache:
-                            cache_data = question_cache[analysis_id]
-                            print(f"[LOCK_WAIT_SUCCESS] 대기 중 질문 생성 완료됨 (하이픈 키): {len(cache_data.parsed_questions)}개 질문")
-                            return QuestionGenerationResult(
-                                success=True,
-                                questions=cache_data.parsed_questions,
-                                analysis_id=analysis_id
-                            )
-                    
-                    # 대기 시간이 초과된 경우
-                    raise HTTPException(
-                        status_code=409,
-                        detail={
-                            "error": "GENERATION_IN_PROGRESS",
-                            "message": "질문 생성이 이미 진행 중입니다. 잠시 후 다시 시도해주세요.",
-                            "analysis_id": analysis_id,
-                            "suggestion": "질문 목록 조회를 통해 생성 완료 여부를 확인해주세요."
-                        }
-                    )
-                
-                # 락 획득 성공 - 질문 생성 진행
-                print(f"[LOCK_ACQUIRED] 질문 생성 락 획득 성공: analysis_id={analysis_id}")
-                
-            except HTTPException:
-                raise
-            except Exception as e:
-                print(f"[LOCK_ERROR] Redis 락 처리 중 오류: {str(e)}")
-                # Redis 연결 실패 시에도 질문 생성은 계속 진행
         
         # 이미 생성된 질문이 있는지 확인 (강제 재생성이 아닌 경우)
-        if analysis_id and not request.force_regenerate:
-            # 정규화된 키로 먼저 확인
-            normalized_cache_key = analysis_id.replace('-', '')
-            if normalized_cache_key in question_cache:
-                cache_data = question_cache[normalized_cache_key]
-                print(f"[CACHE_HIT] 기존 질문 반환 (정규화 키): {len(cache_data.parsed_questions)}개")
-                return QuestionGenerationResult(
-                    success=True,
-                    questions=cache_data.parsed_questions,
-                    analysis_id=analysis_id
-                )
-            
-            # 하이픈 포함 키로도 확인
-            if analysis_id in question_cache:
-                cache_data = question_cache[analysis_id]
-                print(f"[CACHE_HIT] 기존 질문 반환 (하이픈 키): {len(cache_data.parsed_questions)}개")
-                return QuestionGenerationResult(
-                    success=True,
-                    questions=cache_data.parsed_questions,
-                    analysis_id=analysis_id
-                )
+        if analysis_id and analysis_id in question_cache and not request.force_regenerate:
+            cache_data = question_cache[analysis_id]
+            return QuestionGenerationResult(
+                success=True,
+                questions=cache_data.parsed_questions,
+                analysis_id=analysis_id
+            )
         
         # 헤더에서 API 키 추출
-        from app.core.api_utils import extract_api_keys_from_headers
-        api_keys = extract_api_keys_from_headers(github_token, google_api_key)
+        api_keys = extract_api_keys_from_headers(github_token, google_api_key, upstage_api_key)
         
         # 질문 생성기 초기화
         generator = QuestionGenerator()
@@ -697,36 +316,19 @@ async def generate_questions(
         # 질문 그룹 관계 생성
         question_groups = create_question_groups(parsed_questions)
         
-        # 캐시에 저장 (구조화된 데이터) - UUID 정규화하여 저장
+        # 캐시에 저장 (구조화된 데이터)
         if analysis_id:
             from datetime import datetime
-            # UUID 정규화: 하이픈 제거하여 일관성 있게 저장
-            normalized_cache_key = analysis_id.replace('-', '')
             cache_data = QuestionCacheData(
                 original_questions=questions,
                 parsed_questions=parsed_questions,
                 question_groups=question_groups,
                 created_at=datetime.now().isoformat()
             )
-            question_cache[normalized_cache_key] = cache_data
-            print(f"[CACHE] 질문을 캐시에 저장: 원본키={analysis_id}, 정규화키={normalized_cache_key}, 질문수={len(parsed_questions)}")
-            
-            # 하이픈 있는 키로도 저장 (호환성 보장)
             question_cache[analysis_id] = cache_data
             
             # DB에도 저장하여 영구 보존
             await _save_questions_to_db(analysis_id, parsed_questions)
-        
-        # 🔧 Redis 락 해제 (질문 생성 완료)
-        if analysis_id:
-            try:
-                from app.core.database import get_redis
-                redis = await get_redis()
-                lock_key = f"question_generation_lock:{analysis_id}"
-                await redis.delete(lock_key)
-                print(f"[LOCK_RELEASED] 질문 생성 락 해제 완료: analysis_id={analysis_id}")
-            except Exception as lock_error:
-                print(f"[LOCK_ERROR] Redis 락 해제 실패 (질문 생성은 성공): {str(lock_error)}")
         
         return QuestionGenerationResult(
             success=True,
@@ -734,20 +336,7 @@ async def generate_questions(
             analysis_id=analysis_id
         )
         
-    except HTTPException:
-        raise
     except Exception as e:
-        # 🔧 예외 발생 시에도 Redis 락 해제
-        if analysis_id:
-            try:
-                from app.core.database import get_redis
-                redis = await get_redis()
-                lock_key = f"question_generation_lock:{analysis_id}"
-                await redis.delete(lock_key)
-                print(f"[LOCK_RELEASED] 예외 발생으로 인한 락 해제: analysis_id={analysis_id}")
-            except Exception as lock_error:
-                print(f"[LOCK_ERROR] 예외 상황에서 락 해제 실패: {str(lock_error)}")
-                
         return QuestionGenerationResult(
             success=False,
             questions=[],
@@ -755,45 +344,20 @@ async def generate_questions(
         )
 
 
-@router.get("/types")
-async def get_question_types():
-    """사용 가능한 질문 타입 목록 조회"""
-    return {
-        "question_types": [
-            "code_analysis",
-            "tech_stack",
-            "architecture",
-            "design_patterns",
-            "problem_solving",
-            "best_practices"
-        ],
-        "difficulties": ["easy", "medium", "hard"]
-    }
-
-
 @router.get("/{analysis_id}")
 async def get_questions(analysis_id: str):
     """분석 ID로 질문 조회"""
     try:
-        # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
-        normalized_analysis_id = analysis_id.replace('-', '')
-        
-        if normalized_analysis_id not in question_cache:
+        if analysis_id not in question_cache:
             raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다")
         
-        cache_data = question_cache[normalized_analysis_id]
-        normalized_questions = [
-            normalize_question_response(q)
-            for q in cache_data.parsed_questions
-        ]
+        cache_data = question_cache[analysis_id]
         return {
             "success": True,
-            "questions": normalized_questions,
+            "questions": cache_data.parsed_questions,
             "question_groups": cache_data.question_groups,
             "created_at": cache_data.created_at
         }
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -802,21 +366,16 @@ async def get_questions(analysis_id: str):
 async def get_question_groups(analysis_id: str):
     """질문 그룹 정보 조회"""
     try:
-        # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
-        normalized_analysis_id = analysis_id.replace('-', '')
-        
-        if normalized_analysis_id not in question_cache:
+        if analysis_id not in question_cache:
             raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다")
         
-        cache_data = question_cache[normalized_analysis_id]
+        cache_data = question_cache[analysis_id]
         return {
             "success": True,
             "question_groups": cache_data.question_groups,
             "total_questions": len(cache_data.parsed_questions),
             "total_groups": len(cache_data.question_groups)
         }
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -864,11 +423,10 @@ async def get_cache_status():
 async def get_questions_by_analysis(analysis_id: str):
     """분석 ID로 생성된 질문 조회 - 메모리 캐시 우선, 없으면 DB 조회"""
     try:
-        # 1. 먼저 메모리 캐시에서 조회 (UUID 정규화)
-        normalized_analysis_id = analysis_id.replace('-', '')
-        if normalized_analysis_id in question_cache:
-            print(f"[QUESTIONS] Found questions in memory cache for {analysis_id} (normalized: {normalized_analysis_id})")
-            cache_data = question_cache[normalized_analysis_id]
+        # 1. 먼저 메모리 캐시에서 조회
+        if analysis_id in question_cache:
+            print(f"[QUESTIONS] Found questions in memory cache for {analysis_id}")
+            cache_data = question_cache[analysis_id]
             
             # 캐시 데이터 구조 확인
             questions = []
@@ -879,14 +437,9 @@ async def get_questions_by_analysis(analysis_id: str):
             elif isinstance(cache_data, list):
                 questions = cache_data
             
-            normalized_questions = [
-                normalize_question_response(q)
-                for q in questions
-            ]
-
             return QuestionGenerationResult(
                 success=True,
-                questions=normalized_questions,
+                questions=questions,
                 analysis_id=analysis_id
             )
         
@@ -925,11 +478,25 @@ async def get_questions_by_analysis(analysis_id: str):
         )
 
 
+@router.get("/types")
+async def get_question_types():
+    """사용 가능한 질문 타입 목록 조회"""
+    return {
+        "question_types": [
+            "code_analysis",
+            "tech_stack", 
+            "architecture",
+            "design_patterns",
+            "problem_solving",
+            "best_practices"
+        ],
+        "difficulties": ["easy", "medium", "hard"]
+    }
+
+
 @router.get("/debug/cache")
 async def debug_question_cache():
     """질문 캐시 상태 확인 (디버깅용)"""
-    if not settings.debug:
-        raise HTTPException(status_code=404, detail="Not found")
     return {
         "cache_size": len(question_cache),
         "cached_analysis_ids": list(question_cache.keys()),
@@ -948,16 +515,11 @@ async def debug_question_cache():
 @router.get("/debug/original/{analysis_id}")
 async def debug_original_questions(analysis_id: str):
     """원본 질문 확인 (디버깅용)"""
-    if not settings.debug:
-        raise HTTPException(status_code=404, detail="Not found")
     try:
-        # UUID 정규화: 하이픈 제거하여 캐시 키와 매칭
-        normalized_analysis_id = analysis_id.replace('-', '')
-        
-        if normalized_analysis_id not in question_cache:
+        if analysis_id not in question_cache:
             raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다")
         
-        cache_data = question_cache[normalized_analysis_id]
+        cache_data = question_cache[analysis_id]
         return {
             "success": True,
             "original_questions": [
@@ -973,8 +535,6 @@ async def debug_original_questions(analysis_id: str):
             "parsed_questions_count": len(cache_data.parsed_questions),
             "groups_count": len(cache_data.question_groups)
         }
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -982,8 +542,6 @@ async def debug_original_questions(analysis_id: str):
 @router.post("/debug/add-test-questions/{analysis_id}")
 async def add_test_questions(analysis_id: str):
     """테스트용 질문 추가 (디버깅용)"""
-    if not settings.debug:
-        raise HTTPException(status_code=404, detail="Not found")
     try:
         from datetime import datetime
         
@@ -1024,16 +582,13 @@ async def add_test_questions(analysis_id: str):
         # 질문 그룹 관계 생성
         question_groups = create_question_groups(parsed_questions)
         
-        # 캐시에 저장 (UUID 정규화)
-        normalized_cache_key = analysis_id.replace('-', '')
+        # 캐시에 저장
         cache_data = QuestionCacheData(
             original_questions=test_questions,
             parsed_questions=parsed_questions,
             question_groups=question_groups,
             created_at=datetime.now().isoformat()
         )
-        question_cache[normalized_cache_key] = cache_data
-        # 호환성을 위해 원본 키로도 저장
         question_cache[analysis_id] = cache_data
         
         return {
@@ -1042,10 +597,39 @@ async def add_test_questions(analysis_id: str):
             "analysis_id": analysis_id,
             "questions": parsed_questions
         }
-    except HTTPException:
-        raise
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/debug/cache")
+async def debug_question_cache():
+    """질문 캐시 상태 확인 (디버깅용)"""
+    return {
+        "cache_size": len(question_cache),
+        "cached_analysis_ids": list(question_cache.keys()),
+        "cache_details": [
+            {
+                "analysis_id": analysis_id,
+                "question_count": len(cache_data.parsed_questions),
+                "created_at": cache_data.created_at
+            }
+            for analysis_id, cache_data in question_cache.items()
+        ]
+    }
+
+
+@router.delete("/debug/cache")
+async def clear_question_cache():
+    """질문 캐시 초기화 (디버깅용)"""
+    cache_size_before = len(question_cache)
+    question_cache.clear()
+    
+    return {
+        "message": "질문 캐시가 성공적으로 초기화되었습니다",
+        "cleared_items": cache_size_before,
+        "current_cache_size": len(question_cache)
+    }
 
 
 async def _load_questions_from_db(analysis_id: str) -> List[QuestionResponse]:
@@ -1086,7 +670,7 @@ async def _load_questions_from_db(analysis_id: str) -> List[QuestionResponse]:
                     technology=None,
                     pattern=None
                 )
-                questions.append(normalize_question_response(question))
+                questions.append(question)
             
             print(f"[DB] Loaded {len(questions)} questions from database for analysis {analysis_id}")
             return questions
@@ -1101,153 +685,61 @@ async def _restore_questions_to_cache(analysis_id: str, questions: List[Question
     try:
         from datetime import datetime
         
-        normalized_questions = [normalize_question_response(q) for q in questions]
-
         # 질문 그룹 관계 생성
-        question_groups = create_question_groups(normalized_questions)
+        question_groups = create_question_groups(questions)
         
         # 캐시에 저장할 데이터 구조 생성
         cache_data = QuestionCacheData(
-            original_questions=normalized_questions,  # DB에서 가져온 질문들을 원본으로 처리
-            parsed_questions=normalized_questions,    # 이미 파싱된 상태로 간주
+            original_questions=questions,  # DB에서 가져온 질문들을 원본으로 처리
+            parsed_questions=questions,    # 이미 파싱된 상태로 간주
             question_groups=question_groups,
             created_at=datetime.now().isoformat()
         )
         
-        # 메모리 캐시에 저장 (UUID 정규화하여 일관성 유지)
-        normalized_cache_key = analysis_id.replace('-', '')
-        question_cache[normalized_cache_key] = cache_data
-        # 호환성을 위해 원본 키로도 저장
+        # 메모리 캐시에 저장
         question_cache[analysis_id] = cache_data
         
-        print(f"[CACHE] Restored {len(normalized_questions)} questions to memory cache for analysis {analysis_id} (normalized: {normalized_cache_key})")
+        print(f"[CACHE] Restored {len(questions)} questions to memory cache for analysis {analysis_id}")
         
     except Exception as e:
         print(f"[CACHE] Error restoring questions to cache: {e}")
 
 
 async def _save_questions_to_db(analysis_id: str, questions: List[QuestionResponse]):
-    """생성된 질문들을 데이터베이스에 저장 - UPSERT 방식으로 개선"""
+    """생성된 질문들을 데이터베이스에 저장"""
     try:
-        from app.core.database import database_url
-        from datetime import datetime
-        current_time = datetime.now()
-        
         with engine.connect() as conn:
-            # 🔧 핵심 개선: DELETE-INSERT 대신 UPSERT 사용
-            # 데이터베이스 종류에 따라 다른 UPSERT 구문 사용
-            is_sqlite = "sqlite" in database_url.lower()
+            # 기존 질문이 있으면 삭제 (중복 방지)
+            conn.execute(text(
+                "DELETE FROM interview_questions WHERE analysis_id = :analysis_id"
+            ), {"analysis_id": analysis_id})
             
-            print(f"[DB_UPSERT] UPSERT 방식으로 질문 저장 시작: {len(questions)}개 질문, DB타입={'SQLite' if is_sqlite else 'PostgreSQL'}")
+            # 새로운 질문들 저장
+            from datetime import datetime
+            current_time = datetime.now()
             
-            # 🔥 단계별 UPSERT: 기존 질문 ID 조회 후 새 질문 처리
             for question in questions:
-                if is_sqlite:
-                    # SQLite: INSERT OR REPLACE 사용 (updated_at 컬럼 없음)
-                    conn.execute(text(
-                        """
-                        INSERT OR REPLACE INTO interview_questions 
-                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at)
-                        VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, 
-                                COALESCE((SELECT created_at FROM interview_questions WHERE id = :id), :created_at))
-                        """
-                    ), {
-                        "id": question.id,
-                        "analysis_id": analysis_id,
-                        "category": question.type,
-                        "difficulty": question.difficulty,
-                        "question_text": question.question,
-                        "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
-                        "created_at": current_time
-                    })
-                else:
-                    # PostgreSQL: INSERT ... ON CONFLICT DO UPDATE 사용 (updated_at 컬럼 없음)
-                    conn.execute(text(
-                        """
-                        INSERT INTO interview_questions 
-                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at)
-                        VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, :created_at)
-                        ON CONFLICT (id) DO UPDATE SET
-                            category = EXCLUDED.category,
-                            difficulty = EXCLUDED.difficulty,
-                            question_text = EXCLUDED.question_text,
-                            expected_points = EXCLUDED.expected_points
-                        """
-                    ), {
-                        "id": question.id,
-                        "analysis_id": analysis_id,
-                        "category": question.type,
-                        "difficulty": question.difficulty,
-                        "question_text": question.question,
-                        "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
-                        "created_at": current_time
-                    })
-            
-            # 🔧 추가 개선: 현재 질문 세트에 없는 기존 질문들은 비활성화 (삭제하지 않음)
-            current_question_ids = [q.id for q in questions]
-            if current_question_ids:
-                question_ids_placeholder = ','.join([f"'{qid}'" for qid in current_question_ids])
-                
-                # 현재 질문 세트에 없는 기존 질문들 비활성화
-                result = conn.execute(text(
-                    f"""
-                    UPDATE interview_questions 
-                    SET is_active = FALSE, updated_at = :updated_at
-                    WHERE analysis_id = :analysis_id 
-                    AND id NOT IN ({question_ids_placeholder})
-                    AND is_active = TRUE
+                conn.execute(text(
+                    """
+                    INSERT INTO interview_questions 
+                    (id, analysis_id, category, difficulty, question_text, expected_points, created_at)
+                    VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, :created_at)
                     """
                 ), {
+                    "id": question.id,
                     "analysis_id": analysis_id,
-                    "updated_at": current_time
+                    "category": question.type,
+                    "difficulty": question.difficulty,
+                    "question_text": question.question,
+                    "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
+                    "created_at": current_time
                 })
-                
-                deactivated_count = result.rowcount if hasattr(result, 'rowcount') else 0
-                if deactivated_count > 0:
-                    print(f"[DB_UPSERT] 기존 질문 {deactivated_count}개 비활성화 (삭제하지 않음)")
             
             # 변경사항 커밋
             conn.commit()
             
-            print(f"[DB_UPSERT] UPSERT 완료: {len(questions)}개 질문 저장/업데이트, analysis_id={analysis_id}")
-            print(f"[DB_UPSERT] ✅ 장점: 질문 삭제 없이 원자적 업데이트로 캐시-DB 일관성 보장")
+            print(f"[DB] Saved {len(questions)} questions to database for analysis {analysis_id}")
             
     except Exception as e:
-        print(f"[DB_UPSERT_ERROR] UPSERT 저장 실패: {str(e)}")
-        print(f"[DB_UPSERT_ERROR] 폴백: 기존 DELETE-INSERT 방식으로 재시도...")
-        
-        # 🔧 폴백: UPSERT 실패 시 기존 방식으로 재시도
-        try:
-            with engine.connect() as conn:
-                # 기존 질문 삭제
-                conn.execute(text(
-                    "DELETE FROM interview_questions WHERE analysis_id = :analysis_id"
-                ), {"analysis_id": analysis_id})
-                
-                # 새로운 질문들 저장
-                from datetime import datetime
-                current_time = datetime.now()
-                
-                for question in questions:
-                    conn.execute(text(
-                        """
-                        INSERT INTO interview_questions 
-                        (id, analysis_id, category, difficulty, question_text, expected_points, created_at)
-                        VALUES (:id, :analysis_id, :category, :difficulty, :question_text, :expected_points, :created_at)
-                        """
-                    ), {
-                        "id": question.id,
-                        "analysis_id": analysis_id,
-                        "category": question.type,
-                        "difficulty": question.difficulty,
-                        "question_text": question.question,
-                        "expected_points": json.dumps(question.expected_answer_points) if question.expected_answer_points else None,
-                        "created_at": current_time
-                    })
-                
-                conn.commit()
-                print(f"[DB_FALLBACK] 폴백 저장 성공: {len(questions)}개 질문")
-                
-        except Exception as fallback_error:
-            print(f"[DB_FALLBACK_ERROR] 폴백도 실패: {str(fallback_error)}")
-            # DB 저장 실패는 질문 생성 자체를 실패시키지 않음
+        print(f"[DB] Error saving questions to database: {e}")
+        # DB 저장 실패는 질문 생성 자체를 실패시키지 않음

@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     secret_key: str = "default_secret_key_for_development"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    token_signing_keys_json: Optional[str] = None
+    token_active_kid: str = "default"
+    token_issuer: str = "techgiterview"
+    token_audience: str = "techgiterview-backend"
+    analysis_token_ttl_seconds: int = 3600
+    interview_token_ttl_seconds: int = 14400
+    ws_query_token_ttl_seconds: int = 90
     
     # CORS
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,https://tgv.oursophy.com"
@@ -95,7 +102,7 @@ def check_env_file_exists() -> bool:
 
 
 def update_api_keys(
-    github_token: str,
+    github_token: Optional[str] = None,
     google_api_key: Optional[str] = None,
     upstage_api_key: Optional[str] = None,
 ) -> None:
@@ -104,7 +111,8 @@ def update_api_keys(
     
     logger = logging.getLogger(__name__)
     global settings
-    settings.github_token = github_token
+    if github_token is not None:
+        settings.github_token = github_token
     if google_api_key is not None:
         settings.google_api_key = google_api_key
     if upstage_api_key is not None:

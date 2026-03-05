@@ -92,7 +92,7 @@ async def get_homepage_init_data(
                 "missing_keys": {
                     "github_token": True,
                     "upstage_api_key": True,
-                    "google_api_key": False,
+                    "google_api_key": True,
                 }
             },
             "providers": [{

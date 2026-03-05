@@ -60,36 +60,6 @@ class GeminiClient:
         """LangChain 호환 Gemini LLM 반환"""
         return self.llm
     
-    def get_llm_with_tracing(self, 
-                              trace_name: str = "gemini-call",
-                              user_id: Optional[str] = None,
-                              session_id: Optional[str] = None,
-                              metadata: Optional[Dict[str, Any]] = None) -> tuple:
-        """
-        Langfuse 추적이 포함된 LLM과 콜백 반환
-        
-        Returns:
-            tuple: (llm, callbacks) - LLM 인스턴스와 콜백 리스트
-        """
-        callbacks = []
-        
-        # Langfuse 콜백 추가 (가능한 경우)
-        try:
-            from app.core.langfuse_client import get_langfuse_callback
-            langfuse_callback = get_langfuse_callback(
-                trace_name=trace_name,
-                user_id=user_id,
-                session_id=session_id,
-                metadata=metadata
-            )
-            if langfuse_callback:
-                callbacks.append(langfuse_callback)
-                logger.info(f"[GEMINI] Langfuse callback attached for trace: {trace_name}")
-        except Exception as e:
-            logger.debug(f"[GEMINI] Langfuse not available: {e}")
-        
-        return self.llm, callbacks
-    
     def is_available(self) -> bool:
         """Gemini 클라이언트 사용 가능 여부"""
         return self.llm is not None
@@ -137,29 +107,4 @@ def get_gemini_llm() -> Optional['ChatGoogleGenerativeAI']:
         return client.get_llm()
     except Exception as e:
         logger.error(f"Failed to get Gemini LLM: {e}")
-        return None
-
-
-def get_gemini_llm_with_key(api_key: str) -> Optional['ChatGoogleGenerativeAI']:
-    """동적 API 키로 Gemini LLM 생성"""
-    try:
-        if not LANGCHAIN_GOOGLE_AVAILABLE:
-            logger.error("langchain-google-genai package not available")
-            return None
-            
-        # 동적 API 키로 새로운 LLM 인스턴스 생성
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            google_api_key=api_key,
-            temperature=0.1,
-            max_tokens=8192,
-            timeout=60,
-            max_retries=3
-        )
-        
-        logger.info("Dynamic Gemini LLM created successfully with provided API key")
-        return llm
-        
-    except Exception as e:
-        logger.error(f"Failed to create Gemini LLM with provided key: {e}")
         return None

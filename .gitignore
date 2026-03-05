@@ -277,6 +277,7 @@ Thumbs.db
 *.tmp
 *.temp
 *.backup
+*.backup*
 *.swp
 *.swo
 *~
@@ -320,3 +321,8 @@ performance_benchmark.py
 
 # Claude 설정 폴더
 .claude/
+
+# Local agent/tool state
+.omx/
+.serena/
+.mcp.json

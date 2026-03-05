@@ -30,9 +30,17 @@ class KeysRequiredResponse(BaseModel):
 
 class ApiKeysRequest(BaseModel):
     """API 키 설정 요청 모델"""
-    github_token: str
-    upstage_api_key: str
+    github_token: Optional[str] = None
+    upstage_api_key: Optional[str] = None
     google_api_key: Optional[str] = None
+
+
+def _normalize_optional(value: Optional[str]) -> Optional[str]:
+    """빈 문자열을 None으로 정규화"""
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped if stripped else None
 
 
 @router.get("/status", response_model=ConfigStatusResponse)
@@ -50,15 +58,25 @@ async def get_config_status():
 async def set_api_keys(request: ApiKeysRequest):
     """API 키 설정 및 AI 서비스 재초기화"""
     try:
+        github_token = _normalize_optional(request.github_token)
+        upstage_api_key = _normalize_optional(request.upstage_api_key)
+        google_api_key = _normalize_optional(request.google_api_key)
+
+        if not (upstage_api_key or google_api_key):
+            raise HTTPException(
+                status_code=400,
+                detail="Upstage 또는 Google API 키 중 최소 하나가 필요합니다.",
+            )
+
         # .env.dev 파일이 있는 경우에만 서버에 키 저장
         env_exists = check_env_file_exists()
         
         if env_exists:
             # 서버 모드: 기존 방식대로 전역 설정에 저장
             update_api_keys(
-                request.github_token,
-                google_api_key=request.google_api_key,
-                upstage_api_key=request.upstage_api_key,
+                github_token=github_token,
+                google_api_key=google_api_key,
+                upstage_api_key=upstage_api_key,
             )
             return {
                 "message": "API 키가 성공적으로 설정되었습니다.",
@@ -72,6 +90,8 @@ async def set_api_keys(request: ApiKeysRequest):
                 "ai_service_reinitialized": False,
                 "mode": "local_storage"
             }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"API 키 설정 실패: {str(e)}")
 
@@ -87,20 +107,20 @@ async def check_keys_required():
             github_token = getattr(settings, 'github_token', None)
             upstage_api_key = getattr(settings, 'upstage_api_key', None)
             google_api_key = getattr(settings, 'google_api_key', None)
-            has_keys = bool(github_token and upstage_api_key)
+            has_ai_key = bool(upstage_api_key or google_api_key)
         except Exception as e:
             # settings 접근 실패 시 기본값 사용
             print(f"Warning: Failed to access settings: {e}")
             github_token = None
             upstage_api_key = None
             google_api_key = None
-            has_keys = False
+            has_ai_key = False
         
         # .env.dev 파일이 없으면 로컬스토리지 모드 사용
         use_local_storage = not env_exists
         
-        # 로컬스토리지 모드에서는 항상 키 입력 필요 (클라이언트에서 처리)
-        keys_required = use_local_storage or not has_keys
+        # 로컬스토리지 모드에서는 클라이언트 키에 의존, 서버 모드에서는 AI 키 1개 이상 필요
+        keys_required = use_local_storage or not has_ai_key
         
         return KeysRequiredResponse(
             keys_required=keys_required,
@@ -120,6 +140,6 @@ async def check_keys_required():
             missing_keys={
                 "github_token": True,
                 "upstage_api_key": True,
-                "google_api_key": False,
+                "google_api_key": True,
             }
         )
