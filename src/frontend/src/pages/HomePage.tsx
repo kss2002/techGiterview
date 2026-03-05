@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiKeySetup } from '../components/ApiKeySetup';
-import { QuickAccessSection } from '../components/QuickAccessSection';
 import { usePageInitialization } from '../hooks/usePageInitialization';
 import {
   ApiKeySetupCard,
@@ -12,6 +11,7 @@ import {
 } from '../components/HomePage';
 import { handleRepositoryAnalysis } from '../utils/repositoryAnalysisService';
 import type { HomePageState } from '../types/homePage';
+import { QuickAccessV2 } from '../components/v2/QuickAccessV2';
 import './HomePage.css';
 
 export const HomePage: React.FC = () => {
@@ -80,7 +80,7 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="home-page">
+    <div className="home-page-v2 v2-root v2-tone-709">
       <HomePageNavbar
         onShowApiKeySetup={() => updateState({ showApiKeySetup: true })}
         needsApiKeySetup={needsApiKeySetup}
@@ -90,40 +90,44 @@ export const HomePage: React.FC = () => {
         onSelectedAIChange={setSelectedAI}
       />
 
-      <section className="search-hero-section">
-        <div className="home-search-shell">
-          <h1 className="home-search-title">분석할 GitHub 저장소를 입력하세요</h1>
+      <main className="home-v2-main">
+        <section className="home-v2-hero">
+          <div className="home-v2-shell">
+            <h1 className="home-v2-title">분석할 GitHub 저장소를 입력하세요</h1>
+            <p className="home-v2-subtitle">
+              저장소를 분석하고 맞춤 면접 질문을 생성해 실전처럼 연습하세요.
+            </p>
 
-          <ApiKeySetupCard
-            onShowApiKeySetup={() => updateState({ showApiKeySetup: true })}
-            isUsingLocalData={isUsingLocalData}
-            error={error as Error | string | null}
-            isLoading={isLoading}
-            needsSetup={needsApiKeySetup}
-          />
-
-          <div className="main-search-container">
-            <RepositoryAnalysisForm
-              repoUrl={state.repoUrl}
-              isAnalyzing={state.isAnalyzing}
-              selectedAI={selectedAI}
-              onRepoUrlChange={(url) => updateState({ repoUrl: url })}
-              onSubmit={handleSubmit}
+            <ApiKeySetupCard
+              onShowApiKeySetup={() => updateState({ showApiKeySetup: true })}
+              isUsingLocalData={isUsingLocalData}
+              error={error as Error | string | null}
+              isLoading={isLoading}
+              needsSetup={needsApiKeySetup}
             />
+
+            <div className="home-v2-search-card">
+              <RepositoryAnalysisForm
+                repoUrl={state.repoUrl}
+                isAnalyzing={state.isAnalyzing}
+                selectedAI={selectedAI}
+                onRepoUrlChange={(url) => updateState({ repoUrl: url })}
+                onSubmit={handleSubmit}
+              />
+              <SampleRepositoriesSection
+                onRepoSelect={(url) => updateState({ repoUrl: url })}
+                isAnalyzing={state.isAnalyzing}
+              />
+            </div>
           </div>
+        </section>
 
-          <SampleRepositoriesSection
-            onRepoSelect={(url) => updateState({ repoUrl: url })}
-            isAnalyzing={state.isAnalyzing}
-          />
-        </div>
-      </section>
-
-      <section className="section bg-gray-50">
-        <div className="container">
-          <QuickAccessSection />
-        </div>
-      </section>
+        <section className="home-v2-activity">
+          <div className="home-v2-shell">
+            <QuickAccessV2 limit={3} />
+          </div>
+        </section>
+      </main>
 
       {shouldShowApiKeySetup && <ApiKeySetup onApiKeysSet={handleApiKeysSet} />}
 

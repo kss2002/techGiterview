@@ -19,3 +19,13 @@ body,
     transition-duration: 0.01ms !important;
   }
 }
+
+.app-route-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--v2-text-muted, #94a3b8);
+  background: var(--v2-bg-base, #0f172a);
+  font-size: 0.95rem;
+}

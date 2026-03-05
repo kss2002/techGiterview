@@ -936,7 +936,7 @@ export function useDashboard(analysisId: string | undefined) {
   const renderFileTreeNode = (nodes: FileTreeNode[], depth: number = 0): React.ReactElement[] => {
     // 구조 개선된 파일 트리 렌더링 - 올바른 들여쓰기 적용
 
-    return nodes.map((node, index) => {
+    return nodes.map((node) => {
       const nodeKey = node.path
       const isExpanded = expandedFolders.has(node.path)
       const highlightClass = searchTerm && node.name.toLowerCase().includes(searchTerm.toLowerCase()) ? 'highlight' : ''

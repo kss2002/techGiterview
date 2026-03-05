@@ -24,20 +24,10 @@ export const AIModelSelector: React.FC<AIModelSelectorProps> = ({
 }) => {
   if (providers.length === 0) {
     return (
-      <div className="no-providers" style={{ marginBottom: '1.5rem' }}>
+      <div className="home-model-selector-empty">
         {isLoading ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-            }}
-          >
-            <div
-              className="spinner"
-              style={{ width: '16px', height: '16px' }}
-            ></div>
+          <div className="home-model-selector-loading">
+            <div className="spinner home-model-selector-spinner"></div>
             <span>AI 모델을 불러오는 중...</span>
           </div>
         ) : (
@@ -48,17 +38,14 @@ export const AIModelSelector: React.FC<AIModelSelectorProps> = ({
   }
 
   return (
-    <div
-      className="grid grid-auto-fit gap-md"
-      style={{ marginBottom: '1.5rem' }}
-    >
+    <div className="home-model-selector-grid">
       {providers.map((provider) => {
         const isSelected = selectedAI === provider.id;
+
         return (
           <label
             key={provider.id}
-            className={`card model-card cursor-pointer transition-fast ${isSelected ? 'model-card-selected' : 'model-card-unselected'
-              } ${provider.recommended ? 'model-card-recommended' : ''}`}
+            className={`home-model-card ${isSelected ? 'home-model-card--selected' : ''} ${provider.recommended ? 'home-model-card--recommended' : ''}`}
           >
             <input
               type="radio"
@@ -66,25 +53,25 @@ export const AIModelSelector: React.FC<AIModelSelectorProps> = ({
               value={provider.id}
               checked={isSelected}
               onChange={(e) => onSelectedAIChange(e.target.value)}
-              className="form-radio sr-only"
+              className="v2-sr-only"
             />
-            <div className="card-body" style={{ position: 'relative' }}>
-              {/* 선택 상태 체크 아이콘 */}
+            <div className="home-model-card-body">
               {isSelected && (
-                <div className="model-check-icon">
-                  <CheckCircle size={24} />
+                <div className="home-model-check-icon">
+                  <CheckCircle className="v2-icon-lg" />
                 </div>
               )}
-              <div className="heading-4 flex items-center justify-between">
-                {provider.name}
+
+              <div className="home-model-card-title-row">
+                <h4 className="home-model-card-title">{provider.name}</h4>
                 {provider.recommended && (
-                  <span className="badge badge-success">추천</span>
+                  <span className="home-model-card-chip">추천</span>
                 )}
               </div>
-              <div className="text-body-sm text-muted">{provider.model}</div>
+
+              <div className="home-model-card-model">{provider.model}</div>
               <div
-                className={`text-body-sm ${provider.status === 'ready' ? 'text-success' : 'text-muted'
-                  }`}
+                className={`home-model-card-status ${provider.status === 'ready' ? 'home-model-card-status--ready' : ''}`}
               >
                 {provider.status === 'ready' ? '● 사용 가능' : '○ 설정됨'}
               </div>

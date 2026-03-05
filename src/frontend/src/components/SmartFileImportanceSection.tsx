@@ -9,7 +9,7 @@ import React, { useState, useMemo } from 'react'
 import './SmartFileImportanceSection.css'
 import FileDetailModal from './FileDetailModal'
 import ImportanceDistributionChart from './ImportanceDistributionChart'
-import { useChartStyles, useDynamicStyles } from '../hooks/useStyles'
+import { useDynamicStyles } from '../hooks/useStyles'
 
 // 스마트 파일 중요도 분석 결과 인터페이스
 interface SmartFileAnalysis {
@@ -69,8 +69,6 @@ export const SmartFileImportanceSection: React.FC<SmartFileImportanceSectionProp
   const [modalFile, setModalFile] = useState<SmartFileAnalysis | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   
-  // 스타일링 Hook들 추가
-  const chartStyles = useChartStyles()
   const dynamicStyles = useDynamicStyles()
 
   // 카테고리별 파일 분류
@@ -242,7 +240,7 @@ export const SmartFileImportanceSection: React.FC<SmartFileImportanceSectionProp
       <div className="files-list">
         <h4>◐ 파일 목록 ({sortedFiles.length}개)</h4>
         <div className="files-container">
-          {sortedFiles.map((file, index) => (
+          {sortedFiles.map((file) => (
             <div 
               key={file.file_path} 
               className="file-card"

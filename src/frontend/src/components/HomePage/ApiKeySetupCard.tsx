@@ -11,61 +11,54 @@ interface ApiKeySetupCardProps {
 
 export const ApiKeySetupCard: React.FC<ApiKeySetupCardProps> = ({
   onShowApiKeySetup,
-  // isUsingLocalData is kept in interface for API compatibility but not used in this simplified version
+  isUsingLocalData,
   error,
   isLoading,
   needsSetup = false,
 }) => {
-
-  // 서버 연결 상태 확인
   const isConnected = !error && !isLoading;
+  const statusLabel = needsSetup ? '설정 필요' : isConnected ? '연결됨' : isUsingLocalData ? '로컬 모드' : '확인 필요';
+  const statusClass = needsSetup
+    ? 'home-api-status--warning'
+    : isConnected
+      ? 'home-api-status--success'
+      : 'home-api-status--neutral';
 
   return (
-    <div className={`card card-compact ${needsSetup ? 'card-warning' : ''}`}>
-      <div className="card-body flex justify-between items-center">
-        <div className="flex items-center gap-sm">
-          <h3 className="heading-4 flex items-center gap-sm" style={{ marginBottom: 0 }}>
-            <Key className="icon" />
-            API 키 설정
-          </h3>
-          {/* 상태 배지: 타이틀 옆으로 이동 */}
-          {needsSetup ? (
-            <span className="badge badge-warning" style={{ fontSize: '11px' }}>
-              <AlertCircle style={{ width: '12px', height: '12px', marginRight: '4px' }} />
-              설정 필요
-            </span>
-          ) : isConnected ? (
-            <span className="badge badge-success" style={{ fontSize: '11px' }}>
-              <CheckCircle2 style={{ width: '12px', height: '12px', marginRight: '4px' }} />
-              연결됨
-            </span>
-          ) : null}
+    <div className={`home-api-key-card ${needsSetup ? 'home-api-key-card--warning' : ''}`}>
+      <div className="home-api-key-card-body">
+        <div className="home-api-key-main">
+          <div>
+            <h3 className="home-api-key-title">
+              <Key className="v2-icon-sm home-api-key-title-icon" />
+              Step 1. API 키 설정
+            </h3>
+            <p className="home-api-key-copy">
+              Upstage 또는 Google API 키 중 하나만 설정하면 바로 분석을 시작할 수 있습니다.
+            </p>
+          </div>
+          <span className={`home-api-status-chip ${statusClass}`}>
+            {needsSetup ? (
+              <AlertCircle className="v2-icon-xs" />
+            ) : (
+              <CheckCircle2 className="v2-icon-xs" />
+            )}
+            {statusLabel}
+          </span>
         </div>
         <button
-          className={`btn ${needsSetup ? 'btn-warning pulse-animation' : 'btn-outline'} btn-sm hover-scale-sm active-scale-sm focus-ring`}
+          className={`home-api-key-btn ${needsSetup ? 'home-api-key-btn--warning' : ''}`}
           onClick={onShowApiKeySetup}
           type="button"
-          style={needsSetup ? {
-            backgroundColor: '#f59e0b',
-            color: 'white',
-            borderColor: '#f59e0b',
-            animation: 'pulse 2s infinite'
-          } : {}}
         >
-          <Settings className="icon" />
-          {needsSetup ? '🔑 키 입력하기' : '설정 변경'}
+          <Settings className="v2-icon-sm" />
+          {needsSetup ? '키 입력하기' : '설정 변경'}
         </button>
       </div>
 
       {needsSetup && (
-        <div style={{
-          padding: '12px 16px',
-          backgroundColor: '#fef3c7',
-          borderTop: '1px solid #fcd34d',
-          fontSize: '14px',
-          color: '#92400e'
-        }}>
-          ⚠️ 서비스를 이용하려면 GitHub 토큰과 AI API 키가 필요합니다.
+        <div className="home-api-key-notice">
+          ⚠️ GitHub 토큰은 선택 사항이며, AI API 키(Upstage/Google) 중 하나는 필수입니다.
         </div>
       )}
     </div>

@@ -11,21 +11,12 @@ export default defineConfig({
     host: '0.0.0.0',
     port: parseInt(process.env.PORT || '3000'),
     open: false, // Docker 환경에서 false로 설정
-    // 프로덕션 도메인 접근 허용
-    allowedHosts: [
-      'localhost',
-      '127.0.0.1',
-      'tgv.oursophy.com',
-      '.oursophy.com'  // 서브도메인 전체 허용
-    ],
     proxy: {
-      // 환경별 API 프록시 설정
+      // API 프록시 설정 (Docker 기본 타깃: backend:8002)
       '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:8001',
+        target: process.env.VITE_API_URL || 'http://backend:8002',
         changeOrigin: true,
         secure: false,
-        // IPv4 강제 설정으로 IPv6 문제 해결
-        agent: false,
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
             console.log('Proxy error:', err);
@@ -35,9 +26,9 @@ export default defineConfig({
           });
         }
       },
-      // WebSocket 프록시 설정
+      // WebSocket 프록시 설정 (IPv4 강제)
       '/ws': {
-        target: process.env.VITE_WS_URL || 'ws://127.0.0.1:8001',
+        target: process.env.VITE_WS_URL || 'ws://backend:8002',
         changeOrigin: true,
         ws: true,
       }

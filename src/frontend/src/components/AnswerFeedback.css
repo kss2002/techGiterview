@@ -16,20 +16,20 @@
 }
 
 /* 헤더 영역 */
-.feedback-header {
+.answer-feedback .feedback-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.score-container {
+.answer-feedback .score-container {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.score-circle {
+.answer-feedback .score-circle {
   width: 60px;
   height: 60px;
   border: 3px solid;
@@ -42,33 +42,33 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.score-value {
+.answer-feedback .score-value {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1;
 }
 
-.score-max {
+.answer-feedback .score-max {
   font-size: 0.75rem;
   color: var(--color-text-muted);
   line-height: 1;
 }
 
-.score-label {
+.answer-feedback .score-label {
   font-weight: 600;
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.feedback-type {
+.answer-feedback .feedback-type {
   display: flex;
   align-items: center;
   gap: 8px;
   text-align: right;
 }
 
-.feedback-icon {
+.answer-feedback .feedback-icon {
   background: var(--color-accent);
   color: white;
   padding: 4px 8px;
@@ -77,14 +77,14 @@
   font-weight: 600;
 }
 
-.technical-accuracy {
+.answer-feedback .technical-accuracy {
   font-size: 0.875rem;
   color: var(--color-text-secondary);
   font-weight: 500;
 }
 
 /* 메인 메시지 */
-.feedback-message {
+.answer-feedback .feedback-message {
   background: white;
   padding: 16px;
   border-radius: 8px;
@@ -92,7 +92,7 @@
   margin-bottom: 16px;
 }
 
-.feedback-message p {
+.answer-feedback .feedback-message p {
   margin: 0;
   color: var(--color-text-secondary);
   line-height: 1.6;
@@ -100,31 +100,31 @@
 }
 
 /* 상세 정보 */
-.feedback-details {
+.answer-feedback .feedback-details {
   margin-bottom: 16px;
 }
 
-.detail-row {
+.answer-feedback .detail-row {
   display: flex;
   gap: 8px;
   margin-bottom: 4px;
 }
 
-.detail-label {
+.answer-feedback .detail-label {
   color: var(--color-text-muted);
   font-size: 0.875rem;
   font-weight: 600;
   min-width: 60px;
 }
 
-.detail-value {
+.answer-feedback .detail-value {
   color: var(--color-text-secondary);
   font-size: 0.875rem;
   flex: 1;
 }
 
 /* 키워드 섹션 */
-.keywords-section {
+.answer-feedback .keywords-section {
   margin-bottom: 16px;
   padding: 12px;
   background: white;
@@ -132,17 +132,17 @@
   border: 1px solid var(--color-border);
 }
 
-.keywords-found,
-.keywords-missing {
+.answer-feedback .keywords-found,
+.answer-feedback .keywords-missing {
   margin-bottom: 12px;
 }
 
-.keywords-found:last-child,
-.keywords-missing:last-child {
+.answer-feedback .keywords-found:last-child,
+.answer-feedback .keywords-missing:last-child {
   margin-bottom: 0;
 }
 
-.keywords-label {
+.answer-feedback .keywords-label {
   display: block;
   font-size: 0.875rem;
   font-weight: 600;
@@ -150,13 +150,13 @@
   margin-bottom: 8px;
 }
 
-.keywords-list {
+.answer-feedback .keywords-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.keyword-tag {
+.answer-feedback .keyword-tag {
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -164,40 +164,40 @@
   border: 1px solid;
 }
 
-.keyword-tag.found {
+.answer-feedback .keyword-tag.found {
   background: var(--color-success-bg);
   color: var(--color-success);
   border-color: var(--success-200);
 }
 
-.keyword-tag.missing {
+.answer-feedback .keyword-tag.missing {
   background: var(--primary-100);
   color: var(--primary-700);
   border-color: var(--primary-400);
 }
 
 /* 제안 섹션 */
-.suggestions-section {
+.answer-feedback .suggestions-section {
   background: white;
   padding: 16px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
 }
 
-.suggestions-title {
+.answer-feedback .suggestions-title {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   margin: 0 0 12px 0;
 }
 
-.suggestions-list {
+.answer-feedback .suggestions-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.suggestion-item {
+.answer-feedback .suggestion-item {
   padding: 8px 0;
   border-bottom: 1px solid var(--color-border-light);
   color: var(--color-text-secondary);
@@ -207,11 +207,11 @@
   padding-left: 20px;
 }
 
-.suggestion-item:last-child {
+.answer-feedback .suggestion-item:last-child {
   border-bottom: none;
 }
 
-.suggestion-item::before {
+.answer-feedback .suggestion-item::before {
   content: '→';
   position: absolute;
   left: 0;
@@ -220,30 +220,30 @@
 }
 
 /* 점수별 색상 클래스 (design-tokens.css 기반) */
-.score-circle.score-excellent {
+.answer-feedback .score-circle.score-excellent {
   border-color: var(--score-excellent);
 }
 
-.score-circle.score-good {
+.answer-feedback .score-circle.score-good {
   border-color: var(--score-good);
 }
 
-.score-circle.score-poor {
+.answer-feedback .score-circle.score-poor {
   border-color: var(--score-poor);
 }
 
-.score-value.score-excellent,
-.score-label.score-excellent {
+.answer-feedback .score-value.score-excellent,
+.answer-feedback .score-label.score-excellent {
   color: var(--score-excellent);
 }
 
-.score-value.score-good,
-.score-label.score-good {
+.answer-feedback .score-value.score-good,
+.answer-feedback .score-label.score-good {
   color: var(--score-good);
 }
 
-.score-value.score-poor,
-.score-label.score-poor {
+.answer-feedback .score-value.score-poor,
+.answer-feedback .score-label.score-poor {
   color: var(--score-poor);
 }
 
@@ -254,30 +254,30 @@
     margin: 12px 0;
   }
 
-  .feedback-header {
+  .answer-feedback .feedback-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
 
-  .score-circle {
+  .answer-feedback .score-circle {
     width: 50px;
     height: 50px;
   }
 
-  .score-value {
+  .answer-feedback .score-value {
     font-size: 1.25rem;
   }
 
-  .feedback-type {
+  .answer-feedback .feedback-type {
     text-align: left;
   }
 
-  .keywords-list {
+  .answer-feedback .keywords-list {
     gap: 4px;
   }
 
-  .keyword-tag {
+  .answer-feedback .keyword-tag {
     font-size: 0.7rem;
   }
 }
@@ -290,38 +290,38 @@
     color: var(--color-background-alt);
   }
 
-  .score-circle {
+  .answer-feedback .score-circle {
     background: var(--color-text-secondary);
   }
 
-  .feedback-message {
+  .answer-feedback .feedback-message {
     background: var(--color-text-secondary);
     color: var(--color-background-alt);
   }
 
-  .keywords-section,
-  .suggestions-section {
+  .answer-feedback .keywords-section,
+  .answer-feedback .suggestions-section {
     background: var(--color-text-secondary);
     border-color: var(--gray-600);
   }
 
-  .detail-label {
+  .answer-feedback .detail-label {
     color: var(--gray-400);
   }
 
-  .detail-value {
+  .answer-feedback .detail-value {
     color: var(--gray-100);
   }
 
-  .keywords-label {
+  .answer-feedback .keywords-label {
     color: var(--gray-400);
   }
 
-  .suggestions-title {
+  .answer-feedback .suggestions-title {
     color: var(--gray-100);
   }
 
-  .suggestion-item {
+  .answer-feedback .suggestion-item {
     color: var(--gray-300);
     border-bottom-color: var(--gray-600);
   }

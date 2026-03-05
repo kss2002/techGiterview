@@ -18,14 +18,14 @@ export const RepositoryAnalysisForm: React.FC<RepositoryAnalysisFormProps> = ({
   return (
     <form
       onSubmit={onSubmit}
-      className="input-form"
+      className="home-v2-input-form"
       role="form"
       aria-label="저장소 분석 요청"
     >
-      <div className="url-input-group terminal-style">
+      <div className="url-input-group">
         {/* Terminal prompt icon */}
         <span className="terminal-prompt" aria-hidden="true">›_</span>
-        <label htmlFor="repo-url-input" className="sr-only">
+        <label htmlFor="repo-url-input" className="v2-sr-only">
           GitHub 저장소 URL
         </label>
         <input
@@ -34,17 +34,17 @@ export const RepositoryAnalysisForm: React.FC<RepositoryAnalysisFormProps> = ({
           value={repoUrl}
           onChange={(e) => onRepoUrlChange(e.target.value)}
           placeholder="github.com/owner/repo"
-          className="form-input form-input-lg terminal-input"
+          className="terminal-input"
           required
           disabled={isAnalyzing}
           aria-describedby="url-help"
         />
-        <div id="url-help" className="sr-only">
+        <div id="url-help" className="v2-sr-only">
           분석하고 싶은 GitHub 저장소의 전체 URL을 입력해주세요.
         </div>
         <button
           type="submit"
-          className="btn btn-primary btn-analyze"
+          className="btn-analyze"
           disabled={isAnalyzing || !repoUrl.trim() || !selectedAI}
           aria-label={isAnalyzing ? '저장소 분석 중...' : '저장소 분석 시작'}
         >

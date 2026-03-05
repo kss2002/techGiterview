@@ -3,8 +3,6 @@ import {
   MessageCircle,
   Clock,
   Sun,
-  Moon,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Send,

@@ -161,7 +161,7 @@ export const ImportanceDistributionChart: React.FC<ImportanceDistributionChartPr
             <div className="total-label">총 파일</div>
           </div>
           <div className="donut-segments">
-            {categoryDistribution.map((item, index) => {
+            {categoryDistribution.map((item) => {
               const colors = {
                 critical: 'var(--primary-700)',
                 important: 'var(--primary-600)', 

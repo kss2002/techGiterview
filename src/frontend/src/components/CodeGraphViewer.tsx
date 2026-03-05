@@ -96,7 +96,7 @@ const CodeGraphViewer: React.FC<CodeGraphViewerProps> = ({ graphData, width: pro
     // ... (rest of render functions)
 
     // Custom Node Renderer - Rich Card
-    const paintNode = (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const paintNode = (node: any, ctx: CanvasRenderingContext2D, _globalScale: number) => {
         // ... (keep existing paintNode implementation, just context for match)
         const label = node.name || node.label || node.id;
         const type = node.type ? node.type.toUpperCase() : 'UNKNOWN';
@@ -196,7 +196,7 @@ const CodeGraphViewer: React.FC<CodeGraphViewerProps> = ({ graphData, width: pro
     };
 
     // Custom Link Renderer (Edge Labels)
-    const paintLink = (link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const paintLink = (link: any, ctx: CanvasRenderingContext2D, _globalScale: number) => {
         const start = link.source;
         const end = link.target;
 

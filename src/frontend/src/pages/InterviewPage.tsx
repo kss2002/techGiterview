@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -13,8 +13,6 @@ import {
   Send,
   Save,
   Trash2,
-  User,
-  Bot,
   HelpCircle,
   CheckCircle,
   Code,
@@ -28,7 +26,6 @@ import {
   Monitor,
   Palette,
   FileText,
-  MessageSquare,
   Lightbulb
 } from 'lucide-react'
 import { AppShellV2 } from '../components/v2/AppShellV2'
@@ -47,18 +44,6 @@ interface Question {
   sub_question_index?: number
   total_sub_questions?: number
   is_compound_question?: boolean
-}
-
-interface QuestionGroup {
-  parentId: string
-  parentTitle: string
-  subQuestions: Question[]
-  currentSubIndex: number
-  isCompleted: boolean
-}
-
-interface QuestionGroups {
-  [parentId: string]: string[]
 }
 
 interface InterviewData {
@@ -113,8 +98,6 @@ export const InterviewPage: React.FC = () => {
   
   const [interview, setInterview] = useState<InterviewData | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
-  const [questionGroups, setQuestionGroups] = useState<QuestionGroups>({})
-  const [currentGroupIndex, setCurrentGroupIndex] = useState(0)
   const [messages, setMessages] = useState<Message[]>([])
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -128,10 +111,9 @@ export const InterviewPage: React.FC = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [fontSize, setFontSize] = useState('medium')
-  const [currentFeedback, setCurrentFeedback] = useState<AnswerFeedbackData | null>(null)
-  const [showFeedback, setShowFeedback] = useState(false)
+  const [currentFeedback] = useState<AnswerFeedbackData | null>(null)
+  const [showFeedback] = useState(false)
   const [isFocusMode, setIsFocusMode] = useState(false)
-  const [savedAnswers, setSavedAnswers] = useState<Record<string, string>>({})
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [conversationMode, setConversationMode] = useState<{
     questionId: string;
@@ -150,15 +132,12 @@ export const InterviewPage: React.FC = () => {
     maxWidth: 420
   })
   
-  const wsRef = useRef<WebSocket | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const questionContainerRef = useRef<HTMLDivElement>(null)
   const inputHeaderRef = useRef<HTMLDivElement>(null)
-  const previousHeightRef = useRef<number | null>(null)
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // WebSocket 연결
   useEffect(() => {
@@ -299,11 +278,7 @@ export const InterviewPage: React.FC = () => {
       const savedKey = `interview_${interviewId}_${currentQ.id}`
       const saved = localStorage.getItem(savedKey)
       setCurrentAnswer(saved || '')
-      
-      // 질문 변경 시 높이 기준점 초기화
-      previousHeightRef.current = null
-      debugLog.debug('height', '질문 변경 - 높이 기준점 초기화')
-      
+
       // 답변 로드 후 textarea 상단으로 스크롤
       setTimeout(() => {
         if (textareaRef.current) {
@@ -320,231 +295,8 @@ export const InterviewPage: React.FC = () => {
     }
   }, [currentAnswer])
 
-  // 안정화된 높이 계산 함수 - 무한 루프 방지 및 디바운싱 적용
-  const updateInputHeaderHeight = useCallback(() => {
-    if (!questionContainerRef.current || !inputHeaderRef.current) return
-    
-    // 디바운싱 적용 - 100ms 내 연속 호출 방지
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-    
-    debounceTimerRef.current = setTimeout(() => {
-      try {
-        const questionContainer = questionContainerRef.current
-        const inputHeader = inputHeaderRef.current
-        
-        if (!questionContainer || !inputHeader) return
-        
-        // 질문 헤더와 콘텐츠 영역 요소 찾기
-        const questionHeader = questionContainer.querySelector('.question-header')
-        const questionContent = questionContainer.querySelector('.question-content')
-        const currentQuestion = questionContainer.querySelector('.current-question')
-        const answerHistory = questionContainer.querySelector('.answer-history')
-        
-        if (!questionHeader || !currentQuestion) return
-        
-        // 안정화 임계값 정의
-        const SCROLL_THRESHOLD = 2          // 2px 이하 스크롤 차이 무시
-        const HEIGHT_CHANGE_THRESHOLD = 10  // 10px 이하 높이 변화 무시
-        
-        // question-container의 실제 상태 측정
-        const questionContainerRect = questionContainer.getBoundingClientRect()
-        const questionContainerHeight = questionContainerRect.height
-        const questionContainerScrollHeight = questionContainer.scrollHeight
-        
-        // 안정화된 스크롤 감지 - 미세한 차이 무시
-        const contentOverflow = questionContainerScrollHeight - questionContainerHeight
-        const hasScrollableContent = contentOverflow > SCROLL_THRESHOLD
-        
-        // 뷰포트 정보
-        const viewportHeight = window.innerHeight
-        
-        let targetHeight
-        
-        // 첫 번째 답변인지 확인
-        const isFirstAnswer = previousHeightRef.current === null
-        
-        // 통일된 높이 계산 알고리즘
-        if (!answerHistory || answerHistory.querySelectorAll('.answer-item').length === 0) {
-          // 답변이 없는 경우: question-header 높이를 기준
-          const questionHeaderRect = questionHeader.getBoundingClientRect()
-          targetHeight = questionHeaderRect.height
-          
-          debugLog.debug('height', '답변 없음 - question-header 기준', { 
-            targetHeight: targetHeight.toFixed(2),
-            questionHeaderHeight: questionHeaderRect.height.toFixed(2)
-          })
-        } else {
-          // 답변이 있는 경우: 마지막 answer-item의 상대적 위치 기준
-          const answerItems = answerHistory.querySelectorAll('.answer-item')
-          const lastAnswer = answerItems[answerItems.length - 1]
-          const questionContainerRect = questionContainer.getBoundingClientRect()
-          const lastAnswerRect = lastAnswer.getBoundingClientRect()
-          const questionHeaderRect = questionHeader.getBoundingClientRect()
-          
-          // answer-item의 컨테이너 내 상대적 시작 위치 계산
-          const relativeTop = lastAnswerRect.top - questionContainerRect.top
-          
-          // input-container가 answer-item과 같은 시작 위치에 오도록 높이 설정
-          // 기본 패딩 고려 (var(--space-6) = 24px)
-          const headerPadding = 24
-          const minBaseHeight = questionHeaderRect.height
-          const calculatedHeight = Math.max(relativeTop + headerPadding, minBaseHeight)
-          
-          // 뷰포트 제한 적용
-          if (calculatedHeight > viewportHeight * 0.9) {
-            targetHeight = viewportHeight * 0.85  // 85%로 제한
-          } else {
-            targetHeight = calculatedHeight
-          }
-          
-          debugLog.debug('height', '답변 있음 - 통일된 위치 기반 계산', {
-            answerCount: answerItems.length,
-            isFirstAnswer,
-            questionContainerTop: questionContainerRect.top.toFixed(2),
-            lastAnswerTop: lastAnswerRect.top.toFixed(2),
-            relativeTop: relativeTop.toFixed(2),
-            headerPadding,
-            minBaseHeight: minBaseHeight.toFixed(2),
-            calculatedHeight: calculatedHeight.toFixed(2),
-            viewportLimit: (viewportHeight * 0.9).toFixed(2),
-            finalTargetHeight: targetHeight.toFixed(2),
-            contentOverflow: contentOverflow.toFixed(2),
-            hasScrollableContent,
-            note: '통일된 알고리즘 적용'
-          })
-        }
-        
-        // 최소 높이 적용
-        const minHeight = 80
-        const candidateHeight = Math.max(minHeight, targetHeight)
-        
-        // 첫 번째 답변인지 확인하여 특별 처리
-        const previousHeight = previousHeightRef.current
-        
-        if (isFirstAnswer) {
-          // 첫 번째 답변: 무조건 적용하고 기준점 설정
-          const finalHeight = candidateHeight
-          
-          debugLog.debug('height', '첫 번째 답변 - 기준점 설정', {
-            previousHeight: 'null (첫 번째)',
-            candidateHeight: candidateHeight.toFixed(2),
-            finalHeight: finalHeight.toFixed(2),
-            applied: true,
-            method: 'question-header 기준점 설정',
-            heightSource: answerHistory ? '답변 기반 계산' : 'question-header 직접 사용'
-          })
-          
-          // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정 (애니메이션 제거)
-          inputHeader.style.minHeight = `${finalHeight}px`
-          inputHeader.style.setProperty('--dynamic-height', `${finalHeight}px`)
-          
-          // 높이 조정 중 시각적 피드백 (즉시 제거)
-          inputHeader.classList.add('adjusting')
-          setTimeout(() => {
-            inputHeader.classList.remove('adjusting')
-          }, 0)
-          
-          // 이전 높이 업데이트 (기준점 설정)
-          previousHeightRef.current = finalHeight
-        } else {
-          // 두 번째 답변 이후: 기존 로직 사용
-          const heightDifference = Math.abs(candidateHeight - (previousHeight || 0))
-          
-          if (heightDifference > HEIGHT_CHANGE_THRESHOLD || previousHeight === null) {
-            const finalHeight = candidateHeight
-            
-            debugLog.debug('height', '높이 변화 감지 - 임계값 초과', {
-              previousHeight: previousHeight?.toFixed(2) || 'null',
-              candidateHeight: candidateHeight.toFixed(2),
-              heightDifference: heightDifference.toFixed(2),
-              threshold: HEIGHT_CHANGE_THRESHOLD,
-              finalHeight: finalHeight.toFixed(2),
-              applied: true,
-              method: '상대적 위치 기반 조정',
-              calculation: '통일된 알고리즘 적용됨'
-            })
-            
-            // 높이 적용 - CSS 변수와 인라인 스타일 모두 설정 (애니메이션 제거)
-            inputHeader.style.minHeight = `${finalHeight}px`
-            inputHeader.style.setProperty('--dynamic-height', `${finalHeight}px`)
-            
-            // 높이 조정 중 시각적 피드백 (즉시 제거)
-            inputHeader.classList.add('adjusting')
-            setTimeout(() => {
-              inputHeader.classList.remove('adjusting')
-            }, 0)
-            
-            // 이전 높이 업데이트
-            previousHeightRef.current = finalHeight
-          } else {
-            debugLog.debug('height', '높이 변화 무시 - 임계값 미달', {
-              previousHeight: previousHeight?.toFixed(2) || 'null',
-              candidateHeight: candidateHeight.toFixed(2),
-              heightDifference: heightDifference.toFixed(2),
-              threshold: HEIGHT_CHANGE_THRESHOLD,
-              applied: false,
-              reason: '변화량이 임계값보다 작음'
-            })
-          }
-        }
-        
-      } catch (error) {
-        console.warn('[HEIGHT] 높이 계산 중 오류:', error)
-      }
-    }, 100) // 100ms 디바운스
-    
-  }, [])
-
-  // 동적 높이 조정 - 메시지, 질문 변경 시 (비활성화)
-  // useEffect(() => {
-  //   // DOM이 업데이트된 후 높이 계산
-  //   const timeoutId = setTimeout(() => {
-  //     updateInputHeaderHeight()
-  //   }, 100)
-    
-  //   return () => clearTimeout(timeoutId)
-  // }, [messages, currentQuestionIndex, updateInputHeaderHeight])
-
-  // ResizeObserver로 실시간 높이 변화 감지 - 최적화된 관찰 (비활성화)
-  // useEffect(() => {
-  //   if (!questionContainerRef.current) return
-    
-  //   const resizeObserver = new ResizeObserver(() => {
-  //     updateInputHeaderHeight()
-  //   })
-    
-  //   const questionContainer = questionContainerRef.current
-  //   resizeObserver.observe(questionContainer)
-    
-  //   // 답변 히스토리 영역도 관찰
-  //   const answerHistory = questionContainer.querySelector('.answer-history')
-  //   if (answerHistory) {
-  //     resizeObserver.observe(answerHistory as Element)
-  //   }
-    
-  //   return () => {
-  //     resizeObserver.disconnect()
-  //     // 디바운스 타이머 정리
-  //     if (debounceTimerRef.current) {
-  //       clearTimeout(debounceTimerRef.current)
-  //       debounceTimerRef.current = null
-  //     }
-  //   }
-  // }, [updateInputHeaderHeight])
-
-  // 컴포넌트 언마운트 시 타이머 정리
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-    }
-  }, [])
-
   // 세션 히스토리 로딩 (답변, 피드백, 대화 포함)
-  const loadSessionHistory = async (questionsList: Question[], sessionData: any) => {
+  const loadSessionHistory = async (questionsList: Question[], _sessionData: any) => {
     if (!interviewId) return
 
     try {
@@ -576,7 +328,7 @@ export const InterviewPage: React.FC = () => {
       })
       
       // 질문 순서대로 답변과 피드백 추가
-      questionsList.forEach((question, index) => {
+      questionsList.forEach((question) => {
         const answer = answersByQuestion.get(question.id)
         if (answer) {
           // 답변 메시지 추가
@@ -634,13 +386,6 @@ export const InterviewPage: React.FC = () => {
       
       // 시간순으로 정렬
       historyMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-      
-      // 저장된 답변들을 상태에 반영
-      const answersMap: Record<string, string> = {}
-      data.answers.forEach((answer: any) => {
-        answersMap[answer.question_id] = answer.user_answer
-      })
-      setSavedAnswers(answersMap)
       
       // 현재 질문 인덱스 계산 (답변된 질문 수 기준)
       const answeredCount = data.answers.length
@@ -907,40 +652,6 @@ export const InterviewPage: React.FC = () => {
     }
   }
 
-
-  const handleWebSocketMessage = (data: any) => {
-    switch (data.type) {
-      case 'question':
-        setMessages(prev => [...prev, {
-          id: `question-${Date.now()}`,
-          type: 'question',
-          content: data.content,
-          timestamp: new Date(),
-          question_id: data.question_id
-        }])
-        break
-        
-      case 'feedback':
-        setMessages(prev => [...prev, {
-          id: `feedback-${Date.now()}`,
-          type: 'feedback',
-          content: data.content,
-          timestamp: new Date()
-        }])
-        break
-        
-      case 'interview_completed':
-        setInterview(prev => prev ? { ...prev, status: 'completed' } : null)
-        setMessages(prev => [...prev, {
-          id: 'completed',
-          type: 'system',
-          content: '면접이 완료되었습니다! 결과를 확인해보세요.',
-          timestamp: new Date()
-        }])
-        break
-    }
-  }
-
   const submitAnswer = async () => {
     console.log('[SUBMIT] submitAnswer 함수 실행됨');
     console.log('[SUBMIT] currentAnswer:', currentAnswer);
@@ -1182,23 +893,6 @@ export const InterviewPage: React.FC = () => {
     setCurrentQuestionIndex(newIndex)
   }
 
-  // 대화 모드 시작
-  const startConversation = (questionId: string, originalAnswer: string, feedback: AnswerFeedbackData) => {
-    setConversationMode({
-      questionId,
-      originalAnswer,
-      feedback
-    });
-    
-    // 대화 모드로 전환
-    setMessages(prev => [...prev, {
-      id: `conversation-start-${Date.now()}`,
-      type: 'system',
-      content: '[CONVERSATION] 이 문제에 대한 개별 상담을 시작합니다. 궁금한 점을 자유롭게 질문해보세요!',
-      timestamp: new Date()
-    }]);
-  }
-
   // 대화 모드 종료
   const endConversation = () => {
     setConversationMode(null);
@@ -1322,19 +1016,7 @@ export const InterviewPage: React.FC = () => {
       const savedKey = `interview_${interviewId}_${currentQ.id}`
       localStorage.setItem(savedKey, currentAnswer)
       setLastSaved(new Date())
-      setSavedAnswers(prev => ({
-        ...prev,
-        [currentQ.id]: currentAnswer
-      }))
     }
-  }
-
-  // 질문 그룹 처리 함수들
-  const getQuestionDisplayText = (question: Question): string => {
-    if (question.parent_question_id && question.sub_question_index && question.total_sub_questions) {
-      return `${question.sub_question_index}/${question.total_sub_questions}번 문제`
-    }
-    return `질문 ${currentQuestionIndex + 1}`
   }
 
   const getProgressText = (): string => {
@@ -1356,34 +1038,10 @@ export const InterviewPage: React.FC = () => {
     return question.sub_question_index === groupQuestions.length
   }
 
-  const getNextGroupFirstQuestion = (currentIndex: number): number => {
-    const currentQ = questions[currentIndex]
-    if (!currentQ?.parent_question_id) return currentIndex + 1
-    
-    // 현재 그룹의 마지막 질문 찾기
-    const currentGroupQuestions = questions.filter(q => q.parent_question_id === currentQ.parent_question_id)
-    const lastQuestionInGroup = questions.findIndex(q => 
-      q.parent_question_id === currentQ.parent_question_id && 
-      q.sub_question_index === currentGroupQuestions.length
-    )
-    
-    return lastQuestionInGroup + 1
-  }
-
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
-  }
-
-  const getMessageIcon = (type: string): React.ReactNode => {
-    switch (type) {
-      case 'system': return <Settings className="icon message-icon message-icon-system" />
-      case 'question': return <HelpCircle className="icon message-icon message-icon-question" />
-      case 'answer': return <User className="icon message-icon message-icon-answer" />
-      case 'feedback': return <Bot className="icon message-icon message-icon-feedback" />
-      default: return <MessageSquare className="icon message-icon message-icon-default" />
-    }
   }
 
   const getCategoryThemeClass = (category: string): string => {
@@ -1431,19 +1089,21 @@ export const InterviewPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="interview-loading">
-        <div className="spinner-large"></div>
-        <p>면접을 준비하고 있습니다...</p>
-        <div className="loading-progress">
-          <div className="progress-item">
-            <span className={loadingStates.session ? 'loading' : 'complete'}>
-              {loadingStates.session ? '[LOADING]' : '[DONE]'} 면접 세션 정보
-            </span>
-          </div>
-          <div className="progress-item">
-            <span className={loadingStates.questions ? 'loading' : 'complete'}>
-              {loadingStates.questions ? '[LOADING]' : '[DONE]'} 면접 질문 데이터
-            </span>
+      <div className="interview-page v2-root interview-v2">
+        <div className="interview-loading">
+          <div className="interview-spinner-large"></div>
+          <p>면접을 준비하고 있습니다...</p>
+          <div className="loading-progress">
+            <div className="progress-item">
+              <span className={loadingStates.session ? 'loading' : 'complete'}>
+                {loadingStates.session ? '[LOADING]' : '[DONE]'} 면접 세션 정보
+              </span>
+            </div>
+            <div className="progress-item">
+              <span className={loadingStates.questions ? 'loading' : 'complete'}>
+                {loadingStates.questions ? '[LOADING]' : '[DONE]'} 면접 질문 데이터
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -1452,15 +1112,22 @@ export const InterviewPage: React.FC = () => {
 
   if (!interview) {
     return (
-      <div className="interview-error">
-        <h2>면접을 찾을 수 없습니다</h2>
-        <button onClick={() => navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')}>대시보드로 돌아가기</button>
+      <div className="interview-page v2-root interview-v2">
+        <div className="interview-error">
+          <h2>면접을 찾을 수 없습니다</h2>
+          <button onClick={() => navigate(analysisId ? `/dashboard/${analysisId}` : '/dashboard')}>대시보드로 돌아가기</button>
+        </div>
       </div>
     )
   }
 
   const currentQuestion = questions[currentQuestionIndex]
-  const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0
+  const timerUrgencyClass =
+    timeRemaining <= 5 * 60
+      ? 'timer-v2--critical'
+      : timeRemaining <= 15 * 60
+        ? 'timer-v2--warning'
+        : ''
 
   const headerContent = (
     <>
@@ -1470,7 +1137,7 @@ export const InterviewPage: React.FC = () => {
         <span className="v2-badge v2-badge-arch">{getProgressText()}</span>
       </div>
       <div className="v2-header-right">
-        <div className="timer timer-v2">
+        <div className={`timer timer-v2 ${timerUrgencyClass}`.trim()}>
           <Clock className="v2-icon-xs" />
           <span className="timer-value">{formatTime(timeRemaining)}</span>
         </div>
@@ -1479,7 +1146,7 @@ export const InterviewPage: React.FC = () => {
           {wsConnected ? '연결됨' : '연결 끊김'}
         </div>
         <select
-          className="form-input form-input-sm v2-select"
+          className="v2-select interview-font-size-select"
           value={fontSize}
           onChange={(e) => setFontSize(e.target.value)}
           title="폰트 크기"
@@ -1512,7 +1179,7 @@ export const InterviewPage: React.FC = () => {
           <FileText className="v2-icon-xs" />
           <span className="v2-label">면접 진행 상황</span>
           <span className="v2-badge v2-badge-arch v2-progress-badge">
-            {Math.round(progress)}%
+            {questions.length > 0 ? `${currentQuestionIndex + 1}/${questions.length}` : '0/0'}
           </span>
         </div>
         <div className="v2-sidebar-section-body">
@@ -1528,7 +1195,7 @@ export const InterviewPage: React.FC = () => {
               >
                 <div className="question-number">Q{index + 1}</div>
                 <div className="question-preview">
-                  <span className="question-text">
+                  <span className="question-preview-text">
                     {question.question.length > 50
                       ? question.question.substring(0, 50) + '...'
                       : question.question}
@@ -1594,24 +1261,24 @@ export const InterviewPage: React.FC = () => {
           <div className="question-container" ref={questionContainerRef}>
             {currentQuestion && (
               <div className="current-question">
-                <div className="question-header">
-                  <div className="question-meta">
-                    <span className="question-number">
+                <div className="interview-question-header">
+                  <div className="interview-question-meta">
+                    <span className="interview-question-number">
                       {currentQuestion.parent_question_id && currentQuestion.sub_question_index
                         ? `Q${currentQuestion.sub_question_index}`
                         : `Q${currentQuestionIndex + 1}`}
                     </span>
                     {getCategoryIcon(currentQuestion.category)}
-                    <span className="category-name">{currentQuestion.category}</span>
+                    <span className="interview-category-name">{currentQuestion.category}</span>
                     <span
-                      className={`difficulty-badge ${getDifficultyClass(currentQuestion.difficulty)}`}
+                      className={`interview-difficulty-badge ${getDifficultyClass(currentQuestion.difficulty)}`}
                     >
                       {currentQuestion.difficulty}
                     </span>
                   </div>
-                  <div className="question-navigation">
+                  <div className="interview-question-navigation">
                     <button
-                      className="nav-btn prev"
+                      className="interview-nav-btn prev"
                       onClick={() => navigateQuestion(-1)}
                       disabled={currentQuestionIndex === 0}
                       title="이전 질문 (Ctrl+←)"
@@ -1620,7 +1287,7 @@ export const InterviewPage: React.FC = () => {
                       이전
                     </button>
                     <button
-                      className="nav-btn next"
+                      className="interview-nav-btn next"
                       onClick={() => navigateQuestion(1)}
                       disabled={currentQuestionIndex === questions.length - 1}
                       title="다음 질문 (Ctrl+→)"
@@ -1630,8 +1297,8 @@ export const InterviewPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <div className="question-content">
-                  <div className="question-text">
+                <div className="interview-question-content">
+                  <div className="interview-question-text">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -1644,8 +1311,8 @@ export const InterviewPage: React.FC = () => {
                     </ReactMarkdown>
                   </div>
                   {currentQuestion.context && (
-                    <div className="question-context">
-                      <Lightbulb className="v2-icon-sm question-context-icon question-context-icon--inline" />
+                    <div className="interview-question-context">
+                      <Lightbulb className="v2-icon-sm interview-question-context-icon interview-question-context-icon--inline" />
                       {currentQuestion.context}
                     </div>
                   )}
@@ -1672,28 +1339,28 @@ export const InterviewPage: React.FC = () => {
                     <div className="answer-feedback-section">
                       {message.feedback.is_conversation ? (
                         <div className="conversation-feedback">
-                          <div className="feedback-header">
-                            <span className="feedback-label">AI 응답</span>
+                          <div className="interview-feedback-header">
+                            <span className="interview-feedback-label">AI 응답</span>
                           </div>
-                          <div className="feedback-message">
+                          <div className="interview-feedback-message">
                             {message.feedback.feedback || message.feedback.message}
                           </div>
                         </div>
                       ) : (
                         <>
-                          <div className="feedback-header">
-                            <span className="feedback-label">AI 피드백</span>
-                            <span className="feedback-score">
+                          <div className="interview-feedback-header">
+                            <span className="interview-feedback-label">AI 피드백</span>
+                            <span className="interview-feedback-score">
                               {(message.feedback?.overall_score || message.feedback?.score || 0)}/10
                             </span>
                           </div>
-                          <div className="feedback-message">
+                          <div className="interview-feedback-message">
                             {message.feedback.feedback || message.feedback.message}
                           </div>
                           {message.feedback.suggestions && (
-                            <div className="feedback-suggestions">
-                              <div className="suggestions-title">개선 제안:</div>
-                              <ul className="suggestions-list">
+                            <div className="interview-feedback-suggestions">
+                              <div className="interview-suggestions-title">개선 제안:</div>
+                              <ul className="interview-suggestions-list">
                                 {message.feedback.suggestions.map((suggestion, index) => (
                                   <li key={index}>{suggestion}</li>
                                 ))}
@@ -1792,7 +1459,7 @@ export const InterviewPage: React.FC = () => {
                     console.log('[INPUT] setCurrentAnswer 호출됨')
                   }}
                   placeholder={conversationMode ? '궁금한 점을 질문해보세요...' : '답변을 입력하세요... (구체적인 예시와 함께 설명해주세요)'}
-                  className="form-input form-textarea"
+                  className="interview-answer-textarea"
                   rows={8}
                   onFocus={() => {
                     if (textareaRef.current) {
@@ -1865,7 +1532,7 @@ export const InterviewPage: React.FC = () => {
                     >
                       {isSubmitting ? (
                         <>
-                          <span className="spinner-small"></span>
+                          <span className="interview-spinner-small"></span>
                           {conversationMode ? '질문 중...' : '제출 중...'}
                         </>
                       ) : (

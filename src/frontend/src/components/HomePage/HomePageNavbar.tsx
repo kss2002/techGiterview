@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Key, Video, Settings, ChevronDown, Check } from 'lucide-react';
+import { Key, Video, ChevronDown, Check } from 'lucide-react';
 
 interface AIProvider {
     id: string;
@@ -37,28 +37,34 @@ export const HomePageNavbar: React.FC<HomePageNavbarProps> = ({
             <div className="navbar-content">
                 {/* Logo Area */}
                 <div className="navbar-logo">
-                    <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em', color: 'var(--gray-900)' }}>
+                    <span className="home-v2-brand">
                         TechGiterview
                     </span>
                 </div>
 
                 {/* Right Controls */}
-                <div className="navbar-controls flex items-center gap-sm">
+                <div className="navbar-controls">
+                    <span
+                        className={`navbar-connection-dot ${isConnected ? 'navbar-connection-dot--ok' : 'navbar-connection-dot--error'}`}
+                        title={isConnected ? '백엔드 연결 정상' : '백엔드 연결 확인 필요'}
+                        aria-label={isConnected ? '백엔드 연결 정상' : '백엔드 연결 확인 필요'}
+                    />
                     {/* 1. Model Selector Dropdown - FIX #4: Enhanced UI */}
-                    <div className="relative">
+                    <div className="navbar-model-selector">
                         <button
                             onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
                             className="navbar-dropdown-trigger"
+                            type="button"
                         >
-                            <Video className="w-4 h-4" style={{ color: 'var(--primary-500)' }} />
+                            <Video className="v2-icon-sm navbar-trigger-icon" />
                             <span>{selectedProvider?.name || 'AI 모델'}</span>
-                            <ChevronDown className={`w-3 h-3 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--gray-400)' }} />
+                            <ChevronDown className={`v2-icon-xs navbar-trigger-chevron ${isModelDropdownOpen ? 'navbar-trigger-chevron--open' : ''}`} />
                         </button>
 
                         {isModelDropdownOpen && (
                             <>
                                 <div
-                                    className="fixed inset-0 z-40"
+                                    className="navbar-dropdown-backdrop"
                                     onClick={() => setIsModelDropdownOpen(false)}
                                 />
                                 <div className="navbar-dropdown-menu">
@@ -84,7 +90,7 @@ export const HomePageNavbar: React.FC<HomePageNavbarProps> = ({
                                                 <div className="navbar-dropdown-item-model">{provider.model}</div>
                                             </div>
                                             {selectedAI === provider.id && (
-                                                <Check className="w-4 h-4" style={{ color: 'var(--primary-600)' }} />
+                                                <Check className="v2-icon-sm navbar-dropdown-check" />
                                             )}
                                         </button>
                                     ))}
@@ -93,18 +99,19 @@ export const HomePageNavbar: React.FC<HomePageNavbarProps> = ({
                         )}
                     </div>
 
-                    <div className="h-4 w-px bg-gray-200 mx-1"></div>
+                    <div className="navbar-divider"></div>
 
                     {/* 2. API Key Settings */}
                     <button
                         onClick={onShowApiKeySetup}
-                        className={`btn-sm flex items-center gap-xs px-3 py-2 rounded-lg transition-all ${needsApiKeySetup
-                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                            : 'text-gray-600 hover:bg-gray-100'
+                        className={`navbar-settings-btn ${needsApiKeySetup
+                            ? 'navbar-settings-btn--warning'
+                            : 'navbar-settings-btn--normal'
                             }`}
+                        type="button"
                     >
-                        <Key className={`w-4 h-4 ${needsApiKeySetup ? 'text-amber-600' : 'text-gray-400'}`} />
-                        <span className="text-sm font-medium">
+                        <Key className={`v2-icon-sm navbar-settings-key-icon ${needsApiKeySetup ? 'navbar-settings-icon--warning' : 'navbar-settings-icon--normal'}`} />
+                        <span className="navbar-settings-label">
                             {needsApiKeySetup ? 'API 설정 필요' : '설정'}
                         </span>
                     </button>

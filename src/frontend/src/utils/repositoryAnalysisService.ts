@@ -4,7 +4,7 @@ import {
   processError,
 } from './homePageUtils';
 import { apiFetch } from './apiUtils';
-import { getApiKeysFromStorage } from './apiHeaders';
+import { getApiKeysFromStorage, setAnalysisToken } from './apiHeaders';
 
 /**
  * 저장소 분석 요청 처리 로직
@@ -68,9 +68,14 @@ export const handleRepositoryAnalysis = async (
     }
 
     const result = await response.json();
+    const issuedAnalysisToken =
+      response.headers.get('X-Analysis-Token') || result?.security?.analysis_token;
     const { analysisId, error } = processAnalysisResponse(result);
 
     if (analysisId) {
+      if (issuedAnalysisToken) {
+        setAnalysisToken(analysisId, issuedAnalysisToken);
+      }
       onNavigate(`/dashboard/${analysisId}`);
       return { success: true };
     } else {

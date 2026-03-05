@@ -4,7 +4,7 @@
  * 리포지토리 메타정보, 의존성 그래프, 변경 이력, 복잡도를 종합적으로 표시하는 대시보드
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { 
   Settings, 
   FileText, 
@@ -15,6 +15,7 @@ import {
   TreePine
 } from 'lucide-react'
 import './AnalysisDashboard.css'
+import { SmartFileImportanceSection } from './SmartFileImportanceSection'
 import { useChartStyles, useDynamicStyles } from '../hooks/useStyles'
 
 // 인터페이스 정의
@@ -239,7 +240,6 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
   onFileSelect
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'complexity' | 'dependency' | 'churn' | 'files' | 'advanced'>('overview')
-  const [selectedMetric, setSelectedMetric] = useState<'importance' | 'complexity' | 'risk'>('importance')
   
   // 스타일링 Hook들 추가
   const chartStyles = useChartStyles()
@@ -247,7 +247,6 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
 
   // 탭 네비게이션 로직 (고도화된 분석 탭 추가)
   const availableTabs = ['overview', 'complexity', 'dependency', 'churn', 'files', 'advanced'] as const
-  const availableMetrics = ['importance', 'complexity', 'risk'] as const
 
   // 데이터 변환 함수들 (테스트에서 검증된 로직)
   const transformToPieChartData = (langStats: LanguageStatistics) => {
@@ -289,28 +288,6 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
     if (onFileSelect) {
       onFileSelect(file)
     }
-  }
-
-  // 데이터 필터링 로직 (테스트에서 검증된 로직)
-  const filterHighComplexityHotspots = () => {
-    return dashboardData.churn_analysis.hotspots.filter(h => h.complexity > 7)
-  }
-
-  const filterRecentHotspots = () => {
-    return dashboardData.churn_analysis.hotspots.filter(h => h.recent_commits > 2)
-  }
-
-  // 색상 할당 로직 (테스트에서 검증된 로직)
-  const getColorForItem = (index: number) => {
-    const colors = ['var(--primary-600)', 'var(--primary-500)', 'var(--primary-700)', 'var(--primary-400)', 'var(--primary-800)']
-    return colors[index % colors.length]
-  }
-
-  // 반응형 레이아웃 로직 (테스트에서 검증된 로직)
-  const getGridColumns = (screenWidth: number) => {
-    if (screenWidth < 768) return 1      // Mobile
-    if (screenWidth < 1024) return 2     // Tablet
-    return 3                             // Desktop
   }
 
   const indicators = calculatePerformanceIndicators()
@@ -395,7 +372,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
             <div className="language-section">
               <h3>언어별 분포</h3>
               <div className="language-chart">
-                {pieChartData.map((entry, index) => (
+                {pieChartData.map((entry) => (
                   <div key={entry.name} className="language-item">
                     <div 
                       className={`${chartStyles.languageColor} ${chartStyles.getLanguageColorClass(entry.name)}`}
@@ -540,7 +517,7 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
             <div className="module-clusters">
               <h3>모듈 클러스터</h3>
               <div className="clusters-grid">
-                {dashboardData.dependency_analysis.module_clusters.map((cluster, index) => (
+                {dashboardData.dependency_analysis.module_clusters.map((cluster) => (
                   <div key={cluster.cluster_id} className="cluster-card">
                     <div className="cluster-header">
                       <span className="cluster-id">클러스터 {cluster.cluster_id}</span>
@@ -619,54 +596,33 @@ export const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({
         )}
 
         {activeTab === 'files' && smartFileAnalysis && (
-          <div className="files-tab">
-            <div className="critical-files-section">
-              <h3>스마트 파일 중요도 분석</h3>
-              <div className="critical-files-list">
-                {smartFileAnalysis.files.map((file, index) => {
-                  const criticalFile: CriticalFile = {
-                    path: file.file_path,
-                    importance_score: file.importance_score,
-                    quality_risk_score: file.metrics.churn_risk * 10,
-                    complexity: file.metrics.complexity_score * 10,
-                    hotspot_score: file.metrics.churn_risk * 20,
-                    file_type: file.file_path.split('.').pop() || 'unknown',
-                    language: file.file_path.split('.').pop() || 'unknown',
-                    metrics_summary: {
-                      lines_of_code: 0,
-                      fan_in: Math.round(file.metrics.dependency_centrality * 10),
-                      fan_out: Math.round(file.metrics.dependency_centrality * 5),
-                      commit_frequency: Math.round(file.metrics.churn_risk * 50),
-                      recent_commits: Math.round(file.metrics.churn_risk * 10),
-                      authors_count: Math.round(file.metrics.churn_risk * 5),
-                      centrality_score: file.metrics.dependency_centrality
-                    }
-                  }
-
-                  return (
-                    <button
-                      key={file.file_path}
-                      type="button"
-                      className="critical-file-item"
-                      onClick={() => handleFileSelect(criticalFile)}
-                    >
-                      <span className="file-rank">#{index + 1}</span>
-                      <span className="file-name">{file.file_path}</span>
-                      <span className="file-score">{file.importance_score.toFixed(2)}</span>
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="smart-file-suggestions">
-                <h4>개선 제안</h4>
-                <ul>
-                  {smartFileAnalysis.suggestions.map((suggestion, index) => (
-                    <li key={`${suggestion.type}-${index}`}>{suggestion.message}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
+          <SmartFileImportanceSection
+            criticalFiles={smartFileAnalysis.files}
+            distribution={smartFileAnalysis.distribution}
+            suggestions={smartFileAnalysis.suggestions.map((suggestion) => suggestion.message)}
+            onFileSelect={(file) => {
+              // SmartFileAnalysis를 CriticalFile 형태로 변환
+              const criticalFile: CriticalFile = {
+                path: file.file_path,
+                importance_score: file.importance_score,
+                quality_risk_score: file.metrics.churn_risk * 10, // 0-1을 0-10으로 변환
+                complexity: file.metrics.complexity_score * 10,
+                hotspot_score: file.metrics.churn_risk * 20,
+                file_type: file.file_path.split('.').pop() || 'unknown',
+                language: file.file_path.split('.').pop() || 'unknown',
+                metrics_summary: {
+                  lines_of_code: 0, // 실제 데이터 연동 시 제공
+                  fan_in: Math.round(file.metrics.dependency_centrality * 10),
+                  fan_out: Math.round(file.metrics.dependency_centrality * 5),
+                  commit_frequency: Math.round(file.metrics.churn_risk * 50),
+                  recent_commits: Math.round(file.metrics.churn_risk * 10),
+                  authors_count: Math.round(file.metrics.churn_risk * 5),
+                  centrality_score: file.metrics.dependency_centrality
+                }
+              }
+              handleFileSelect(criticalFile)
+            }}
+          />
         )}
 
         {activeTab === 'files' && !smartFileAnalysis && (

@@ -81,16 +81,18 @@ const fetchPageInitData = async (): Promise<PageInitData> => {
 // 로컬스토리지에서 즉시 사용 가능한 데이터 생성
 const getLocalData = (): PageInitData => {
   const { githubToken, upstageApiKey, googleApiKey } = getApiKeysFromStorage()
-  const hasRequiredKeys = !!(githubToken && upstageApiKey)
-  const providers: AIProvider[] = [
-    {
+  const hasRequiredKeys = !!(upstageApiKey || googleApiKey)
+  const providers: AIProvider[] = []
+
+  if (upstageApiKey) {
+    providers.push({
       id: 'upstage-solar-pro3',
       name: 'Upstage Solar Pro3 (기본)',
       model: 'solar-pro3',
-      status: upstageApiKey ? 'ready' : 'configured',
+      status: 'ready',
       recommended: true
-    },
-  ]
+    })
+  }
 
   if (googleApiKey) {
     providers.push({
@@ -98,7 +100,17 @@ const getLocalData = (): PageInitData => {
       name: 'Google Gemini 2.0 Flash',
       model: 'gemini-2.0-flash',
       status: 'ready',
-      recommended: false
+      recommended: !upstageApiKey
+    })
+  }
+
+  if (!providers.length) {
+    providers.push({
+      id: 'upstage-solar-pro3',
+      name: 'Upstage Solar Pro3 (기본)',
+      model: 'solar-pro3',
+      status: 'configured',
+      recommended: true
     })
   }
   
@@ -180,8 +192,8 @@ export const usePageInitialization = () => {
     
     // 유틸리티
     hasStoredKeys: () => {
-      const { githubToken, upstageApiKey } = getApiKeysFromStorage()
-      return !!(githubToken && upstageApiKey)
+      const { upstageApiKey, googleApiKey } = getApiKeysFromStorage()
+      return !!(upstageApiKey || googleApiKey)
     },
     
     createApiHeaders
