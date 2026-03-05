@@ -4,12 +4,16 @@
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
 
-class ResizeObserverMock {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-}
+if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
+  class ResizeObserverMock {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
 
-if (!globalThis.ResizeObserver) {
-    globalThis.ResizeObserver = ResizeObserverMock as typeof ResizeObserver;
+  Object.defineProperty(window, 'ResizeObserver', {
+    configurable: true,
+    writable: true,
+    value: ResizeObserverMock,
+  });
 }
