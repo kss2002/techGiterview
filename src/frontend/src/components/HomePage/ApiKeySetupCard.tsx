@@ -23,12 +23,25 @@ export const ApiKeySetupCard: React.FC<ApiKeySetupCardProps> = ({
     : isConnected
       ? 'home-api-status--success'
       : 'home-api-status--neutral';
+  const stepClass = needsSetup
+    ? 'home-api-step-badge--warning'
+    : isConnected
+      ? 'home-api-step-badge--success'
+      : 'home-api-step-badge--neutral';
+  const cardStateClass = needsSetup
+    ? 'home-api-key-card--warning'
+    : isConnected
+      ? 'home-api-key-card--success'
+      : 'home-api-key-card--neutral';
 
   return (
-    <div className={`home-api-key-card ${needsSetup ? 'home-api-key-card--warning' : ''}`}>
+    <div className={`home-api-key-card ${cardStateClass}`}>
       <div className="home-api-key-card-body">
         <div className="home-api-key-main">
-          <div>
+          <span className={`home-api-step-badge ${stepClass}`} aria-hidden="true">
+            1
+          </span>
+          <div className="home-api-key-text">
             <h3 className="home-api-key-title">
               <Key className="v2-icon-sm home-api-key-title-icon" />
               Step 1. API 키 설정

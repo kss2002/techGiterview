@@ -34,6 +34,7 @@ export const HomePage: React.FC = () => {
     isAnalyzing: false,
     showApiKeySetup: false,
   });
+  const [hoverPreviewRepo, setHoverPreviewRepo] = useState<string | null>(null);
 
   const shouldShowApiKeySetup = state.showApiKeySetup;
   const needsApiKeySetup = config.keys_required && !hasStoredKeys();
@@ -109,13 +110,26 @@ export const HomePage: React.FC = () => {
             <div className="home-v2-search-card">
               <RepositoryAnalysisForm
                 repoUrl={state.repoUrl}
+                displayRepoUrl={hoverPreviewRepo ?? state.repoUrl}
                 isAnalyzing={state.isAnalyzing}
                 selectedAI={selectedAI}
-                onRepoUrlChange={(url) => updateState({ repoUrl: url })}
+                onRepoUrlChange={(url) => {
+                  setHoverPreviewRepo(null);
+                  updateState({ repoUrl: url });
+                }}
                 onSubmit={handleSubmit}
               />
               <SampleRepositoriesSection
-                onRepoSelect={(url) => updateState({ repoUrl: url })}
+                onRepoSelect={(url) => {
+                  setHoverPreviewRepo(null);
+                  updateState({ repoUrl: url });
+                }}
+                onRepoHoverStart={(url) => {
+                  if (!state.isAnalyzing) {
+                    setHoverPreviewRepo(url);
+                  }
+                }}
+                onRepoHoverEnd={() => setHoverPreviewRepo(null)}
                 isAnalyzing={state.isAnalyzing}
               />
             </div>

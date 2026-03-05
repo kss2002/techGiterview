@@ -2,6 +2,7 @@ import React from 'react';
 
 interface RepositoryAnalysisFormProps {
   repoUrl: string;
+  displayRepoUrl?: string;
   isAnalyzing: boolean;
   selectedAI: string;
   onRepoUrlChange: (url: string) => void;
@@ -10,11 +11,14 @@ interface RepositoryAnalysisFormProps {
 
 export const RepositoryAnalysisForm: React.FC<RepositoryAnalysisFormProps> = ({
   repoUrl,
+  displayRepoUrl,
   isAnalyzing,
   selectedAI,
   onRepoUrlChange,
   onSubmit,
 }) => {
+  const isPreviewing = Boolean(displayRepoUrl && displayRepoUrl !== repoUrl);
+
   return (
     <form
       onSubmit={onSubmit}
@@ -31,10 +35,10 @@ export const RepositoryAnalysisForm: React.FC<RepositoryAnalysisFormProps> = ({
         <input
           id="repo-url-input"
           type="url"
-          value={repoUrl}
+          value={displayRepoUrl ?? repoUrl}
           onChange={(e) => onRepoUrlChange(e.target.value)}
           placeholder="github.com/owner/repo"
-          className="terminal-input"
+          className={`terminal-input ${isPreviewing ? 'terminal-input--preview' : ''}`}
           required
           disabled={isAnalyzing}
           aria-describedby="url-help"
@@ -54,7 +58,10 @@ export const RepositoryAnalysisForm: React.FC<RepositoryAnalysisFormProps> = ({
               분석 중...
             </>
           ) : (
-            'Analyze'
+            <>
+              Analyze
+              <span aria-hidden="true">→</span>
+            </>
           )}
         </button>
       </div>

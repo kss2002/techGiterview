@@ -134,26 +134,26 @@
   --v2-709-elevated: #1f2d45;
 
   /* Home layout spacing (more generous rhythm) */
-  --v2-home-main-stack-gap: clamp(34px, 4.4vw, 56px);
-  --v2-home-hero-pad-top: clamp(64px, 8.2vw, 104px);
-  --v2-home-hero-pad-bottom: clamp(52px, 6vw, 78px);
-  --v2-home-hero-stack-gap: clamp(24px, 3.1vw, 38px);
+  --v2-home-main-stack-gap: clamp(26px, 3.4vw, 42px);
+  --v2-home-hero-pad-top: clamp(46px, 6.2vw, 74px);
+  --v2-home-hero-pad-bottom: clamp(34px, 4.6vw, 54px);
+  --v2-home-hero-stack-gap: clamp(18px, 2.2vw, 28px);
   --v2-home-subtitle-margin-top: 20px;
   --v2-home-subtitle-margin-bottom: 36px;
   --v2-home-search-card-offset: clamp(28px, 3.2vw, 38px);
   --v2-home-search-card-pad: clamp(28px, 3.8vw, 42px);
   --v2-home-search-card-gap: clamp(26px, 3.1vw, 34px);
-  --v2-home-section-gap: clamp(54px, 6.4vw, 84px);
-  --v2-home-activity-pad-top: clamp(46px, 5.8vw, 74px);
+  --v2-home-section-gap: clamp(38px, 4.8vw, 60px);
+  --v2-home-activity-pad-top: clamp(28px, 3.8vw, 48px);
   --v2-home-api-card-offset: clamp(4px, 1vw, 10px);
   --v2-home-api-card-pad-y: 18px;
   --v2-home-api-card-pad-x: 20px;
   --v2-home-api-card-gap: 18px;
   --v2-home-model-grid-gap: 14px;
   --v2-home-model-grid-margin-bottom: 1.75rem;
-  --v2-home-mobile-main-stack-gap: clamp(24px, 6.4vw, 34px);
-  --v2-home-mobile-hero-pad-top: clamp(38px, 9vw, 54px);
-  --v2-home-mobile-hero-pad-bottom: clamp(30px, 7vw, 42px);
+  --v2-home-mobile-main-stack-gap: clamp(20px, 5.4vw, 30px);
+  --v2-home-mobile-hero-pad-top: clamp(30px, 7.2vw, 44px);
+  --v2-home-mobile-hero-pad-bottom: clamp(24px, 5.8vw, 34px);
   --v2-home-mobile-search-card-pad: 20px;
   --v2-home-mobile-search-card-gap: 18px;
   --v2-home-mobile-activity-pad: 34px;

@@ -4,20 +4,26 @@ import { extractRepoName } from '../../utils/homePageUtils';
 
 interface SampleRepositoriesSectionProps {
   onRepoSelect: (url: string) => void;
+  onRepoHoverStart?: (url: string) => void;
+  onRepoHoverEnd?: () => void;
   isAnalyzing: boolean;
 }
 
 export const SampleRepositoriesSection: React.FC<
   SampleRepositoriesSectionProps
-> = ({ onRepoSelect, isAnalyzing }) => {
+> = ({ onRepoSelect, onRepoHoverStart, onRepoHoverEnd, isAnalyzing }) => {
   return (
     <div className="sample-repos-section">
-      <p className="sample-repos-label">예시로 시작하기</p>
+      <p className="sample-repos-label">✦ 예시로 시작하기</p>
       <div className="sample-repo-chips">
         {SAMPLE_REPOSITORIES.map((repo, index) => (
           <button
             key={index}
             onClick={() => onRepoSelect(repo)}
+            onMouseEnter={() => onRepoHoverStart?.(repo)}
+            onMouseLeave={() => onRepoHoverEnd?.()}
+            onFocus={() => onRepoHoverStart?.(repo)}
+            onBlur={() => onRepoHoverEnd?.()}
             className="sample-repo-chip"
             disabled={isAnalyzing}
           >

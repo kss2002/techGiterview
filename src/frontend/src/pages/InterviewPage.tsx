@@ -8,6 +8,7 @@ import {
   Sun,
   Moon,
   Settings,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Send,
@@ -31,12 +32,16 @@ import {
 import { AppShellV2 } from '../components/v2/AppShellV2'
 import { AnswerFeedback } from '../components/AnswerFeedback'
 import { debugLog } from '../utils/debugUtils'
+import { buildQuestionPreviewText } from '../utils/questionFormatter'
 import { useResizableSidebar } from '../hooks/useResizableSidebar'
 import './InterviewPage.css'
 
 interface Question {
   id: string
   question: string
+  question_headline?: string
+  question_details_markdown?: string
+  question_has_details?: boolean
   category: string
   difficulty: string
   context?: string
@@ -115,6 +120,11 @@ export const InterviewPage: React.FC = () => {
   const [showFeedback] = useState(false)
   const [isFocusMode, setIsFocusMode] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [isAnswerInputFocused, setIsAnswerInputFocused] = useState(false)
+  const [isTipsCollapsed, setIsTipsCollapsed] = useState(true)
+  const [isHeaderSettingsOpen, setIsHeaderSettingsOpen] = useState(false)
+  const [isFinishConfirmOpen, setIsFinishConfirmOpen] = useState(false)
+  const [isFinishingInterview, setIsFinishingInterview] = useState(false)
   const [conversationMode, setConversationMode] = useState<{
     questionId: string;
     originalAnswer: string;
@@ -138,6 +148,7 @@ export const InterviewPage: React.FC = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const questionContainerRef = useRef<HTMLDivElement>(null)
   const inputHeaderRef = useRef<HTMLDivElement>(null)
+  const headerSettingsRef = useRef<HTMLDivElement>(null)
 
   // WebSocket 연결
   useEffect(() => {
@@ -250,6 +261,33 @@ export const InterviewPage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isDarkMode, currentQuestionIndex])
+
+  useEffect(() => {
+    if (!isFinishConfirmOpen) return
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isFinishingInterview) {
+        setIsFinishConfirmOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleEscapeKey)
+    return () => window.removeEventListener('keydown', handleEscapeKey)
+  }, [isFinishConfirmOpen, isFinishingInterview])
+
+  useEffect(() => {
+    if (!isHeaderSettingsOpen) return
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!headerSettingsRef.current) return
+      if (event.target instanceof Node && !headerSettingsRef.current.contains(event.target)) {
+        setIsHeaderSettingsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [isHeaderSettingsOpen])
 
   // 자동 저장 기능
   useEffect(() => {
@@ -516,6 +554,9 @@ export const InterviewPage: React.FC = () => {
       const transformedQuestions = uniqueQuestionsData.map((q: any) => ({
         id: q.id,
         question: q.question,
+        question_headline: q.question_headline,
+        question_details_markdown: q.question_details_markdown,
+        question_has_details: q.question_has_details,
         category: q.category,
         difficulty: q.difficulty,
         context: typeof q.context === 'object' ? 
@@ -869,17 +910,39 @@ export const InterviewPage: React.FC = () => {
   }
 
   const finishInterview = async () => {
+    if (!interviewId || isFinishingInterview) return
+
+    setIsFinishingInterview(true)
     try {
       const response = await fetch(`/api/v1/interview/${interviewId}/finish`, {
         method: 'POST'
       })
       
       if (response.ok) {
+        setIsFinishConfirmOpen(false)
         navigate('/reports')
+      } else {
+        throw new Error('면접 종료에 실패했습니다.')
       }
     } catch (error) {
       console.error('Error finishing interview:', error)
+      setMessages(prev => [...prev, {
+        id: `finish-error-${Date.now()}`,
+        type: 'system',
+        content: 'ERROR: 면접 종료 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        timestamp: new Date()
+      }])
+    } finally {
+      setIsFinishingInterview(false)
     }
+  }
+
+  const requestFinishInterview = () => {
+    if (interview?.status === 'completed' || isFinishingInterview) {
+      return
+    }
+    setIsHeaderSettingsOpen(false)
+    setIsFinishConfirmOpen(true)
   }
 
   const scrollToBottom = () => {
@@ -1141,9 +1204,13 @@ export const InterviewPage: React.FC = () => {
           <Clock className="v2-icon-xs" />
           <span className="timer-value">{formatTime(timeRemaining)}</span>
         </div>
-        <div className={`connection-status connection-status-v2 ${wsConnected ? 'connected' : 'disconnected'}`}>
+        <div
+          className={`connection-status connection-status-v2 connection-status-v2--compact ${wsConnected ? 'connected' : 'disconnected'}`}
+          title={wsConnected ? '연결됨' : '연결 끊김'}
+          aria-label={wsConnected ? '연결됨' : '연결 끊김'}
+        >
           <span className="status-dot"></span>
-          {wsConnected ? '연결됨' : '연결 끊김'}
+          <span className="v2-sr-only">{wsConnected ? '연결됨' : '연결 끊김'}</span>
         </div>
         <select
           className="v2-select interview-font-size-select"
@@ -1156,11 +1223,46 @@ export const InterviewPage: React.FC = () => {
           <option value="large">크게</option>
         </select>
         <button
-          className="v2-btn v2-btn-outline v2-btn-sm"
+          className={`setting-btn interview-focus-toggle ${isFocusMode ? 'active' : ''}`}
           onClick={() => setIsFocusMode((prev) => !prev)}
+          title={isFocusMode ? '사이드바 표시' : '집중 모드'}
         >
-          {isFocusMode ? '사이드바 표시' : '집중 모드'}
+          <Monitor className="v2-icon-sm" />
+          <span className="v2-sr-only">{isFocusMode ? '사이드바 표시' : '집중 모드'}</span>
         </button>
+        <div className="interview-header-settings" ref={headerSettingsRef}>
+          <button
+            className={`setting-btn interview-settings-toggle ${isHeaderSettingsOpen ? 'active' : ''}`}
+            onClick={() => setIsHeaderSettingsOpen((prev) => !prev)}
+            title="면접 설정"
+            aria-label="면접 설정"
+            aria-expanded={isHeaderSettingsOpen}
+          >
+            <Settings className="v2-icon-sm" />
+          </button>
+          {isHeaderSettingsOpen && (
+            <div className="interview-settings-popover">
+              <button
+                type="button"
+                className="interview-settings-item"
+                onClick={() => {
+                  setIsFocusMode((prev) => !prev)
+                  setIsHeaderSettingsOpen(false)
+                }}
+              >
+                {isFocusMode ? '사이드바 표시' : '집중 모드'}
+              </button>
+              <button
+                type="button"
+                className="interview-settings-item interview-settings-item--danger"
+                onClick={requestFinishInterview}
+                disabled={interview.status === 'completed' || isFinishingInterview}
+              >
+                {isFinishingInterview ? '종료 중...' : '면접 종료'}
+              </button>
+            </div>
+          )}
+        </div>
         <button
           className={`setting-btn ${isDarkMode ? 'active' : ''}`}
           onClick={() => setIsDarkMode(!isDarkMode)}
@@ -1184,64 +1286,69 @@ export const InterviewPage: React.FC = () => {
         </div>
         <div className="v2-sidebar-section-body">
           <div className="questions-list questions-list-v2">
-            {questions.map((question, index) => (
-              <div
-                key={question.id}
-                className={`question-item ${
-                  index === currentQuestionIndex ? 'current' :
-                  index < currentQuestionIndex ? 'completed' : 'pending'
-                }`}
-                onClick={() => goToQuestion(index)}
-              >
-                <div className="question-number">Q{index + 1}</div>
-                <div className="question-preview">
-                  <span className="question-preview-text">
-                    {question.question.length > 50
-                      ? question.question.substring(0, 50) + '...'
-                      : question.question}
-                  </span>
-                  <div className="question-badges">
-                    <span className={`mini-category ${getCategoryThemeClass(question.category)}`}>{getCategoryIcon(question.category)}</span>
-                    <span className={`mini-difficulty ${getDifficultyClass(question.difficulty)}`}>
-                      {question.difficulty}
+            {questions.map((question, index) => {
+              const previewText = buildQuestionPreviewText(
+                {
+                  question: question.question,
+                  question_headline: question.question_headline,
+                  question_details_markdown: question.question_details_markdown,
+                  question_has_details: question.question_has_details
+                },
+                56
+              )
+
+              return (
+                <div
+                  key={question.id}
+                  className={`question-item ${
+                    index === currentQuestionIndex ? 'current' :
+                    index < currentQuestionIndex ? 'completed' : 'pending'
+                  }`}
+                  onClick={() => goToQuestion(index)}
+                >
+                  <div className="question-number">Q{index + 1}</div>
+                  <div className="question-preview">
+                    <span className="question-preview-text">
+                      {previewText || '질문 미리보기를 불러오는 중...'}
                     </span>
+                    <div className="question-badges">
+                      <span className={`mini-category ${getCategoryThemeClass(question.category)}`}>{getCategoryIcon(question.category)}</span>
+                      <span className={`mini-difficulty ${getDifficultyClass(question.difficulty)}`}>
+                        {question.difficulty}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
 
       <div className="v2-sidebar-section">
-        <div className="v2-sidebar-section-header">
+        <div className="v2-sidebar-section-header v2-sidebar-section-header--collapsible">
           <Lightbulb className="v2-icon-xs" />
           <span className="v2-label">면접 팁</span>
-        </div>
-        <div className="v2-sidebar-section-body">
-          <ul className="interview-tips">
-            <li>차분하게 생각한 후 답변하세요</li>
-            <li>구체적인 예시를 들어 설명하세요</li>
-            <li>모르는 것은 솔직히 말하세요</li>
-            <li>시간을 충분히 활용하세요</li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="v2-sidebar-section">
-        <div className="v2-sidebar-section-header">
-          <Settings className="v2-icon-xs" />
-          <span className="v2-label">면접 설정</span>
-        </div>
-        <div className="v2-sidebar-section-body">
           <button
-            onClick={finishInterview}
-            className="finish-interview-btn"
-            disabled={interview.status === 'completed'}
+            type="button"
+            className="tips-toggle-btn"
+            onClick={() => setIsTipsCollapsed((prev) => !prev)}
+            aria-label={isTipsCollapsed ? '면접 팁 펼치기' : '면접 팁 접기'}
+            aria-expanded={!isTipsCollapsed}
           >
-            면접 종료
+            <ChevronDown className={`v2-icon-xs tips-toggle-icon ${isTipsCollapsed ? 'collapsed' : ''}`} />
           </button>
         </div>
+        {!isTipsCollapsed && (
+          <div className="v2-sidebar-section-body">
+            <ul className="interview-tips">
+              <li>차분하게 생각한 후 답변하세요</li>
+              <li>구체적인 예시를 들어 설명하세요</li>
+              <li>모르는 것은 솔직히 말하세요</li>
+              <li>시간을 충분히 활용하세요</li>
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1425,27 +1532,33 @@ export const InterviewPage: React.FC = () => {
             <div className="answer-input-area">
               <div className="input-header" ref={inputHeaderRef}>
                 <h3>{conversationMode ? '질문 입력 (대화 모드)' : '답변 입력'}</h3>
-                <div className="input-help">
-                  {conversationMode ? (
-                    <>
-                      <span>질문을 입력하고 AI와 대화하세요</span>
-                      <button className="end-conversation-btn" onClick={endConversation}>
-                        대화 종료
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span>Ctrl+Enter로 제출</span>
-                      <span>Shift+Enter로 줄바꿈</span>
-                      <span>Ctrl+S로 저장</span>
-                      {lastSaved && (
-                        <span className="save-status">
-                          ✓ {lastSaved.toLocaleTimeString()}에 저장됨
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
+                {(conversationMode || isAnswerInputFocused || lastSaved) && (
+                  <div className="input-help">
+                    {conversationMode ? (
+                      <>
+                        <span>질문을 입력하고 AI와 대화하세요</span>
+                        <button className="end-conversation-btn" onClick={endConversation}>
+                          대화 종료
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {isAnswerInputFocused && (
+                          <>
+                            <span>Ctrl+Enter로 제출</span>
+                            <span>Shift+Enter로 줄바꿈</span>
+                            <span>Ctrl+S로 저장</span>
+                          </>
+                        )}
+                        {lastSaved && (
+                          <span className="save-status">
+                            ✓ {lastSaved.toLocaleTimeString()}에 저장됨
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="input-container">
@@ -1462,10 +1575,12 @@ export const InterviewPage: React.FC = () => {
                   className="interview-answer-textarea"
                   rows={8}
                   onFocus={() => {
+                    setIsAnswerInputFocused(true)
                     if (textareaRef.current) {
                       textareaRef.current.scrollTop = 0
                     }
                   }}
+                  onBlur={() => setIsAnswerInputFocused(false)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && (e.ctrlKey || e.metaKey)) {
                       console.log('[KEY] Ctrl+Enter 키보드 단축키로 답변 제출 시도')
@@ -1506,7 +1621,7 @@ export const InterviewPage: React.FC = () => {
                       disabled={!currentAnswer || isSubmitting}
                     >
                       <Save className="v2-icon-sm interview-action-icon" />
-                      저장 (Ctrl+S)
+                      저장
                     </button>
                     <button
                       onClick={(e) => {
@@ -1572,6 +1687,58 @@ export const InterviewPage: React.FC = () => {
           )}
         </div>
       </AppShellV2>
+
+      {isFinishConfirmOpen && (
+        <div
+          className="modal-backdrop interview-finish-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="interview-finish-modal-title"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !isFinishingInterview) {
+              setIsFinishConfirmOpen(false)
+            }
+          }}
+        >
+          <div className="modal modal-sm interview-finish-modal">
+            <div className="modal-header">
+              <h3 className="modal-title" id="interview-finish-modal-title">면접을 종료할까요?</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setIsFinishConfirmOpen(false)}
+                disabled={isFinishingInterview}
+                aria-label="면접 종료 확인 닫기"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="interview-finish-modal-copy">
+                종료하면 현재 면접 세션이 완료 상태로 전환되고, 결과 페이지로 이동합니다.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="clear-btn"
+                onClick={() => setIsFinishConfirmOpen(false)}
+                disabled={isFinishingInterview}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="submit-answer-btn interview-danger-btn"
+                onClick={finishInterview}
+                disabled={isFinishingInterview}
+              >
+                {isFinishingInterview ? '종료 중...' : '면접 종료'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

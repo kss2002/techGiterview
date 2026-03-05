@@ -67,4 +67,25 @@ describe('HomePageNavbar', () => {
 
     expect(screen.getByText('API 설정 필요')).toBeInTheDocument()
   })
+
+  it('renders top navigation links with active analysis tab', () => {
+    render(
+      <HomePageNavbar
+        onShowApiKeySetup={vi.fn()}
+        needsApiKeySetup={false}
+        isConnected={true}
+        providers={providers}
+        selectedAI="upstage-solar-pro3"
+        onSelectedAIChange={vi.fn()}
+      />
+    )
+
+    const analysisLink = screen.getByRole('link', { name: '분석' })
+    const reportsLink = screen.getByRole('link', { name: '내 기록' })
+    const guideButton = screen.getByRole('button', { name: '가이드' })
+
+    expect(analysisLink).toHaveClass('navbar-nav-link--active')
+    expect(reportsLink).toHaveAttribute('href', '/reports')
+    expect(guideButton).toBeDisabled()
+  })
 })

@@ -355,3 +355,36 @@ export const formatQuestionForDisplay = (
 
   return parseStructuredSections(cleaned) ?? parsePlainQuestion(cleaned)
 }
+
+export const stripMarkdownForPreview = (value: string): string => {
+  if (!value) return ''
+
+  const normalized = value
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '$1')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+    .replace(/`{1,3}([^`]+?)`{1,3}/g, '$1')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/[*_~>#|]/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n+/g, ' ')
+
+  return normalizeInlineSpaces(decodeHtmlEntities(normalized))
+}
+
+const truncatePreviewText = (value: string, maxLength: number): string => {
+  if (maxLength <= 0 || value.length <= maxLength) return value
+  return `${value.slice(0, maxLength).trimEnd()}...`
+}
+
+export const buildQuestionPreviewText = (
+  source: QuestionFormatSource,
+  maxLength: number = 50
+): string => {
+  const formatted = formatQuestionForDisplay(source)
+  const candidate = formatted.headline || formatted.normalizedQuestion || source.question || ''
+  const plain = stripMarkdownForPreview(candidate)
+
+  return truncatePreviewText(plain, maxLength)
+}
