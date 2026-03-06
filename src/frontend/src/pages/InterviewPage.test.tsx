@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
 import { InterviewPage } from './InterviewPage'
@@ -122,7 +122,11 @@ describe('InterviewPage', () => {
     const settingsButton = await screen.findByRole('button', { name: '면접 설정' })
     await user.click(settingsButton)
 
-    const finishButton = await screen.findByRole('button', { name: '면접 종료' })
+    const settingsPopover = document.querySelector('.interview-settings-popover')
+    expect(settingsPopover).not.toBeNull()
+    const finishButton = within(settingsPopover as HTMLElement).getByRole('button', {
+      name: '면접 종료'
+    })
     await user.click(finishButton)
 
     expect(await screen.findByText('면접을 종료할까요?')).toBeInTheDocument()
@@ -146,5 +150,32 @@ describe('InterviewPage', () => {
 
     fireEvent.blur(textarea)
     expect(screen.queryByText('Ctrl+Enter로 제출')).not.toBeInTheDocument()
+  })
+
+  it('renders normalized question headline without markdown label artifacts', async () => {
+    sessionStatus = 'active'
+
+    render(<InterviewPage />)
+
+    await waitFor(() => {
+      const questionText = document.querySelector('.interview-question-text')?.textContent ?? ''
+      expect(questionText).toContain('dependencies와 devDependencies 차이를 설명해보세요.')
+    })
+
+    const questionText = document.querySelector('.interview-question-text')?.textContent ?? ''
+    expect(questionText).toContain('package.json')
+    expect(questionText).not.toContain('**질문:**')
+    expect(questionText).not.toMatch(/^\s*질문[:：]/)
+  })
+
+  it('keeps finish button isolated to danger action class', async () => {
+    sessionStatus = 'active'
+
+    render(<InterviewPage />)
+
+    const finishButton = await screen.findByRole('button', { name: '면접 종료' })
+    expect(finishButton).toHaveClass('finish-interview-btn')
+    expect(finishButton).not.toHaveClass('clear-btn')
+    expect(finishButton).not.toHaveClass('save-btn')
   })
 })

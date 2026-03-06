@@ -1,4 +1,4 @@
-import { buildQuestionPreviewText, stripMarkdownForPreview } from './questionFormatter'
+import { buildQuestionPreviewText, formatQuestionForDisplay, stripMarkdownForPreview } from './questionFormatter'
 
 describe('questionFormatter preview helpers', () => {
   it('strips markdown syntax for readable preview text', () => {
@@ -26,5 +26,15 @@ describe('questionFormatter preview helpers', () => {
     expect(preview.length).toBeLessThanOrEqual(35)
     expect(preview).toMatch(/dependencies/i)
     expect(preview).toContain('...')
+  })
+
+  it('normalizes question headline by stripping markdown question labels', () => {
+    const formatted = formatQuestionForDisplay({
+      question: '**질문:** `package.json`에서 dependencies와 devDependencies 차이를 설명해보세요.'
+    })
+
+    expect(formatted.headline).toContain('package.json')
+    expect(formatted.headline).not.toContain('**')
+    expect(formatted.headline).not.toMatch(/^질문[:：]/)
   })
 })

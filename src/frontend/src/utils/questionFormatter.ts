@@ -130,6 +130,19 @@ const mergeSectionContents = (contents: string[]): string => {
   return lines.map((line) => `- ${line}`).join('\n')
 }
 
+const stripLeadingQuestionLabel = (value: string): string =>
+  value.replace(/^(?:\*\*|__)?\s*(질문|question)\s*[:：]\s*(?:\*\*|__)?\s*/i, '')
+
+const normalizeHeadlineText = (value: string): string => {
+  let line = value.trim()
+  if (!line) return ''
+
+  line = stripLeadingQuestionLabel(line)
+  line = line.replace(/^\*\*+\s*/, '').replace(/\s*\*\*+$/, '')
+  line = line.replace(/^__+\s*/, '').replace(/\s*__+$/, '')
+  return normalizeInlineSpaces(line)
+}
+
 const extractHeadline = (value: string): string => {
   const lines = value
     .split('\n')
@@ -140,7 +153,7 @@ const extractHeadline = (value: string): string => {
     return ''
   }
 
-  const firstLine = lines[0].replace(/^[>\-\*\d\.\)\s]+/, '').trim()
+  const firstLine = normalizeHeadlineText(lines[0].replace(/^[>\-\*\d\.\)\s]+/, '').trim())
   if (!firstLine) {
     return ''
   }
@@ -290,7 +303,7 @@ const parsePlainQuestion = (value: string): FormattedQuestion => {
   })
 
   const merged = (deduped.join('\n\n').trim() || value).trim()
-  const headline = extractHeadline(merged)
+  const headline = normalizeHeadlineText(extractHeadline(merged))
   const remainder = removeHeadlinePrefix(merged, headline)
   const hasDetails = remainder.length > 0 && canonicalize(remainder) !== canonicalize(headline)
 
@@ -307,9 +320,9 @@ const parsePlainQuestion = (value: string): FormattedQuestion => {
 export const formatQuestionForDisplay = (
   source: QuestionFormatSource
 ): FormattedQuestion => {
-  const backendHeadline = dedupeMirroredText(
+  const backendHeadline = normalizeHeadlineText(dedupeMirroredText(
     convertQuestionHtmlToMarkdown(stripOuterQuestionWrapperHtml(source.question_headline?.trim() ?? ''))
-  )
+  ))
   const backendDetails = dedupeMirroredText(
     convertQuestionHtmlToMarkdown(stripOuterQuestionWrapperHtml(source.question_details_markdown?.trim() ?? ''))
   )
@@ -332,7 +345,7 @@ export const formatQuestionForDisplay = (
       : backendHeadline
 
     return {
-      headline: backendHeadline,
+      headline: normalizeHeadlineText(backendHeadline),
       detailsMarkdown: hasDetails ? (normalizedDetails || backendDetails) : '',
       hasDetails,
       normalizedQuestion,
